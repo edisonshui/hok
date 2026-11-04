@@ -2634,15 +2634,15 @@ eq("with rewards off the recommended action still leads", "> `learn-resume ptr`"
 QUIET = [rsubject("fin", [rnode("n1", "solid", "2026-09-22", name="Leaves"),
                           rnode("n2", "checked", "2026-09-23", name="Roots")], status="done")]
 quiet = status.home(status.rank(QUIET, [], HOME_DAY), QUIET, status.rewards(QUIET, HOME_DAY), True, HOME_DAY)
-eq("nothing pending: the card says so and names the next review",
+eq("nothing pending: the card says so and names the skill that comes due next",
    quiet.split("\n---\n", 1)[1].lstrip("\n").splitlines()[:5],
    ["> [!question|welcome] Thursday, 24 September", "> Nothing you've passed is due for review.",
-    "> The next review is *Roots* on 26 Sep.", ">", "> Curious about something new? `learn-start`"])
-eq("with nothing proven the next-review line is left out, and there are no other options",
+    "> *Roots* comes due on 26 Sep.", ">", "> Curious about something new? `learn-start`"])
+eq("with nothing proven the comes-due line is left out, and there are no other options",
    [line for line in status.home(status.rank([rsubject("x", [], status="done")], [], HOME_DAY),
                                  [rsubject("x", [], status="done")],
                                  status.rewards([rsubject("x", [], status="done")], HOME_DAY), True,
-                                 HOME_DAY).splitlines() if "next review" in line or "Other options" in line], [])
+                                 HOME_DAY).splitlines() if "comes due" in line or "Other options" in line], [])
 eq("up to 3 milestone nodes, soonest due first",
    status.milestone([rsubject("m", [rnode("n%d" % i, "checked", "2026-09-%02d" % (20 - i), name="N%d" % i)
                                     for i in range(1, 5)])]),
@@ -3078,7 +3078,7 @@ eq("Codex gets $ commands in the block and in the open-note mechanics",
    ("`$learn-resume ptr`" in codex, "`/learn-" in codex, "`$learn-resume`" in codex), (True, False, True))
 eq("nothing pending: the Home wording on one line",
    status.startup_block(QUIET, [], True, HOME_DAY)[1],
-   "**Recommended:** Nothing you've passed is due for review. The next review is *Roots* on 26 Sep. "
+   "**Recommended:** Nothing you've passed is due for review. *Roots* comes due on 26 Sep. "
    "Curious about something new? `/learn-start`")
 eq("the live streak shows with rewards on, and not with rewards off",
    (status.startup_block(HOME_SUBJECTS, [], True, HOME_DAY)[2], "Review streak" in "".join(

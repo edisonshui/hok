@@ -1410,7 +1410,7 @@ def home(ranked, subjects, state, rewards_on, today):
         out.append("> Nothing you've passed is due for review.")
         upcoming = next_review(subjects)
         if upcoming:
-            out.append("> The next review is *%s* on %s." % (upcoming[0], short_date(upcoming[1])))
+            out.append("> *%s* comes due on %s." % (upcoming[0], short_date(upcoming[1])))
         out += [">", "> Curious about something new? `learn-start`"]
     else:
         # A Deadline welcome is a whole clause ("Calc's deadline is ..."); the
@@ -1924,7 +1924,7 @@ def startup_block(subjects, notes, rewards_on, today, selected=None, host="claud
         if top["kind"] == "Start":
             upcoming = next_review(subjects)
             out.append("**Recommended:** Nothing you've passed is due for review.%s Curious about "
-                       "something new? `%s`" % (" The next review is *%s* on %s." % (
+                       "something new? `%s`" % (" *%s* comes due on %s." % (
                            upcoming[0], short_date(upcoming[1])) if upcoming else "",
                            command_form("learn-start", host)))
         else:
