@@ -182,10 +182,11 @@
     }
 
     // The composer's send: a stopped tutor starts first, with the reopen
-    // command as its CLI prompt, and the message waits in the queue.
+    // command as its CLI prompt, and the message joins the queue behind any
+    // still waiting from before the tutor stopped.
     function submit(message, startPrompt) {
       if (!st.running) {
-        st.queue = [message];
+        st.queue.push(message);
         emit("stick");
         return start(startPrompt || "");
       }

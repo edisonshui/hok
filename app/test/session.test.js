@@ -197,6 +197,24 @@ test("the composer's send queues the message and starts with the reopen prompt",
   assert.ok(sent(h).includes("first question"));
 });
 
+test("a second send while the tutor still starts keeps the first message", async () => {
+  let release;
+  const h = make({ startProcess: () => new Promise((r) => { release = () => r({ running: true }); }) });
+  h.subject = { slug: "cs124", status: "active" };
+  const p = h.ses.submit("first thought", "/learn-resume cs124");
+  await drain();
+  h.ses.submit("second thought", "/learn-resume cs124");
+  assert.deepEqual(h.st.queue, ["first thought", "second thought"]);
+  release();
+  await p;
+  h.ses.onOutput("ready ❯ ");
+  await h.clock.tick(1600);
+  assert.ok(sent(h).includes("first thought"));
+  h.ses.onOutput("ok ❯ ");
+  await h.clock.tick(1600);
+  assert.ok(sent(h).includes("second thought"));
+});
+
 // ---------- the trust question (fixed in 96f024c) ----------
 
 test("the trust question is spotted through ANSI moves and split chunks", async () => {
