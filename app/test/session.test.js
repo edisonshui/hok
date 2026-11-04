@@ -99,6 +99,21 @@ test("a second start while the first is still starting is ignored", async () => 
   assert.equal(h.st.running, true);
 });
 
+test("a start while the tutor already runs changes nothing", async () => {
+  const h = make();
+  await h.ses.start("/learn-resume cs124");
+  await h.clock.tick(3000);
+  const startedAt = h.st.startedAt;
+  h.ses.onOutput(TRUST_TEXT);
+  const r = await h.ses.start(""); // the palette's "open with no command"
+  assert.equal(r, null);
+  assert.equal(h.startPrompts.length, 1); // no second pty start
+  assert.equal(h.st.running, true);
+  assert.equal(h.st.route, "cs124"); // the open session is not forgotten
+  assert.equal(h.st.trust, true); // the unanswered trust card stays up
+  assert.equal(h.st.startedAt, startedAt);
+});
+
 test("busy means output in the last 1.2s; workFrom marks where a turn began", async () => {
   const h = make();
   await h.ses.start("");

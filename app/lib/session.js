@@ -106,7 +106,10 @@
     }
 
     async function start(prompt) {
-      if (st.starting) return null;
+      // A start while the tutor runs would not start a second process (the
+      // main process keeps the one it has), but it would wipe the terminal and
+      // forget the open route and an unanswered trust question. Do nothing.
+      if (st.starting || st.running) return null;
       st.starting = true;
       emit("term");
       if (io.prepare) await io.prepare();
