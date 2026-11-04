@@ -181,13 +181,17 @@
 
     // What the learner says on a subject's Session goes to that subject. When
     // no session is open for it (never resumed, or saved with /learn-end), the
-    // app reopens it first and sends the message once the tutor is quiet.
+    // app reopens it first and sends the message once the tutor is quiet. A
+    // message sent while others still wait joins the back of the queue, so
+    // nothing arrives out of order.
     function say(message) {
       const s = io.currentSubject(), text = msgText(message);
-      if (s && st.running && st.route !== s.slug && !OWN_ROUTE.test(text)) {
-        st.queue.unshift(message);
+      const reopen = s && st.running && st.route !== s.slug && !OWN_ROUTE.test(text);
+      if (reopen || (st.queue.length && !OWN_ROUTE.test(text))) {
+        st.queue.push(message);
         emit("queued");
-        return send(io.reopenCommand(s));
+        if (reopen) return send(io.reopenCommand(s));
+        return;
       }
       return send(message);
     }
@@ -205,11 +209,15 @@
     }
 
     // Queued messages wait for a quiet terminal, and never go into a question
-    // the tutor is waiting on or into Claude Code's trust question.
+    // the tutor is waiting on or into Claude Code's trust question. One goes
+    // per quiet spell, in order; with the route still closed, the reopen goes
+    // instead and the queue holds.
     function flushQueue() {
       if (!st.running || !st.queue.length) return;
       if (st.trust || (io.hasWaitingQuestion && io.hasWaitingQuestion())) return;
-      say(st.queue.shift());
+      const s = io.currentSubject(), text = msgText(st.queue[0]);
+      if (s && st.route !== s.slug && !OWN_ROUTE.test(text)) return send(io.reopenCommand(s));
+      send(st.queue.shift());
       emit("flushed");
     }
 

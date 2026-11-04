@@ -389,6 +389,25 @@ test("a message after /learn-end reopens the subject first, then sends", async (
   assert.ok(sent(h).includes("one more question"));
 });
 
+test("a second message does not jump ahead of one still waiting for the reopen", async () => {
+  const h = make();
+  h.subject = { slug: "cs124", status: "active" };
+  await h.ses.start("/learn-resume cs124");
+  h.ses.send("/learn-end");
+  await h.clock.tick(100);
+  h.written.length = 0;
+  h.ses.say("first");
+  h.ses.say("second"); // the reopen went out, but "first" has not: hold this one
+  assert.deepEqual(h.st.queue, ["first", "second"]);
+  assert.deepEqual(sent(h), ["/learn-resume cs124"]);
+  h.ses.onOutput("resumed ❯ ");
+  await h.clock.tick(1600);
+  h.ses.onOutput("ok ❯ ");
+  await h.clock.tick(1600);
+  const texts = sent(h);
+  assert.ok(texts.indexOf("first") >= 0 && texts.indexOf("first") < texts.indexOf("second"));
+});
+
 test("a done subject reopens with practice, not resume", async () => {
   const h = make();
   h.subject = { slug: "cs124", status: "done" };
