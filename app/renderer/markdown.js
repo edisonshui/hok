@@ -105,6 +105,12 @@ function loadLibs() {
   return libs;
 }
 
+// The math box (MathLive) writes a few commands of its own, like \differentialD
+// for the d in dx. KaTeX doesn't know them, so it would show them in red.
+const MATHLIVE_MACROS = {
+  "\\differentialD": "\\mathrm{d}", "\\capitalDifferentialD": "\\mathrm{D}",
+  "\\exponentialE": "\\mathrm{e}", "\\imaginaryI": "\\mathrm{i}", "\\imaginaryJ": "\\mathrm{j}",
+};
 const needsLibs = (el) => /\$|\\\(/.test(el.textContent) || el.querySelector(".mermaid");
 let mermaidTheme = "";
 let mermaidSeq = 0;
@@ -115,6 +121,7 @@ async function typeset(el) {
     window.renderMathInElement(el, {
       delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }, { left: "\\(", right: "\\)", display: false }],
       throwOnError: false,
+      macros: MATHLIVE_MACROS,
       ignoredClasses: ["codeblock", "mermaid"],
     });
   }
@@ -147,5 +154,5 @@ async function typeset(el) {
   }
 }
 
-window.MD = { esc, inline, renderMd, typeset };
+window.MD = { esc, inline, renderMd, typeset, MATHLIVE_MACROS };
 })();

@@ -1264,14 +1264,31 @@ if (window.MathLive) {
   MathLive.MathfieldElement.soundsDirectory = null;
   MathLive.MathfieldElement.plonkSound = null;
 }
+// A chip goes out as standard LaTeX (\mathrm{d}, not MathLive's \differentialD),
+// with a space between it and a word or another chip, so "$dx$which" and "$a$$b$"
+// (which reads as display math) never reach the tutor.
+const MATHLIVE_CMD = /\\(differentialD|capitalDifferentialD|exponentialE|imaginaryI|imaginaryJ)(?![a-zA-Z])/g;
+function chipLatex(mf) {
+  return mf.value.trim().replace(MATHLIVE_CMD, (m) => (window.MD && MD.MATHLIVE_MACROS[m]) || m);
+}
 function msgValue() {
-  let out = "";
+  let out = "", afterChip = false;
+  const tail = () => out.replace(/\u200b+$/, "").slice(-1);
   const walk = (node) => {
     for (const n of node.childNodes) {
-      if (n.nodeType === 3) out += n.nodeValue;
-      else if (n.tagName === "MATH-FIELD") { const v = n.value.trim(); if (v) out += `$${v}$`; }
-      else if (n.tagName === "BR") out += "\n";
-      else { if (/^(DIV|P)$/.test(n.tagName) && out && !out.endsWith("\n")) out += "\n"; walk(n); }
+      if (n.nodeType === 3) {
+        if (afterChip && /^[\u200b]*[\w(]/.test(n.nodeValue)) out += " ";
+        out += n.nodeValue;
+        if (n.nodeValue.replace(/\u200b/g, "")) afterChip = false;
+      } else if (n.tagName === "MATH-FIELD") {
+        const v = chipLatex(n);
+        if (!v) continue;
+        if (/[\w$).,]/.test(tail())) out += " ";
+        out += `$${v}$`;
+        afterChip = true;
+      }
+      else if (n.tagName === "BR") { out += "\n"; afterChip = false; }
+      else { if (/^(DIV|P)$/.test(n.tagName) && out && !out.endsWith("\n")) { out += "\n"; afterChip = false; } walk(n); }
     }
   };
   walk(MSG);
@@ -1483,6 +1500,20 @@ function itemHtml(it, waiting, k) {
       ${waiting ? `<div class="how">${icon("terminal", "xs")}Pick your answer in the terminal, where the tutor asked. <button data-act="open-term">Open the terminal</button></div>` : ""}
     </div>`).join("");
   }
+  // A check the tutor wrote as a `> [!check]` callout (tutor.md, 2026-10-29): stem,
+  // lettered options, then the confidence ask. Answered by typing, like any chat check.
+  if (it.kind === "check") {
+    const lines = it.text.split("\n"), opt = /^([A-Z])\.\s+(.*)$/;
+    const first = lines.findIndex((l) => opt.test(l)), last = lines.length - 1 - [...lines].reverse().findIndex((l) => opt.test(l));
+    const stem = first < 0 ? it.text : lines.slice(0, first).join("\n"), ask = first < 0 ? "" : lines.slice(last + 1).join("\n");
+    const opts = first < 0 ? [] : lines.slice(first, last + 1).filter((l) => opt.test(l)).map((l) => l.match(opt));
+    return `<div class="question">
+      <div class="q-text"><b>${esc(it.label || "Check")}</b></div>
+      ${stem.trim() ? `<div class="q-text">${renderMd(stem)}</div>` : ""}
+      ${opts.map(([, k, o]) => `<div class="option"><i class="radio"></i><span><b>${k}.</b> ${inline(o)}</span></div>`).join("")}
+      ${ask.trim() ? `<div class="q-text">${renderMd(ask)}</div>` : ""}
+    </div>`;
+  }
   if (it.kind === "answer") {
     if (it.skipped) return `<div class="me"><span class="bubble ink2">Skipped the question to say something first.</span></div>`;
     return it.parts && it.parts.length ? `<div class="me"><span class="bubble">${it.parts.map(youText).join("\n\n")}</span></div>` : "";
@@ -1582,6 +1613,13 @@ function paintLog(full) {
   paintActs();
 }
 function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0; return h; }
+// The thread ends above the dock however tall the composer grows (long
+// messages, math, pasted images), and stays pinned if you were at the bottom.
+new ResizeObserver(() => {
+  const b = $("threadScroll"), near = b.scrollHeight - b.scrollTop - b.clientHeight < 80;
+  $("session").style.setProperty("--dock-h", `${$("dock").offsetHeight}px`);
+  if (near) b.scrollTop = b.scrollHeight;
+}).observe($("dock"));
 $("threadScroll").addEventListener("scroll", () => {
   const b = $("threadScroll");
   if (b.scrollHeight - b.scrollTop - b.clientHeight < 80) $("newPill").classList.remove("on");
