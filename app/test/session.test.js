@@ -431,6 +431,22 @@ test("a command typed straight into the terminal still moves the route", async (
   assert.equal(h.st.routeEnded, true);
 });
 
+test("arrow keys and Esc in the terminal do not pollute the typed command", async () => {
+  const h = make();
+  await h.ses.start("");
+  // Up, Down, then a command: the cursor moves are not part of what was typed.
+  h.ses.onUserInput("\x1b[A");
+  h.ses.onUserInput("\x1b[B");
+  h.ses.onUserInput("/learn-resume phys\r");
+  assert.equal(h.st.route, "phys");
+  // Esc clears Claude Code's input box, so the tracked text resets with it.
+  h.ses.onUserInput("half a thought");
+  h.ses.onUserInput("\x1b");
+  h.ses.onUserInput("/learn-end\r");
+  assert.equal(h.st.route, null);
+  assert.equal(h.st.routeEnded, true);
+});
+
 // ---------- the main process's helpers ----------
 
 test("quote wraps for the login shell and for cmd", () => {

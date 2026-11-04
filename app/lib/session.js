@@ -96,10 +96,18 @@
     }
 
     // Keystrokes the learner types straight into the terminal: a command typed
-    // there still moves the route.
+    // there still moves the route. Escape sequences (arrows, function keys) are
+    // skipped whole, and a bare Esc resets the tracked text, since it clears
+    // Claude Code's input box too.
     function onUserInput(d) {
-      for (const ch of d) {
-        if (ch === "\r") { noteRoute(st.typed); st.typed = ""; }
+      const s = String(d);
+      for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        if (ch === "\x1b") {
+          if (s[i + 1] === "[" || s[i + 1] === "O") { i += 2; while (i < s.length && !(s[i] >= "@" && s[i] <= "~")) i++; }
+          st.typed = "";
+        }
+        else if (ch === "\r") { noteRoute(st.typed); st.typed = ""; }
         else if (ch === "\x7f") st.typed = st.typed.slice(0, -1);
         else if (ch >= " ") st.typed += ch;
       }
