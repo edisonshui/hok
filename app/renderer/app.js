@@ -279,7 +279,7 @@ function slideTab() {
   ind.style.transform = `translateX(${to.x}px)`; ind.style.width = `${to.w}px`;
   lastTab = to;
 }
-function busy() { return T.running && Date.now() - T.lastData < 1200; }
+function busy() { return SES.busy(); }
 function paintStatus() {
   const el = $("statusLine");
   if (!el) return;
@@ -386,35 +386,22 @@ function leftOpen() {
 // has the button. The first click arms it and a second within 4s runs it, since
 // it changes the record. Close-outs run one at a time (each is a background
 // tutor run of about a minute), so a click while another runs waits in line.
-let closing = null, armed = null, armTimer = null;
-const closeQueue = [];
 const isLeftOpen = (slug) => leftOpen().some((x) => x.slug === slug);
-const closePending = (slug) => closing === slug || closeQueue.includes(slug);
-const canClose = (s) => !!s && (s.status !== "done" || closePending(s.slug));
 function repaintClose() { if (route.name === "session") { paintActs(); if (LOG.data) paintThread(false); } }
-ACTIONS["close-open"] = (slug) => {
-  const s = subj(slug);
-  if (!s || closePending(slug) || s.status === "done") return;
-  if (armed !== slug) {
-    armed = slug; clearTimeout(armTimer);
-    armTimer = setTimeout(() => { armed = null; repaintClose(); }, 4000);
-    return repaintClose();
-  }
-  armed = null; clearTimeout(armTimer);
-  closeQueue.push(slug);
-  if (closing) { repaintClose(); toast("Queued. It closes out once the one running now finishes."); }
-  else nextClose();
-};
-async function nextClose() {
-  closing = closeQueue.shift() || null;
-  repaintClose();
-  if (!closing) return;
-  const slug = closing, s = subj(slug);
-  const result = await F.closeOut(slug);
-  closing = null;
-  toast(result.ok ? `Closed out ${s ? nick(s) : "the subject"}. It's in Done now, and its skills still come up for review.` : `Couldn't close out ${s ? nick(s) : "the session"}: ${result.text.split("\n").pop().slice(0, 160)}`);
-  nextClose();
-}
+const CLOSE = window.Session.createCloseout({
+  closeOut: (slug) => F.closeOut(slug),
+  subject: (slug) => subj(slug),
+  onEvent: (kind, payload) => {
+    if (kind === "queued-behind") toast("Queued. It closes out once the one running now finishes.");
+    if (kind === "finished") {
+      const s = subj(payload.slug), result = payload.result;
+      toast(result.ok ? `Closed out ${s ? nick(s) : "the subject"}. It's in Done now, and its skills still come up for review.` : `Couldn't close out ${s ? nick(s) : "the session"}: ${result.text.split("\n").pop().slice(0, 160)}`);
+    }
+    repaintClose();
+  },
+});
+const canClose = (s) => CLOSE.canClose(s);
+ACTIONS["close-open"] = (slug) => CLOSE.request(slug);
 function paintHome() {
   const top = S.ranked[0], s = top && top.subject ? subj(top.subject) : null;
   inkAction = () => run(top);
@@ -926,24 +913,38 @@ function sysFocus(slug) {
 }
 
 // ---------- the tutor's terminal ----------
-const T = { term: null, fit: null, running: false, starting: false, startedAt: 0, ended: null, failed: null, drawer: false, lastData: 0,
-  queue: [], raw: "", trust: false, trustSeen: false, route: null, routeEnded: false, lastSent: "", interrupted: 0, typed: "", workFrom: 0 };
-// Claude Code asks once per folder whether to trust it, and its default answer is
-// "No, exit". Its text arrives split by cursor moves, so it is matched without spaces.
-const ANSI = /\x1b\[[0-9;?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]|\x1b[=>78]/g;
-const TRUST_ASK = /Yes,Itrustthisfolder/;
-// The vault's hook files a message under a subject only after /learn-start,
-// /learn-resume, or /learn-practice names it, and stops after /learn-end's turn.
-// Flash follows the same rule so a message never lands outside the thread.
-const ROUTE_CMD = /^\s*[/$]learn-(start|resume|practice)\s+([A-Za-z0-9][A-Za-z0-9_.-]*)/;
-const END_CMD = /^\s*[/$]learn-end(?:\s|$)/;
-function noteRoute(text) {
-  const m = String(text).match(ROUTE_CMD);
-  if (m) { T.route = m[2].replace(/\.$/, "").replace(/\./g, "-"); T.routeEnded = false; }
-  else if (END_CMD.test(text)) { T.route = null; T.routeEnded = true; }
-  else return;
-  if (route.name === "session") paintComposer();
-}
+// The window-only fields; lib/session.js owns the session's state and fills in
+// the rest (running, starting, trust, route, queue, …) so paints read T as before.
+const T = { term: null, fit: null, drawer: false };
+const { msgText, msgImages } = window.Session;
+const SES = window.Session.createSession({
+  state: T,
+  write: (d) => F.pty.write(d),
+  startProcess: (prompt) => F.pty.start({ cols: T.term.cols, rows: T.term.rows, prompt }),
+  stopProcess: () => F.pty.stop(),
+  prepare: async () => {
+    await ensureTerm();
+    try { T.fit.fit(); } catch { /* drawer not laid out yet */ }
+    T.term.clear();
+    T.term.reset();
+  },
+  saveImage: (bytes, type) => F.saveImage(bytes, type),
+  inputLine: () => inputLine(),
+  cols: () => (T.term && T.term.cols) || 80,
+  currentSubject: () => subj(route.slug),
+  reopenCommand: (s) => command(`${s.status === "done" ? "learn-practice" : "learn-resume"} ${s.slug}`),
+  hasWaitingQuestion: () => logEntries().some((e) => e.waiting),
+  restoreDraft: (kept) => { if (msgEmpty()) setMsg(kept); },
+  onEvent: (kind, payload) => {
+    if (kind === "term") afterTermChange();
+    else if (kind === "route") { if (route.name === "session") paintComposer(); }
+    else if (kind === "sent" || kind === "stick") LOG.stick = true;
+    else if (kind === "queued") { LOG.stick = true; if (route.name === "session" && LOG.data) paintThread(false); }
+    else if (kind === "flushed") { if (route.name === "session" && LOG.data) paintThread(false); }
+    else if (kind === "started") { if (T.drawer) T.term.focus(); else focusMsg(); }
+    else if (kind === "start-failed") toast(`Could not start ${tutorName()}: ${payload}. Check that it runs in Terminal, then try again.`);
+  },
+});
 function termTheme() {
   const css = getComputedStyle(document.documentElement), v = (n) => css.getPropertyValue(n).trim();
   // ANSI colors come from the tokens, so the terminal keeps the app's contrast in both themes.
@@ -971,34 +972,16 @@ async function ensureTerm() {
     if (!T.running) return;
     F.pty.write(d);
     // A command typed straight into the terminal still moves the route.
-    for (const ch of d) {
-      if (ch === "\r") { noteRoute(T.typed); T.typed = ""; }
-      else if (ch === "\x7f") T.typed = T.typed.slice(0, -1);
-      else if (ch >= " ") T.typed += ch;
-    }
+    SES.onUserInput(d);
   });
   F.pty.onData((d) => {
     term.write(d);
-    const was = busy();
-    T.lastData = Date.now();
-    if (!was) T.workFrom = T.lastData;
-    if (!T.trustSeen) {
-      T.raw = (T.raw + d).slice(-8000);
-      if (TRUST_ASK.test(T.raw.replace(ANSI, "").replace(/\s+/g, ""))) { T.trust = T.trustSeen = true; afterTermChange(); }
-    }
-    // Answered in the terminal instead: Claude Code's banner follows a yes.
-    else if (T.trust && /ClaudeCodev\d/.test(d.replace(ANSI, "").replace(/\s+/g, ""))) { T.trust = false; afterTermChange(); }
-    if (T.queue.length) { clearTimeout(T.queueTimer); T.queueTimer = setTimeout(flushQueue, 1500); }
+    const was = SES.onOutput(d);
     if (!was) paintStatus();
     clearTimeout(T.idle);
     T.idle = setTimeout(paintStatus, 1300);
   });
-  F.pty.onExit(() => {
-    T.running = false;
-    T.ended = new Date();
-    T.trust = false; T.route = null; T.routeEnded = false;
-    afterTermChange();
-  });
+  F.pty.onExit(() => SES.onExit());
   new ResizeObserver(() => fitSoon()).observe($("termcard"));
   T.term = term;
   return term;
@@ -1019,66 +1002,10 @@ function afterTermChange() {
   paintStatus(); paintActs(); paintComposer(); paintDrawerNote();
   if (LOG.data) paintThread(false);
 }
-async function startTutor(prompt) {
-  if (T.starting) return;
-  T.starting = true;
-  afterTermChange();
-  await ensureTerm();
-  try { T.fit.fit(); } catch { /* drawer not laid out yet */ }
-  T.term.clear();
-  T.term.reset();
-  T.raw = ""; T.trust = T.trustSeen = false; T.interrupted = 0; T.typed = ""; T.route = null; T.routeEnded = false;
-  noteRoute(prompt || "");
-  const result = await F.pty.start({ cols: T.term.cols, rows: T.term.rows, prompt: prompt || "" });
-  T.starting = false;
-  if (result && result.error) {
-    T.failed = result.error;
-    afterTermChange();
-    toast(`Could not start ${tutorName()}: ${result.error}. Check that it runs in Terminal, then try again.`);
-    return;
-  }
-  T.running = true; T.startedAt = Date.now(); T.ended = null; T.failed = null;
-  afterTermChange();
-  if (T.drawer) T.term.focus(); else focusMsg();
-}
-// Type into the running tutor as the learner would: the text, then Return.
-// Several lines go in as one bracketed paste, so the first line break does not send.
-// After Esc, Claude Code puts the interrupted message back in its input box, where
-// Flash can't see it. Ctrl+U deletes one screen line or line break per press, and
-// an extra press on an empty box does nothing, so Flash presses it generously.
-// Each press goes alone: sent in one burst with the text, Claude Code reads the
-// whole burst as a paste and Return no longer sends.
-// A message is its text, or { text, images } when screenshots were pasted. Each
-// image is saved to a temp file and its path pasted before the text, which
-// Claude Code attaches as an image; it shows there as [Image #N].
-const msgText = (m) => (typeof m === "string" ? m : (m && m.text) || "");
-const msgImages = (m) => (m && typeof m === "object" && m.images) || [];
-async function tutorSend(message) {
-  const text = msgText(message), images = msgImages(message);
-  if (!text && !images.length) return;
-  if (!T.running) return startTutor(text);
-  await ensureTerm();
-  if (T.interrupted) {
-    const presses = Math.min(60, T.interrupted + 4);
-    T.interrupted = 0;
-    for (let i = 0; i < presses; i++) { F.pty.write("\x15"); await new Promise((r) => setTimeout(r, 30)); }
-  }
-  for (const image of images) {
-    const file = await F.saveImage(image.bytes, image.type);
-    F.pty.write(`\x1b[200~${file}\x1b[201~`);
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  const body = images.length && text ? ` ${text}` : text;
-  if (body) F.pty.write(body.includes("\n") ? `\x1b[200~${body}\x1b[201~` : body);
-  setTimeout(() => F.pty.write("\r"), 90);
-  // Right after an interrupt, Claude Code can drop that Return. If the message
-  // still sits in its input box 1.5s later, press Return once more.
-  const probe = text.split("\n")[0].trim().slice(0, 24);
-  setTimeout(() => { if (T.running && probe && inputLine().includes(probe)) F.pty.write("\r"); }, 1500);
-  T.lastSent = text;
-  noteRoute(text);
-  LOG.stick = true;
-}
+// Starting, sending, routing, the queue, trust, and interrupts live in
+// lib/session.js; these two names stay for the call sites below.
+function startTutor(prompt) { return SES.start(prompt); }
+function tutorSend(message) { return SES.send(message); }
 // The text in Claude Code's input box: the last line on screen that starts with
 // its ❯ prompt. Earlier ❯ lines are messages already sent.
 function inputLine() {
@@ -1090,54 +1017,15 @@ function inputLine() {
   }
   return "";
 }
-// What the learner says on a subject's Session goes to that subject. When no
-// session is open for it (never resumed, or saved with /learn-end), Flash
-// resumes first and sends the message once the tutor is quiet.
-const OWN_ROUTE = /^\s*[/$]learn-(start|resume|practice|review|end)\b/;
-function say(message) {
-  const s = subj(route.slug), text = msgText(message);
-  if (s && T.running && T.route !== s.slug && !OWN_ROUTE.test(text)) {
-    T.queue.unshift(message);
-    LOG.stick = true;
-    if (route.name === "session" && LOG.data) paintThread(false);
-    return tutorSend(command(`${s.status === "done" ? "learn-practice" : "learn-resume"} ${s.slug}`));
-  }
-  tutorSend(message);
-}
-// Queued messages wait for a quiet terminal, and never go into a question the
-// tutor is waiting on or into Claude Code's trust question.
-function flushQueue() {
-  if (!T.running || !T.queue.length) return;
-  if (T.trust || logEntries().some((e) => e.waiting)) return;
-  say(T.queue.shift());
-  if (route.name === "session" && LOG.data) paintThread(false);
-}
-const sessionOpen = () => !T.running || !subj(route.slug) || T.route === route.slug;
+const sessionOpen = () => SES.sessionOpen();
 ACTIONS["tutor-start"] = (arg) => startTutor(arg === "plain" ? "" : arg);
-ACTIONS.hint = () => T.running ? say("Can I have a hint?") : toast(`The tutor isn't running. Open Session to start ${tutorName()}.`);
-ACTIONS.check = () => T.running || route.slug ? say(command("learn-check")) : null;
+ACTIONS.hint = () => T.running ? SES.say("Can I have a hint?") : toast(`The tutor isn't running. Open Session to start ${tutorName()}.`);
+ACTIONS.check = () => T.running || route.slug ? SES.say(command("learn-check")) : null;
 ACTIONS.break = () => T.running && sessionOpen() ? tutorSend(command("learn-end break")) : toast(T.running ? "This session is already saved." : "No session is running.");
 ACTIONS.end = () => T.running && sessionOpen() ? tutorSend(command("learn-end")) : toast(T.running ? "This session is already saved." : "No session is running.");
-ACTIONS.restart = async () => { await F.pty.stop(); T.running = false; startTutor(""); };
-ACTIONS.interrupt = () => {
-  if (!T.running) return;
-  F.pty.write("\x1b");
-  const cols = Math.max(20, ((T.term && T.term.cols) || 80) - 6);
-  T.interrupted = T.lastSent.split("\n").reduce((n, line) => n + 2 + Math.floor(line.length / cols), 0);
-};
-// Claude Code's trust question, answered from the thread: down selects "Yes".
-ACTIONS.trust = (answer) => {
-  if (!T.running || !T.trust) return;
-  T.trust = false;
-  if (answer === "yes") { F.pty.write("\x1b[B"); setTimeout(() => F.pty.write("\r"), 120); }
-  else {
-    const kept = T.queue.map(msgText).filter((q) => q && !/^\s*[/$]learn-/.test(q)).join("\n\n");
-    T.queue = [];
-    if (kept && msgEmpty()) setMsg(kept);
-    F.pty.write("\r");
-  }
-  afterTermChange();
-};
+ACTIONS.restart = async () => { await SES.stop(); startTutor(""); };
+ACTIONS.interrupt = () => SES.interrupt();
+ACTIONS.trust = (answer) => SES.answerTrust(answer);
 ACTIONS["toggle-term"] = () => {
   if (route.name !== "session") go("session");
   T.drawer = !T.drawer;
@@ -1202,7 +1090,7 @@ function paintActs() {
   el.innerHTML = (hasLog ? `<button class="btn sm" data-act="ink" data-tip="${key("↩")}" data-tip-side="up">${icon("resume", "sm")}${verb}</button>` : "") + close;
 }
 function closeBtn(s, big) {
-  const state = closing === s.slug ? "run" : closeQueue.includes(s.slug) ? "wait" : armed === s.slug ? "armed" : "";
+  const state = CLOSE.state.closing === s.slug ? "run" : CLOSE.state.queue.includes(s.slug) ? "wait" : CLOSE.state.armed === s.slug ? "armed" : "";
   const tip = state === "wait" ? "Waiting for the close-out running now" : state === "armed" ? "Moves this subject to Done" : "Finished with this subject? Settles any open session and moves it to Done";
   const label = state === "run" ? `<i class="spin"></i>Closing out` : state === "wait" ? `${icon("pause", "sm")}Queued` : state === "armed" ? `${icon("check", "sm")}Click again to close out` : `${icon("check", "sm")}Close out`;
   return `<button class="btn neutral ${big ? "" : "sm"} ${state === "armed" ? "armed" : ""}" data-act="close-open" data-arg="${s.slug}" ${state === "run" || state === "wait" ? "disabled" : ""} data-tip="${tip}" data-tip-side="up">${label}</button>`;
@@ -1234,12 +1122,8 @@ ACTIONS.send = () => {
   const message = ATT.length ? { text, images: ATT.splice(0) } : text;
   if (message.images) rememberSent(text, message.images);
   paintAttach();
-  if (!T.running) {
-    const s = subj(route.slug);
-    T.queue = [message];
-    LOG.stick = true;
-    startTutor(s ? resumeTyped(s) : "");
-  } else say(message);
+  const s = subj(route.slug);
+  SES.submit(message, s ? resumeTyped(s) : "");
   setMsg("");
 };
 ACTIONS.model = () => {
@@ -1756,7 +1640,7 @@ ACTIONS["set-theme"] = async (t) => { await setCfg({ theme: t }); applyTheme(); 
 ACTIONS["set-host"] = async (h) => {
   if (h === cfg.host) return;
   if (T.running && !confirm(`Switch to ${h === "codex" ? "Codex" : "Claude Code"}? The running tutor stops. Your records stay as they are.`)) return;
-  await F.pty.stop(); T.running = false;
+  await SES.stop();
   await setCfg({ host: h });
   closeOverlay();
   boot();
@@ -1774,7 +1658,7 @@ async function chooseVault() {
   const r = await F.chooseVault();
   if (r.canceled) return;
   if (r.problem) { toast(r.problem); return; }
-  T.running = false;
+  SES.markStopped();
   Object.keys(sessionCache).forEach((k) => delete sessionCache[k]);
   Object.keys(mapViews).forEach((k) => delete mapViews[k]);
   LOG.slug = null;

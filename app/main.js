@@ -9,6 +9,7 @@ const path = require("path");
 const { pathToFileURL } = require("url");
 const env = require("./lib/env");
 const { readLog, stripFrontmatter } = require("./lib/log");
+const session = require("./lib/session");
 
 const APP_NAME = "Flash";
 app.setName(APP_NAME);
@@ -102,28 +103,16 @@ function watchVault() {
 }
 
 // ---------- the terminal ----------
+// The command, its arguments, and the cleaned environment come from
+// lib/session.js; this file only owns the node-pty process.
 let pty = null, term = null;
 const isWin = process.platform === "win32";
-function quote(arg) {
-  return isWin ? '"' + String(arg).replace(/"/g, '""') + '"' : "'" + String(arg).replace(/'/g, "'\\''") + "'";
-}
-// The tutor gets the learner's own environment, minus anything that would make
-// it think it runs inside another agent session. An inherited
-// CLAUDE_CODE_CHILD_SESSION turns transcript saving off, and the live log is
-// built from the transcript.
-function tutorEnv() {
-  const out = { ...process.env, PATH, TERM: "xterm-256color", COLORTERM: "truecolor", TERM_PROGRAM: APP_NAME };
-  for (const name of Object.keys(out)) {
-    if (/^(CLAUDECODE|CLAUDE_CODE_|CLAUDE_AGENT_SDK|CLAUDE_PID|CLAUDE_EFFORT|T3CODE_|ELECTRON_RUN_AS_NODE)/.test(name)) delete out[name];
-  }
-  return out;
-}
+const tutorEnv = () => session.tutorEnv(process.env, { path: PATH, appName: APP_NAME });
 function startTerminal({ cols, rows, prompt }) {
   if (term) return { running: true };
   if (!pty) pty = require("node-pty");
-  const command = [config.host, ...(prompt ? [quote(prompt)] : [])].join(" ");
   const shellName = env.loginShell();
-  const args = isWin ? ["/d", "/s", "/c", command] : ["-ilc", `exec ${command}`];
+  const args = session.tutorArgs(config.host, prompt, isWin);
   term = pty.spawn(shellName, args, {
     name: "xterm-256color",
     cols: Math.max(20, cols | 0), rows: Math.max(5, rows | 0),
@@ -211,8 +200,7 @@ ipcMain.handle("tutor:close", (_e, slug) => {
   if (closing) return { ok: false, text: "Another close-out is still running. Try again in a minute." };
   if (config.host !== "claude") return { ok: false, text: "Closing out runs on Claude Code. Resume the subject instead, and it closes the old session first." };
   if (!config.vault) return { ok: false, text: "No vault is open." };
-  const cmd = [config.host, "-p", "--model", "sonnet", quote(`/learn-close${slug ? " " + slug : ""}`)].join(" ");
-  const args = isWin ? ["/d", "/s", "/c", cmd] : ["-ilc", `exec ${cmd}`];
+  const args = session.closeArgs(config.host, slug, isWin);
   closing = new Promise((resolve) => {
     const child = execFile(env.loginShell(), args, { cwd: config.vault, env: tutorEnv(), timeout: 5 * 60 * 1000, maxBuffer: 4e6 }, (error, stdout, stderr) => {
       closing = null;
