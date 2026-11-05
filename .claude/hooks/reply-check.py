@@ -3,6 +3,7 @@
 
   reply-check.py hook                  Stop hook: hold a rule-breaking tutoring reply back once
   reply-check.py closing <file or ->   report what a drafted /learn-end closing block must not say
+  reply-check.py report                count what the logging-only checks would have held
 
 The rules are the ones already written in learn/system/tutor.md (Pacing,
 Feedback, Reply shape) and in step 8 of .claude/skills/learn-end/SKILL.md.
@@ -30,6 +31,7 @@ import importlib.util
 import json
 import re
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -110,6 +112,17 @@ NUDGE = re.compile(
 
 LEARN_COMMAND = re.compile(r"^\s*/learn-([a-z]+)")
 SKIP_COMMANDS = {"end", "close", "start", "review"}   # replies shaped by a skill, not a lesson
+
+# Which checks hold a reply back. The rest only log what they would have held,
+# to `.claude/obsidian-live/reply-check-log.jsonl`. Replayed over 1,017 real
+# tutoring replies (4 Nov 2026), all five together would have held 36% of them;
+# the machinery check (10%) was right in every sample read, while the length,
+# two-question and verdict checks flagged good replies ("4 for 4, ..." as no
+# verdict, a confidence question as a second question). `reply-check.py report`
+# counts the log, to tune a check before it joins HOLD.
+KINDS = ("length", "questions", "verdict", "nudge", "machinery")
+HOLD = {"machinery"}
+LOG_KEEP = 2000            # lines kept in the would-hold log
 
 
 # ------------------------------------------------------------------ prose
@@ -311,8 +324,8 @@ def answered(learner):
 
 # ------------------------------------------------------------------ the reply checks
 
-def reply_problems(reply, asked=(), learner=None, command=""):
-    """Everything wrong with the reply, each as one sentence saying what to fix.
+def reply_findings(reply, asked=(), learner=None, command=""):
+    """Everything wrong with the reply, as (kind, one sentence saying what to fix).
 
     `reply` is the list of text blocks the learner saw this turn, `asked` the
     tutor items before the learner's last message, `learner` that message, and
@@ -327,40 +340,94 @@ def reply_problems(reply, asked=(), learner=None, command=""):
     if not command:
         words = word_count(text)
         if words > PROSE_WORDS:
-            problems.append("Prose is %d words; tutor.md (Reply shape) keeps it under about 120. "
+            problems.append(("length", "Prose is %d words; tutor.md (Reply shape) keeps it under about 120. "
                             "Keep one idea and the check, and move the rest to the next message."
-                            % words)
+                            % words))
     asked_questions = questions(text)
     if len(asked_questions) > 1:
-        problems.append("Two questions to the learner (\"%s\" and \"%s\"); tutor.md (Reply shape) allows "
+        problems.append(("questions", "Two questions to the learner (\"%s\" and \"%s\"); tutor.md (Reply shape) allows "
                         "one. Keep one and hold the other for the next message."
-                        % (asked_questions[0][:80], asked_questions[1][:80]))
+                        % (asked_questions[0][:80], asked_questions[1][:80])))
     nudges = sum(1 for block in reply if is_nudge(block))
     # A nudge says the learner did not answer; demanding a verdict too would
     # contradict it, and the learner's non-answer is the case this rule cannot
     # tell from an answer on its own.
     if (not command and not nudges and asked_a_check(asked) and answered(learner)
             and not opens_with_verdict(text)):
-        problems.append("The learner's last message answers your check, but the first sentence is "
+        problems.append(("verdict", "The learner's last message answers your check, but the first sentence is "
                         "\"%s\", not a verdict. Open with right, wrong, or partly right, then the reason "
-                        "(tutor.md, Feedback)." % first_sentence(text)[:100])
+                        "(tutor.md, Feedback)." % first_sentence(text)[:100]))
     earlier = any(is_nudge(item["text"]) for item in asked if item["kind"] == "text")
     if nudges and (nudges > 1 or earlier):
-        problems.append("This is the second time this turn says the question is still waiting. Either "
+        problems.append(("nudge", "This is the second time this turn says the question is still waiting. Either "
                         "answer what the learner said or ask the question again in full; do not "
-                        "point back at it.")
+                        "point back at it."))
     names = machinery(text)
     if names:
-        problems.append("The prose names %s. Say the topic's name instead; the learner never reads "
+        problems.append(("machinery", "The prose names %s. Say the topic's name instead; the learner never reads "
                         "node ids, file paths, scripts, or checkers (tutor.md, Reply shape)."
-                        % ", ".join(names[:4]))
+                        % ", ".join(names[:4])))
     return problems
+
+
+def reply_problems(reply, asked=(), learner=None, command=""):
+    """Every problem's sentence, held or not, in the order the checks run."""
+    return [text for _, text in reply_findings(reply, asked, learner, command)]
 
 
 # ------------------------------------------------------------------ the Stop hook
 
 def memory_path(vault, session_id):
     return Path(vault) / ".claude" / "obsidian-live" / (session_id + ".reply-check.json")
+
+
+def log_path(vault):
+    return Path(vault) / ".claude" / "obsidian-live" / "reply-check-log.jsonl"
+
+
+def log_would_hold(vault, session_id, digest, logged, reply):
+    """Append one line per check that would have held this reply, once per reply."""
+    path = log_path(vault)
+    try:
+        lines = path.read_text().splitlines() if path.is_file() else []
+    except OSError:
+        lines = []
+    seen = {(row.get("digest"), row.get("kind")) for row in map(parse_line, lines) if row}
+    stamp = time.strftime("%Y-%m-%d %H:%M")
+    for kind, text in logged:
+        if (digest, kind) in seen:
+            continue
+        lines.append(json.dumps({"time": stamp, "session": session_id, "digest": digest, "kind": kind,
+                                 "reason": text, "reply": "\n\n".join(reply)[:600]}, ensure_ascii=False))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    live.atomic_write(path, "\n".join(lines[-LOG_KEEP:]) + "\n")
+
+
+def parse_line(line):
+    try:
+        row = json.loads(line)
+    except ValueError:
+        return None
+    return row if isinstance(row, dict) else None
+
+
+def log_report(vault, last=5):
+    """Counts per check in the would-hold log, and the latest examples of each."""
+    path = log_path(vault)
+    rows = [row for row in map(parse_line, path.read_text().splitlines())] if path.is_file() else []
+    rows = [row for row in rows if row]
+    if not rows:
+        return "No would-hold entries yet."
+    out = ["%d would-hold entries, %s to %s" % (len(rows), rows[0].get("time", "?"), rows[-1].get("time", "?"))]
+    for kind in KINDS:
+        mine = [row for row in rows if row.get("kind") == kind]
+        if not mine:
+            continue
+        out.append("")
+        out.append("%s: %d" % (kind, len(mine)))
+        for row in mine[-last:]:
+            out.append("  %s  %s" % (row.get("time", ""), " ".join(row.get("reply", "").split())[:160]))
+    return "\n".join(out)
 
 
 def read_memory(path):
@@ -398,10 +465,16 @@ def process(vault, payload):
     command = learner_command(learner)
     if command in SKIP_COMMANDS or not reply:
         return ""
-    problems = reply_problems(reply, asked, learner, command)
-    if not problems:
+    findings = reply_findings(reply, asked, learner, command)
+    if not findings:
         return ""
     digest = hashlib.sha256("\n\n".join(reply).encode("utf-8")).hexdigest()[:16]
+    logged = [(kind, text) for kind, text in findings if kind not in HOLD]
+    if logged:
+        log_would_hold(vault, session_id, digest, logged, reply)
+    problems = [text for kind, text in findings if kind in HOLD]
+    if not problems:
+        return ""
     path = memory_path(vault, session_id)
     memory = read_memory(path)
     if digest in memory["flagged"]:
@@ -467,10 +540,13 @@ def closing_report(text):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("mode", choices=["hook", "closing"])
+    parser.add_argument("mode", choices=["hook", "closing", "report"])
     parser.add_argument("source", nargs="?", help="closing: a file, or - for stdin")
     parser.add_argument("--vault", type=Path, default=Path(__file__).resolve().parents[2])
     args = parser.parse_args()
+    if args.mode == "report":
+        print(log_report(args.vault.resolve()))
+        return
     if args.mode == "closing":
         if not args.source:
             parser.error("closing needs a file path or - for stdin")
