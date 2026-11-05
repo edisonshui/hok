@@ -34,6 +34,8 @@
   // Claude Code 2.1.318 shows a paste of 5 or more lines in its input box as
   // this placeholder, not as its text. 2 and 3 lines show as text; 4 was not
   // checked, so the placeholder is accepted from 4 lines up.
+  // The vault's /learn- skills, for Tab completion typed in the terminal.
+  const LEARN_SKILLS = ["start", "resume", "practice", "review", "end", "check", "close"];
   const PASTE_HOLDER = /\[Pasted text #\d+/;
 
   // A message is its text, or { text, images } when screenshots were pasted.
@@ -107,21 +109,33 @@
     }
 
     // Keystrokes the learner types straight into the terminal: a command typed
-    // there still moves the route. Escape sequences (arrows, function keys) are
-    // skipped whole, and a bare Esc resets the tracked text, since it clears
-    // Claude Code's input box too.
+    // there still moves the route. The tracked text follows what Claude Code
+    // does to its input box. Escape sequences are skipped whole: the
+    // bracketed-paste markers keep the pasted text, and Up and Down reset it,
+    // since they swap in a history entry. A bare Esc and Ctrl+U reset it, since
+    // they clear the box. Tab completes a /learn- command the way Claude Code
+    // does when only one skill fits.
     function onUserInput(d) {
       const s = String(d);
       for (let i = 0; i < s.length; i++) {
         const ch = s[i];
-        if (ch === "\x1b") {
-          if (s[i + 1] === "[" || s[i + 1] === "O") { i += 2; while (i < s.length && !(s[i] >= "@" && s[i] <= "~")) i++; }
-          st.typed = "";
+        if (ch === "\x1b" && (s[i + 1] === "[" || s[i + 1] === "O")) {
+          let j = i + 2;
+          while (j < s.length && !(s[j] >= "@" && s[j] <= "~")) j++;
+          if (s[j] === "A" || s[j] === "B") st.typed = "";
+          i = j;
         }
+        else if (ch === "\x1b" || ch === "\x15") st.typed = "";
         else if (ch === "\r") { noteRoute(st.typed); st.typed = ""; }
         else if (ch === "\x7f") st.typed = st.typed.slice(0, -1);
+        else if (ch === "\t") st.typed = complete(st.typed);
         else if (ch >= " ") st.typed += ch;
       }
+    }
+    function complete(typed) {
+      const m = typed.match(/^(\s*[/$]learn-)([a-z]*)$/);
+      const fits = m ? LEARN_SKILLS.filter((name) => name.startsWith(m[2])) : [];
+      return fits.length === 1 ? m[1] + fits[0] : typed;
     }
 
     async function start(prompt) {
