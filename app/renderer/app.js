@@ -934,7 +934,11 @@ const SES = window.Session.createSession({
   currentSubject: () => subj(route.slug),
   reopenCommand: (s) => command(`${s.status === "done" ? "learn-practice" : "learn-resume"} ${s.slug}`),
   hasWaitingQuestion: () => logEntries().some((e) => e.waiting),
-  restoreDraft: (kept) => { if (msgEmpty()) setMsg(kept); },
+  // Words already in the composer stay, after the ones given back.
+  restoreDraft: (kept, images) => {
+    if (kept) setMsg(msgEmpty() ? kept : `${kept}\n\n${msgValue()}`);
+    if (images && images.length) { ATT.push(...images); paintAttach(); }
+  },
   onEvent: (kind, payload) => {
     if (kind === "term") afterTermChange();
     else if (kind === "route") { if (route.name === "session") paintComposer(); }

@@ -53,7 +53,8 @@
   //   currentSubject()        the subject on screen, {slug, status} or null
   //   reopenCommand(subject)  the typed command that reopens its session
   //   hasWaitingQuestion()    a question the tutor is waiting on is on screen
-  //   restoreDraft(text)      put dropped queue text back in the composer
+  //   restoreDraft(text, images)  put dropped queue text and screenshots back
+  //                           in the composer
   //   onEvent(kind, payload)  paint: "term" (lifecycle or trust changed),
   //                           "route", "queued", "flushed", "stick", "sent",
   //                           "started", "start-failed"
@@ -339,15 +340,17 @@
     }
 
     // Claude Code's trust question, answered from the thread: down selects
-    // "Yes". A no drops queued commands, keeps the learner's own words.
+    // "Yes". A no drops queued commands and gives the learner's own words and
+    // pasted screenshots back to the composer.
     function answerTrust(answer) {
       if (!st.running || !st.trust) return;
       st.trust = false;
       if (answer === "yes") { io.write("\x1b[B"); later(() => io.write("\r"), 120); }
       else {
-        const kept = st.queue.map(msgText).filter((q) => q && !LEARN_CMD.test(q)).join("\n\n");
+        const own = st.queue.filter((q) => !LEARN_CMD.test(msgText(q)));
+        const kept = own.map(msgText).filter(Boolean).join("\n\n"), images = own.flatMap(msgImages);
         st.queue = []; st.queueFor = [];
-        if (kept) io.restoreDraft(kept);
+        if (kept || images.length) io.restoreDraft(kept, images);
         io.write("\r");
       }
       emit("term");
