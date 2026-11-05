@@ -31,6 +31,10 @@
   // subject on screen.
   const FREE_CMD = /^\s*[/$]learn-(start|review)\b/;
   const LEARN_CMD = /^\s*[/$]learn-/;
+  // Claude Code 2.1.318 shows a paste of 5 or more lines in its input box as
+  // this placeholder, not as its text. 2 and 3 lines show as text; 4 was not
+  // checked, so the placeholder is accepted from 4 lines up.
+  const PASTE_HOLDER = /\[Pasted text #\d+/;
 
   // A message is its text, or { text, images } when screenshots were pasted.
   const msgText = (m) => (typeof m === "string" ? m : (m && m.text) || "");
@@ -211,8 +215,9 @@
       emit("sent");
       // Right after an interrupt, Claude Code can drop that Return. If the
       // message still sits in its input box 1.5s later, press Return once more.
-      const probe = text.split("\n")[0].trim().slice(0, 24);
-      later(() => { if (st.running && probe && io.inputLine().includes(probe)) io.write("\r"); }, 1500);
+      const probe = text.split("\n")[0].trim().slice(0, 24), collapsed = text.split("\n").length >= 4;
+      const unsent = (line) => (probe && line.includes(probe)) || (collapsed && PASTE_HOLDER.test(line));
+      later(() => { if (st.running && unsent(io.inputLine())) io.write("\r"); }, 1500);
       // The next message starts typing only after this Return.
       await sleep(90);
       io.write("\r");
