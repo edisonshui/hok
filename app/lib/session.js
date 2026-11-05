@@ -157,6 +157,9 @@
       const text = msgText(message), images = msgImages(message);
       if (!text && !images.length) return;
       if (!st.running) return start(text);
+      // Return on the trust question picks "No, exit" and Claude Code quits,
+      // so nothing is typed while it is on screen. The message waits instead.
+      if (st.trust) return hold(message);
       if (st.interrupted) {
         const presses = Math.min(60, st.interrupted + 4);
         st.interrupted = 0;
@@ -179,6 +182,11 @@
       emit("sent");
     }
 
+    function hold(message) {
+      st.queue.push(message);
+      emit("queued");
+    }
+
     // What the learner says on a subject's Session goes to that subject. When
     // no session is open for it (never resumed, or saved with /learn-end), the
     // app reopens it first and sends the message once the tutor is quiet. A
@@ -186,6 +194,7 @@
     // nothing arrives out of order.
     function say(message) {
       const s = io.currentSubject(), text = msgText(message);
+      if (st.running && st.trust) return hold(message);
       const reopen = s && st.running && st.route !== s.slug && !OWN_ROUTE.test(text);
       if (reopen || (st.queue.length && !OWN_ROUTE.test(text))) {
         st.queue.push(message);
