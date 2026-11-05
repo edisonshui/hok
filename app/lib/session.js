@@ -258,9 +258,16 @@
 
     // The composer's send: a stopped tutor starts first, with the reopen
     // command as its CLI prompt, and the message joins the queue behind any
-    // still waiting from before the tutor stopped.
+    // still waiting from before the tutor stopped. A route command of the
+    // learner's own (/learn-review, /learn-resume b) is the start prompt
+    // itself: reopening the subject on screen first would leave its session
+    // note open.
     function submit(message, startPrompt) {
       if (!st.running) {
+        if (!st.starting && OWN_ROUTE.test(msgText(message)) && !msgImages(message).length) {
+          emit("stick");
+          return start(msgText(message));
+        }
         hold(message, undefined, "stick");
         return start(startPrompt || "");
       }
