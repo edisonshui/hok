@@ -166,13 +166,32 @@
     // with the text, Claude Code reads the whole burst as a paste and Return no
     // longer sends. Pasted images go first, each as a temp file path, which
     // Claude Code attaches as an image ([Image #N]).
-    async function send(message) {
+    function send(message) {
       const text = msgText(message), images = msgImages(message);
       if (!text && !images.length) return;
       if (!st.running) return start(text);
       // Return on the trust question picks "No, exit" and Claude Code quits,
       // so nothing is typed while it is on screen. The message waits instead.
       if (st.trust) return hold(message);
+      return deliver(message);
+    }
+
+    // One message is typed at a time. A send pauses between its writes (Ctrl+U
+    // presses, image saves, the Return), so a second send that started typing
+    // meanwhile would land inside the first in Claude Code's input box. The
+    // route moves at once, in the order the sends were made.
+    let typing = null;
+    function deliver(message) {
+      noteRoute(msgText(message));
+      const p = typing ? typing.then(() => type(message)) : type(message);
+      const done = p.then(() => {}, () => {});
+      typing = done;
+      done.then(() => { if (typing === done) typing = null; });
+      return p;
+    }
+
+    async function type(message) {
+      const text = msgText(message), images = msgImages(message);
       if (st.interrupted) {
         const presses = Math.min(60, st.interrupted + 4);
         st.interrupted = 0;
@@ -185,14 +204,15 @@
       }
       const body = images.length && text ? ` ${text}` : text;
       if (body) io.write(body.includes("\n") ? `\x1b[200~${body}\x1b[201~` : body);
-      later(() => io.write("\r"), 90);
+      st.lastSent = text;
+      emit("sent");
       // Right after an interrupt, Claude Code can drop that Return. If the
       // message still sits in its input box 1.5s later, press Return once more.
       const probe = text.split("\n")[0].trim().slice(0, 24);
       later(() => { if (st.running && probe && io.inputLine().includes(probe)) io.write("\r"); }, 1500);
-      st.lastSent = text;
-      noteRoute(text);
-      emit("sent");
+      // The next message starts typing only after this Return.
+      await sleep(90);
+      io.write("\r");
     }
 
     // A message for subject s needs its session reopened first, unless it is a
