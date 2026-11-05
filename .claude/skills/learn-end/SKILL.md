@@ -2,7 +2,7 @@
 name: learn-end
 description: End or checkpoint the current learning session — finalize the session note, update the learner record and plan, rewrite the resume summary, and print a plain-English summary. Use at the end of a session, before a break, or whenever Edison says stop, pause, checkpoint, or break.
 argument-hint: [break]
-allowed-tools: Read, Write, Edit, Glob, Agent, Bash(date *), Bash(python3 .claude/hooks/learn-status.py*), Bash(python3 .claude/hooks/obsidian-live.py clock*), Bash(python3 .claude/hooks/jev.py*), Bash(python3 .claude/hooks/write-check.py*)
+allowed-tools: Read, Write, Edit, Glob, Agent, Bash(date *), Bash(python3 .claude/hooks/learn-status.py*), Bash(python3 .claude/hooks/obsidian-live.py clock*), Bash(python3 .claude/hooks/jev.py*), Bash(python3 .claude/hooks/write-check.py*), Bash(python3 .claude/hooks/reply-check.py closing*)
 ---
 
 End or checkpoint the current session. Argument: `$ARGUMENTS` (`break` means the learner is coming back today; otherwise treat this as the end of the session). Only the learner ends a session: run this when he typed it or asked to stop, never on your own clock. A hard stop coming up (an exam, the 45-minute mark) is a reason to suggest it in one line and wait (2026-10-08, dtx221: the tutor ran it unprompted and had to apologize). Follow Phase 4 of `learn/system/workflow.md` and the update rules in `learn/system/records.md`.
@@ -104,9 +104,21 @@ Two limits, stated whenever a mismatch is reported, so the learner can judge it.
 
 A step that was skipped, blocked by a permission prompt, or not applicable is reported as such in plain words. Never report a write that did not happen: a record the learner believes exists and does not is worse than no record at all.
 
+## 7b. Check the closing block before it is sent
+
+Draft the step 8 closing block in full, then run the draft through the checker before any of it reaches the learner:
+
+```
+python3 .claude/hooks/reply-check.py closing - <<'EOF'
+<the drafted closing block>
+EOF
+```
+
+It prints `closing block: clean`, or one line per hit with the line it found: a question mark outside a quoted check (Edison is leaving, and twice a question here went unanswered), the strings `I followed`, `workflow`, `Jev`, `mc-preflight`, `learn-status`, `write-check`, and `semantic:`, and any node id. The reward lines from step 6b are exempt, because they are pasted verbatim. On a hit, rewrite the block in the learner's words and check it again; only a draft that comes back clean is sent. The checker reads what it is given and writes nothing, so running it twice changes nothing.
+
 ## 8. Hand-off
 
-After every write and the verification pass are complete, send exactly one closing block. Edison reads it, so it is plain English, not the record's terms: say "topic", not "node", and leave out `n` numbers, strand numbers (S1, S4), and the words checked, solid, decayed, strand, candidate, and decay-check, unless the same sentence says what they mean. Name a status with the words the reward lines and the dashboard use: *passed* for `checked`, *remembered on a later day* for `solid`, and *slipped* for `decayed`. Never "secure", "shaky", or "proven". Past the one saved-files line, never name the machinery: no script, checker, Jev, or dashboard flag. It contains, in order:
+After every write, the verification pass, and the step 7b check are complete, send exactly one closing block. Edison reads it, so it is plain English, not the record's terms: say "topic", not "node", and leave out `n` numbers, strand numbers (S1, S4), and the words checked, solid, decayed, strand, candidate, and decay-check, unless the same sentence says what they mean. Name a status with the words the reward lines and the dashboard use: *passed* for `checked`, *remembered on a later day* for `solid`, and *slipped* for `decayed`. Never "secure", "shaky", or "proven". Past the one saved-files line, never name the machinery: no script, checker, Jev, or dashboard flag. It contains, in order:
 
 1. **What was saved, in one line** when the step 7 checklist and `compare` agree: "Saved and checked: session note, record, plan, resume, preferences, Home, Dashboard, progress." Any file that is claimed but absent, present but unclaimed, skipped, or blocked by a permission prompt gets its own line saying what happened, followed by the two limits from step 7.
 2. **The preference result** from step 5, in one line.
