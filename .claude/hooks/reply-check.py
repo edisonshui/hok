@@ -4,6 +4,8 @@
   reply-check.py hook                  Stop hook: hold a rule-breaking tutoring reply back once
   reply-check.py closing <file or ->   report what a drafted /learn-end closing block must not say
   reply-check.py report                count what the logging-only checks would have held
+  reply-check.py reviewed              mark the log reviewed, so session start stops asking
+  reply-check.py snooze                hide the review question at session start for two days
 
 The rules are the ones already written in learn/system/tutor.md (Pacing,
 Feedback, Reply shape) and in step 8 of .claude/skills/learn-end/SKILL.md.
@@ -403,6 +405,20 @@ def log_would_hold(vault, session_id, digest, logged, reply):
     live.atomic_write(path, "\n".join(lines[-LOG_KEEP:]) + "\n")
 
 
+def mark_review(vault, mode, now=None):
+    """Write the reviewed time, or a snooze two days out, beside the log."""
+    now = now or time.time()
+    runtime = log_path(vault).parent
+    runtime.mkdir(parents=True, exist_ok=True)
+    if mode == "reviewed":
+        stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(now))
+        live.atomic_write(runtime / "reply-check-reviewed", stamp + "\n")
+        return "Reply-check log marked reviewed at %s." % stamp
+    stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(now + 2 * 86400))
+    live.atomic_write(runtime / "reply-check-snooze", stamp + "\n")
+    return "Reply-check review question hidden until %s." % stamp
+
+
 def parse_line(line):
     try:
         row = json.loads(line)
@@ -540,12 +556,15 @@ def closing_report(text):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("mode", choices=["hook", "closing", "report"])
+    parser.add_argument("mode", choices=["hook", "closing", "report", "reviewed", "snooze"])
     parser.add_argument("source", nargs="?", help="closing: a file, or - for stdin")
     parser.add_argument("--vault", type=Path, default=Path(__file__).resolve().parents[2])
     args = parser.parse_args()
     if args.mode == "report":
         print(log_report(args.vault.resolve()))
+        return
+    if args.mode in ("reviewed", "snooze"):
+        print(mark_review(args.vault.resolve(), args.mode))
         return
     if args.mode == "closing":
         if not args.source:

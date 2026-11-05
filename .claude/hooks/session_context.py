@@ -21,6 +21,49 @@ def learn_status():
     return module
 
 
+# Edison asked (4 Nov 2026) to be asked about the reply check's would-hold log
+# rather than having to remember it. A week of unreviewed entries puts one
+# agent-only line in the start context; `reply-check.py reviewed` clears it and
+# `reply-check.py snooze` hides it for two days.
+REVIEW_AFTER_DAYS = 7
+
+
+def reply_check_due(vault, now=None):
+    """The start-context line asking for a reply-check review, or ""."""
+    runtime = Path(vault) / ".claude/obsidian-live"
+    now = now or datetime.now()
+    try:
+        if now.strftime("%Y-%m-%d %H:%M") < (runtime / "reply-check-snooze").read_text().strip():
+            return ""
+    except OSError:
+        pass
+    try:
+        reviewed = (runtime / "reply-check-reviewed").read_text().strip()
+    except OSError:
+        reviewed = ""
+    try:
+        rows = [json.loads(line) for line in (runtime / "reply-check-log.jsonl").read_text().splitlines()
+                if line.strip()]
+    except (OSError, ValueError):
+        return ""
+    times = sorted(row.get("time", "") for row in rows
+                   if isinstance(row, dict) and row.get("time", "") > reviewed)
+    if not times:
+        return ""
+    try:
+        first = datetime.strptime(times[0], "%Y-%m-%d %H:%M")
+    except ValueError:
+        return ""
+    if (now - first).days < REVIEW_AFTER_DAYS:
+        return ""
+    return ("Reply-check review due: %d logged since %s, and Edison asked to be reminded. In the start "
+            "question, add one option after the recommended one: \"Review last week's reply checks (about 5 "
+            "minutes)\". If he picks it, run `python3 .claude/hooks/reply-check.py report` and go through it "
+            "with him in plain words, which checks were right and which flagged good replies, then run "
+            "`python3 .claude/hooks/reply-check.py reviewed`. If he says not now, run "
+            "`python3 .claude/hooks/reply-check.py snooze`." % (len(times), first.strftime("%d %b")))
+
+
 def start_context(vault, subject=None, host="claude", log_warning=""):
     status = Path(__file__).with_name("learn-status.py")
     command = [sys.executable, str(status), "--vault", str(vault)]
@@ -85,6 +128,9 @@ def start_context(vault, subject=None, host="claude", log_warning=""):
             lines += ["", "Read learn/me/preferences.md before teaching; operational summary is missing."]
     else:
         lines += ["", "Learner preferences unavailable; confirm preferences before teaching."]
+    due = reply_check_due(vault)
+    if due:
+        lines += ["", due]
     lines += ["", "Before teaching: read learn/system/tutor.md and learn/system/workflow.md.",
               "After selection: read learn/subjects/<slug>/resume.md and run python3 .claude/hooks/learn-status.py --brief --subject <slug>, which stands in for record.md, plan.md, and the latest sessions/ note.",
               "Read learn/system/records.md before writing learning state.",
