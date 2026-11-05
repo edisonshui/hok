@@ -169,19 +169,27 @@
       return { ok: true };
     }
 
+    // Restart and a host switch stop the tutor here. The main process sends no
+    // exit for a stop it made, so the trust question and the route are cleared
+    // here, or the trust card would stay up with buttons that do nothing.
+    // Waiting messages stay for the next start.
     async function stop() {
       newProcess();
       await io.stopProcess();
-      st.running = false;
+      idle();
     }
     // The main process already stopped the tutor (a vault switch does). The
     // waiting messages were written for the old vault, so they are dropped
     // rather than sent into the next vault's tutor.
     function markStopped() {
       newProcess();
-      st.running = false;
       st.queue = []; st.queueFor = [];
-      emit("flushed");
+      idle();
+    }
+    function idle() {
+      st.running = false;
+      st.trust = false; st.route = null; st.routeEnded = false; st.free = false;
+      emit("term");
     }
 
     // Type into the running tutor as the learner would: the text, then Return.
