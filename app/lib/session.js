@@ -187,7 +187,9 @@
     function send(message) {
       const text = msgText(message), images = msgImages(message);
       if (!text && !images.length) return;
-      if (!st.running) return start(text);
+      // While the tutor starts, a second start would be ignored and the text
+      // lost, so the message waits for the tutor instead.
+      if (!st.running) return st.starting ? hold(message) : start(text);
       // Return on the trust question picks "No, exit" and Claude Code quits,
       // so nothing is typed while it is on screen. The message waits instead.
       if (st.trust) return hold(message);
@@ -260,6 +262,9 @@
     // nothing arrives out of order.
     function say(message) {
       const s = io.currentSubject(), text = msgText(message);
+      // Stopped on a subject's Session (Check me from the menu shortcut), the
+      // tutor starts by reopening that subject, as the composer's send does.
+      if (!st.running && s) return submit(message, io.reopenCommand(s));
       if (st.running && st.trust) return hold(message, s);
       const reopen = st.running && needsReopen(s, text);
       if (reopen || (st.queue.length && !OWN_ROUTE.test(text))) {
