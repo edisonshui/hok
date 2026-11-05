@@ -3322,6 +3322,400 @@ eq("a course with no usable subject says so", status.pace_report([], None, "bio1
    "No bio1 subjects with recorded minutes and taught topics yet.\n")
 shutil.rmtree(PV)
 
+
+# ------------------------------------------------------------------ reply-check: the Stop hook
+
+# Three reply rules in tutor.md kept breaking after more prose was added to the
+# file. These pin the deterministic gate that now holds such a reply back once.
+# Every fixture is synthetic; the shapes copy the transcript rows above.
+
+rc = load("reply_check", "reply-check.py")
+import log_health  # noqa: E402
+
+LONG = "The loop keeps running because the condition is checked before every pass. " * 14   # 168 words
+
+section("reply-check: counting prose leaves code, mermaid, math and embeds out")
+eq("plain words count", rc.word_count("one two three"), 3)
+eq("a fenced block does not count",
+   rc.word_count("Two words.\n\n```java\nint a = 1; int b = 2; int c = 3;\n```"), 2)
+eq("a mermaid block does not count",
+   rc.word_count("Two words.\n\n```mermaid\ngraph TD; A-->B; B-->C; C-->D;\n```"), 2)
+eq("display and inline math do not count",
+   rc.word_count("Two words. $$\\int_0^1 x\\,dx = \\frac{1}{2}$$ $x^2 + y^2$."), 2)
+eq("an SVG embed and inline SVG do not count",
+   rc.word_count("Two words. ![[fig.svg|400]] <svg><text>a b c d</text></svg>"), 2)
+eq("a code span's words are not prose either", rc.word_count("Two words `and four more here`."), 2)
+eq("the limit sits above 'about 120' on purpose", rc.PROSE_WORDS > 120, True)
+
+section("reply-check: questions to the learner")
+eq("one question is one", rc.questions("What does `*p` print after the swap?"), ["What does `*p` print after the swap?"])
+eq("two questions are two",
+   len(rc.questions("Does that make sense? Now, what does line 3 print?")), 2)
+eq("a quoted check is not a question of this reply",
+   rc.questions('Last time I asked "What does *p print?" and you said 5. What changed in the swap?'),
+   ["What changed in the swap?"])
+eq("a question mark in code is not a question", rc.questions("Run `x ? 1 : 0` and tell me the value."), [])
+eq("a one- or two-word rhetorical beat is not a question",
+   rc.questions("Why? Because the loop never resets. What does it print instead?"),
+   ["What does it print instead?"])
+eq("a quoted learner line is not a question", rc.questions("> was it 5?\n\nRight, it was 5."), [])
+
+section("reply-check: machinery the learner never reads")
+eq("a node id is found (jev's one regex)", rc.machinery("That closes n4, so next is n12a."), ["n4", "n12a"])
+eq("a script and a path are found",
+   rc.machinery("I ran learn-status.py and updated learn/system/tutor.md."),
+   ["learn-status.py", "learn/system/tutor.md"])
+eq("a trailing period is not part of the path", rc.machinery("See learn/subjects/oop/plan.md."),
+   ["learn/subjects/oop/plan.md"])
+eq("checker names are found", rc.machinery("Jev and mc-preflight both ran."), ["mc-preflight", "Jev"])
+eq("a wikilink to the log, and log.md itself, are allowed",
+   rc.machinery("Open [[learn/subjects/oop/log]] in Obsidian; log.md updates as I type."), [])
+eq("code spans are not prose", rc.machinery("Type `python3 run.py` to start."), [])
+eq("a lower-case word is not the checker", rc.machinery("the jev of it"), [])
+eq("N2 the molecule is not a node", rc.machinery("N2 is a gas."), [])
+
+section("reply-check: the verdict rule asks for one only when it is sure there was a check")
+CHECK = {"who": "tutor", "kind": "text", "text": "Here is the swap.\n\n```java\nint t = a;\n```\n\nWhat does `*p` print now?"}
+eq("a reply that ended with a three-word question is a check", rc.asked_a_check([CHECK]), True)
+eq("a logistics question is not", rc.asked_a_check([{"who": "tutor", "kind": "text",
+                                                     "text": "Ready to go on?"}]), False)
+eq("a prediction is not (Pacing: never graded)",
+   rc.asked_a_check([{"who": "tutor", "kind": "text", "text": "What do you predict it prints?"}]), False)
+eq("a question followed by more prose is not the check",
+   rc.asked_a_check([{"who": "tutor", "kind": "text", "text": "What prints? I'll show you. It prints 5."}]), False)
+eq("a picker is a check", rc.asked_a_check([{"who": "tutor", "kind": "picker",
+                                              "text": "**What does `*p` print?**\n\n- **5**\n- **7**"}]), True)
+eq("a logistics picker is not", rc.asked_a_check([{"who": "tutor", "kind": "picker",
+                                                   "text": "**Which subject first?**\n\n- **oop**"}]), False)
+eq("a short statement is an answer", rc.answered({"kind": "text", "text": "5, because p still points at x"}), True)
+eq("a picker answer is an answer", rc.answered({"kind": "answer", "text": "5"}), True)
+eq("'pass' is not", rc.answered({"kind": "text", "text": "pass"}), False)
+eq("a question back is not", rc.answered({"kind": "text", "text": "is it 5?"}), False)
+eq("a command is not", rc.answered({"kind": "text", "text": "/learn-end"}), False)
+eq("a long message is a discussion, not an answer",
+   rc.answered({"kind": "text", "text": "word " * (rc.ANSWER_MAX_WORDS + 1)}), False)
+eq("'Right.' opens with a verdict", rc.opens_with_verdict("Right. The pointer still holds x's address."), True)
+eq("'Not quite' opens with a verdict", rc.opens_with_verdict("**Not quite.** It prints 7."), True)
+eq("'Partly' opens with a verdict", rc.opens_with_verdict("Partly: the address is right, the value is not."), True)
+eq("a verdict in the second sentence does not count",
+   rc.opens_with_verdict("The pointer holds the address of x. So yes, 5."), False)
+eq("a verdict after a diagram still opens the prose",
+   rc.opens_with_verdict("```mermaid\ngraph TD; p-->x\n```\n\nCorrect, p still points at x."), True)
+
+section("reply-check: the nudge")
+eq("the plain nudge", rc.is_nudge("The question is waiting above when you're ready."), True)
+eq("its relatives", [rc.is_nudge(t) for t in ("Still waiting on your answer to the check.",
+                                              "Answer the question above first.",
+                                              "My check is still open.")], [True, True, True])
+eq("a question about questions is not a nudge", rc.is_nudge("Which question was harder?"), False)
+eq("a quoted nudge is not one", rc.is_nudge('You said "the question is waiting above" was annoying.'), False)
+
+section("reply-check: reply_problems, one sentence per fix")
+answer_turn = {"who": "learner", "kind": "text", "text": "5"}
+eq("a clean grade passes", rc.reply_problems(["Right. `p` still points at x.\n\nWhat prints after `p = &y`?"],
+                                             [CHECK], answer_turn), [])
+problems = rc.reply_problems([LONG], [], {"who": "learner", "kind": "text", "text": "go on"})
+eq("long prose is named with its count", any("168 words" in p for p in problems), True)
+problems = rc.reply_problems(["Does that make sense? What does line 3 print?"], [], None)
+eq("two questions are quoted back", any("Two questions" in p and "line 3" in p for p in problems), True)
+problems = rc.reply_problems(["The pointer still holds the address of x, so the swap did nothing to it."],
+                             [CHECK], answer_turn)
+eq("a grade without a verdict names the first sentence",
+   any("not a verdict" in p and "The pointer still holds" in p for p in problems), True)
+eq("the same reply after 'pass' is not graded",
+   rc.reply_problems(["The pointer still holds the address of x."], [CHECK],
+                     {"who": "learner", "kind": "text", "text": "pass"}), [])
+eq("the same reply after a prediction question is not graded",
+   rc.reply_problems(["The pointer still holds the address of x."],
+                     [{"who": "tutor", "kind": "text", "text": "What do you guess it prints?"}], answer_turn), [])
+eq("the same reply after a logistics question is not graded",
+   rc.reply_problems(["The pointer still holds the address of x."],
+                     [{"who": "tutor", "kind": "text", "text": "Ready for the next step?"}],
+                     {"who": "learner", "kind": "text", "text": "yes"}), [])
+eq("a picker answer gets graded too",
+   any("not a verdict" in p for p in rc.reply_problems(
+       ["The pointer still holds the address of x."],
+       [{"who": "tutor", "kind": "picker", "text": "**What does `*p` print?**\n\n- **5**\n- **7**"}],
+       {"who": "learner", "kind": "answer", "text": "5"})), True)
+eq("one nudge is allowed", rc.reply_problems(["The question is waiting above."], [], None), [])
+eq("a second nudge in the same reply is not",
+   any("second time" in p for p in rc.reply_problems(
+       ["The question is waiting above.", "Still waiting on your answer."], [], None)), True)
+eq("a nudge right after a nudge is not",
+   any("second time" in p for p in rc.reply_problems(
+       ["The question above is still waiting."],
+       [{"who": "tutor", "kind": "text", "text": "The question is waiting above."}],
+       {"who": "learner", "kind": "text", "text": "hmm"})), True)
+problems = rc.reply_problems(["That closes n4. I also ran learn-status.py."], [], None)
+eq("machinery is named", any("n4, learn-status.py" in p for p in problems), True)
+eq("on a command turn only the question and machinery rules apply",
+   rc.reply_problems([LONG + " What prints?"], [], None, command="resume"), [])
+eq("but two questions on a command turn still count",
+   len(rc.reply_problems(["Do you remember n4? What did it print?"], [], None, command="resume")), 2)
+eq("an empty reply has no problems", rc.reply_problems(["", "  "], [], None), [])
+
+
+def reply_stop(*rows, sid="conv-a", **extra):
+    path = transcript(*rows, sid=sid)
+    payload = {"session_id": sid, "hook_event_name": "Stop", "transcript_path": str(path)}
+    payload.update(extra)
+    return rc.process(VAULT, payload)
+
+
+def blocked(decision):
+    return decision["decision"] if isinstance(decision, dict) else decision
+
+
+RESUME = ("user", "/learn-resume oop")
+ASKED = ("assistant", [{"type": "text", "text": "Here is the swap.\n\n```java\nint t = a;\n```\n\nWhat does `*p` print now?"}])
+ANSWER = ("user", "5")
+
+section("reply-check: the Stop hook holds a bad tutoring reply back once")
+fresh(); subject("oop")
+turn("/learn-resume oop")
+decision = reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text": LONG}]))
+eq("the reply is blocked", blocked(decision), "block")
+eq("with the word count and the fix", "168 words" in decision["reason"] and "Keep one idea" in decision["reason"], True)
+eq("and the reason says a held reply is not held twice", "never held twice" in decision["reason"], True)
+eq("the same reply at the next Stop goes through",
+   reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text": LONG}])), "")
+eq("the memory lives beside the mirror's state",
+   (VAULT / ".claude/obsidian-live/conv-a.reply-check.json").is_file(), True)
+eq("a different bad reply is held",
+   blocked(reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text": LONG + " Really."}]))), "block")
+eq("stop_hook_active is respected: a continuation is never blocked",
+   reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text": LONG + " Again."}]),
+              stop_hook_active=True), "")
+eq("a subagent's transcript is left alone",
+   reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text": LONG + " Twice."}]),
+              agent_id="reviewer"), "")
+
+section("reply-check: the verdict rule, read off the transcript")
+fresh(); subject("oop")
+turn("/learn-resume oop")
+decision = reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text":
+                      "The pointer still holds the address of x.\n\nWhat prints after `p = &y`?"}]))
+eq("an answer graded without a verdict is held", blocked(decision), "block")
+eq("the reason says what to open with", "right, wrong, or partly right" in decision["reason"], True)
+eq("the same grade opening with the verdict goes through",
+   reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text":
+              "Right. The pointer still holds the address of x.\n\nWhat prints after `p = &y`?"}])), "")
+eq("a reply to 'pass' needs no verdict",
+   reply_stop(RESUME, ASKED, ("user", "pass"), ("assistant", [{"type": "text", "text":
+              "The pointer still holds the address of x. Try it: what prints after `p = &y`?"}])), "")
+eq("a reply to a learner question needs no verdict",
+   reply_stop(RESUME, ASKED, ("user", "does p change when x does?"),
+              ("assistant", [{"type": "text", "text": "No change to p: it holds x's address, not its value."}])), "")
+eq("a reply after a logistics question needs no verdict",
+   reply_stop(RESUME, ("assistant", [{"type": "text", "text": "Ready for the swap?"}]), ("user", "yes"),
+              ("assistant", [{"type": "text", "text": "Here it is.\n\n```java\nint t = a;\n```\n\nWhat does `*p` print?"}])), "")
+eq("a picker answer graded without a verdict is held",
+   blocked(reply_stop(RESUME,
+                      ("assistant", [{"type": "tool_use", "id": "tq1", "name": "AskUserQuestion",
+                                      "input": {"questions": [{"question": "What does `*p` print?",
+                                                               "options": [{"label": "5"}, {"label": "7"}]}]}}]),
+                      ("user", [{"type": "tool_result", "tool_use_id": "tq1", "content": "5"}],
+                       {"toolUseResult": {"answers": {"What does `*p` print?": "5"}}}),
+                      ("assistant", [{"type": "text", "text": "The pointer still holds the address of x."}]))),
+   "block")
+eq("the text before a tool call is part of the reply, so a verdict there counts",
+   reply_stop(RESUME, ASKED, ANSWER,
+              ("assistant", [{"type": "text", "text": "Right."},
+                             {"type": "tool_use", "id": "tb", "name": "Bash", "input": {"command": "date"}}]),
+              ("user", [{"type": "tool_result", "tool_use_id": "tb", "content": "ok"}]),
+              ("assistant", [{"type": "text", "text": "The pointer still holds the address of x.\n\nWhat prints after `p = &y`?"}])), "")
+
+section("reply-check: two questions, the nudge, and machinery through the hook")
+fresh(); subject("oop")
+turn("/learn-resume oop")
+decision = reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text":
+                      "Right. Does that make sense? What does line 3 print?"}]))
+eq("two questions are held and both are quoted",
+   blocked(decision) == "block" and "line 3 print" in decision["reason"], True)
+eq("one question plus a quoted check goes through",
+   reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text":
+              'Right. Earlier I asked "What does *p print?" and you said 5. What prints after `p = &y`?'}])), "")
+eq("the first nudge goes through",
+   reply_stop(RESUME, ASKED, ("user", "my runner is slow today"),
+              ("assistant", [{"type": "text", "text": "Noted. The question is waiting above when you're ready."}])), "")
+decision = reply_stop(RESUME, ASKED, ("user", "my runner is slow today"),
+                      ("assistant", [{"type": "text", "text": "Noted. The question is waiting above when you're ready."}]),
+                      ("user", "ok"),
+                      ("assistant", [{"type": "text", "text": "The question above is still waiting."}]))
+eq("the second nudge in a row is held", blocked(decision), "block")
+eq("and told to ask again in full", "ask the question again in full" in decision["reason"], True)
+decision = reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text":
+                      "Right. That closes n4; I logged it with learn-status.py in learn/subjects/oop/record.md."}]))
+eq("node ids, scripts and paths are held", blocked(decision), "block")
+eq("and named in the reason", "n4, learn-status.py, learn/subjects/oop/record.md" in decision["reason"], True)
+eq("telling the learner to open the log is fine",
+   reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text":
+              "Right. Open [[learn/subjects/oop/log]] in Obsidian to follow along. What prints after `p = &y`?"}])), "")
+
+section("reply-check: tutoring replies only")
+fresh(); subject("oop")
+turn("fix the plugin", sid="eng")
+eq("a conversation with no subject is never held",
+   reply_stop(("user", "fix the plugin"), ("assistant", [{"type": "text", "text": LONG}]), sid="eng"), "")
+turn("/learn-resume oop")
+eq("the /learn-end closing block has its own checker and is not held here",
+   reply_stop(RESUME, ASKED, ANSWER, ("user", "/learn-end"),
+              ("assistant", [{"type": "text", "text": "Saving your progress.\n\n" + LONG}])), "")
+eq("a long /learn-resume recap is not held for length",
+   reply_stop(("user", "<command-name>/learn-resume</command-name><command-args>oop</command-args>"),
+              ("assistant", [{"type": "text", "text": LONG + " What did `*p` print last time?"}])), "")
+eq("a turn with no reply text has nothing to hold",
+   reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "tool_use", "id": "tb", "name": "Bash",
+                                                     "input": {"command": "date"}}])), "")
+turn("/learn-end"); turn("unrelated after the end")
+eq("after /learn-end the next turn is not tutoring",
+   reply_stop(RESUME, ("user", "/learn-end"), ("user", "unrelated after the end"),
+              ("assistant", [{"type": "text", "text": LONG}])), "")
+
+section("reply-check: after a block, only the rewrite is the reply")
+fresh(); subject("oop")
+turn("/learn-resume oop")
+eq("a draft with two questions that was blocked and rewritten clean goes through",
+   reply_stop(RESUME, ASKED, ANSWER,
+              ("assistant", [{"type": "text", "text": "Right. Does that make sense? What prints next?"}]),
+              ("user", "Stop hook feedback:\nReply check: two questions.", {"isMeta": True}),
+              ("assistant", [{"type": "text", "text": "Right. What prints after `p = &y`?"}])), "")
+eq("the hook fails open on an unreadable transcript",
+   rc.process(VAULT, {"session_id": "conv-a", "hook_event_name": "Stop", "transcript_path": "/nowhere.jsonl"}), "")
+
+
+# ------------------------------------------------------------------ reply-check: the closing block
+
+CLOSING = """Saved and checked: session note, record, plan, resume, preferences, Home, Dashboard, progress.
+Preferences: nothing changed. One new pattern noted: tracing the calls by hand helped when a hint didn't.
+
+Slipped: Writing `equals(Object)`. Get it right in a later session and it counts as remembered again.
+Topics passed: 83 → 88
+This week's review isn't done yet: 63 older topics are due for a re-check
+
+**Where you are**
+- Covered today: copy constructors, a class that tracks running state, and the CS People questions.
+- Slipped or still wrong: writing `equals` (you wrote it as `static`), and calling a static method from another class.
+- Next: ask how Quiz 7 went, then rewrite a running-state class with no hints.
+
+Next: take PQ7, then Quiz 7 at 14:00.
+"""
+
+section("reply-check closing: the skill's own example is clean")
+eq("clean, exit 0", rc.closing_report(CLOSING), ("closing block: clean", 0))
+
+section("reply-check closing: each string, the question mark, and node ids")
+report, code = rc.closing_report("I followed the workflow with Jev, mc-preflight, learn-status and write-check; "
+                                 "semantic: none. Ready for n4?")
+eq("exit 1 on a hit", code, 1)
+for needle in ("'I followed'", "'workflow'", "'Jev'", "'mc-preflight'", "'learn-status'", "'write-check'",
+               "'semantic:'", "node id n4", "question mark outside a quoted check"):
+    eq("reports " + needle, needle in report, True)
+eq("a question inside quotes is a quoted check and passes",
+   rc.closing_report('Next: start with "What does `*p` print?" and take it from there.')[1], 0)
+eq("a question inside backticks passes too", rc.closing_report("Next: type `x ? 1 : 0`.")[1], 0)
+eq("the strings are case-insensitive", rc.closing_report("the Workflow ran")[1], 1)
+eq("jev.py counts as Jev", rc.closing_report("jev.py matched it")[1], 1)
+eq("'followed' alone is not the paragraph", rc.closing_report("You followed the trace well.")[1], 0)
+
+section("reply-check closing: reward lines are exempt, and only reward lines")
+for line in ("Slipped: n4 and Jev's workflow? Get it right in a later session.",
+             "Topics passed: 83 → 88 · Topics remembered on a later day: 2 → 3",
+             "Goal reached: n12 workflow",
+             "Remembered again after slipping: n4",
+             "Remembered on a later day: n4",
+             "Review streak: 3 weeks",
+             "This week's review isn't done yet: 63 older topics are due for a re-check",
+             "2 wins: n4 (remembered on a later day) · n5 (goal reached)",
+             "- Slipped: n4 as a bullet"):
+    eq("exempt: " + line[:40], rc.closing_report(line)[1], 0)
+eq("the same words on a non-reward line are flagged",
+   rc.closing_report("Also: n4 and Jev's workflow?")[0].count("line 1"), 4)
+eq("the exemption is per line, not per block",
+   rc.closing_report("Slipped: n4.\nAnd n5 is next.")[0].count("node id"), 1)
+eq("the prefixes are the labels learn-status.py prints",
+   all(label + ": " in rc.REWARD_PREFIXES for _, label in status.COUNT_LABELS)
+   and all(plain + ": " in rc.REWARD_PREFIXES for plain in status.PLAIN_BADGE.values())
+   and "Slipped: " in rc.REWARD_PREFIXES, True)
+
+section("reply-check closing: the command line reads a file or stdin")
+CF = Path(tempfile.mkdtemp(prefix="closing-")) / "closing.md"
+CF.write_text(CLOSING)
+run = subprocess.run([sys.executable, str(HOOKS / "reply-check.py"), "closing", str(CF)],
+                     capture_output=True, text=True)
+eq("a clean file: 'clean' and exit 0", (run.stdout.strip(), run.returncode), ("closing block: clean", 0))
+run = subprocess.run([sys.executable, str(HOOKS / "reply-check.py"), "closing", "-"],
+                     input="Skills I followed: learn-end. Ready?\n", capture_output=True, text=True)
+eq("stdin with hits: lines and exit 1",
+   ("'I followed'" in run.stdout and "question mark" in run.stdout, run.returncode), (True, 1))
+shutil.rmtree(CF.parent)
+
+
+# ------------------------------------------------------------------ log health at session start
+
+section("log health: a log that keeps up with the transcript is healthy")
+fresh(); subject("oop"); subject("graphs")
+LH = transcript(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text": "Right."}]))
+stop(LH)
+eq("after the Stop hook ran, nothing is reported", log_health.report(VAULT, "conv-a", olive), "")
+eq("a conversation with no subject reports nothing", log_health.report(VAULT, "eng", olive), "")
+
+section("log health: a log that stopped while the transcript went on")
+with LH.open("a") as handle:
+    for index, text in ((10, "and then?"), (12, "what about y?")):
+        handle.write(json.dumps({"type": "user", "uuid": "u%d" % index, "timestamp": "2026-10-13T05:%02d:00.000Z" % index,
+                                 "message": {"role": "user", "content": text}}) + "\n")
+        handle.write(json.dumps({"type": "assistant", "uuid": "a%d" % index, "timestamp": "2026-10-13T05:%02d:30.000Z" % index,
+                                 "message": {"role": "assistant", "id": "m%d" % index,
+                                             "content": [{"type": "text", "text": "Then y."}]}}) + "\n")
+line = log_health.report(VAULT, "conv-a", olive)
+eq("two unmirrored learner messages are reported as stopped updating",
+   "learn/subjects/oop/log.md looks broken, it stopped updating: 2 of the learner's messages" in line, True)
+eq("the line tells the agent to keep teaching and fix it later",
+   "Keep teaching" in line and "after the session" in line and "No debugging now" in line, True)
+stop(LH)
+with LH.open("a") as handle:
+    handle.write(json.dumps({"type": "user", "uuid": "u14", "timestamp": "2026-10-13T05:14:00.000Z",
+                             "message": {"role": "user", "content": "one more"}}) + "\n")
+eq("one unmirrored message is in flight, not broken", log_health.report(VAULT, "conv-a", olive), "")
+stop(LH)
+eq("once the hook catches up, it is healthy again", log_health.report(VAULT, "conv-a", olive), "")
+
+section("log health: turns that went to another subject's log")
+other = VAULT / ".claude/obsidian-live/subjects/graphs/conv-a.json"
+own = VAULT / ".claude/obsidian-live/subjects/oop/conv-a.json"
+snapshot = json.loads(own.read_text())
+moved = [item for item in snapshot["entries"] if item["role"] == "You" and item["text"] in ("and then?", "what about y?")]
+snapshot["entries"] = [item for item in snapshot["entries"] if item not in moved]
+own.write_text(json.dumps(snapshot))
+other.parent.mkdir(parents=True)
+other.write_text(json.dumps({"session_id": "conv-a", "entries": moved}))
+eq("the other subject's log is named",
+   "went to learn/subjects/graphs/log.md instead" in log_health.report(VAULT, "conv-a", olive), True)
+stop(LH)
+
+section("log health: the file itself")
+(VAULT / "learn/subjects/oop/log.md").unlink()
+eq("a missing log.md is reported", "the file is missing" in log_health.report(VAULT, "conv-a", olive), True)
+(VAULT / "learn/subjects/oop/log.md").write_text("# Chat log\n\nstale\n")
+eq("a log.md without the newest learner message is reported",
+   "not being rewritten" in log_health.report(VAULT, "conv-a", olive), True)
+stop(LH)
+eq("rewritten by the hook, it is healthy", log_health.report(VAULT, "conv-a", olive), "")
+
+section("log health: the line reaches the agent-only part of the start context")
+run = subprocess.run([sys.executable, str(HOOKS / "session_context.py"), "--vault", str(VAULT)],
+                     input=json.dumps({"session_id": "conv-a"}), capture_output=True, text=True)
+eq("a healthy log adds no line", "Log health" in run.stdout, False)
+(VAULT / "learn/subjects/oop/log.md").unlink()
+run = subprocess.run([sys.executable, str(HOOKS / "session_context.py"), "--vault", str(VAULT)],
+                     input=json.dumps({"session_id": "conv-a"}), capture_output=True, text=True)
+eq("a broken log adds one line, after the selected subject",
+   run.stdout.find("Selected subject: oop") < run.stdout.find("Log health: learn/subjects/oop/log.md"), True)
+eq("the Show-the-learner block is untouched",
+   run.stdout.find("Log health") > run.stdout.find("End of block."), True)
+shutil.rmtree(VAULT)
+
 print()
 if FAILS:
     print("FAILED (%d): %s" % (len(FAILS), ", ".join(FAILS)))
