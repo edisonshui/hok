@@ -73,6 +73,11 @@
       lastSent: "", interrupted: 0, typed: "", workFrom: 0,
     });
     let queueTimer = null;
+    // Each tutor process gets a new generation. A timer or a half-typed send
+    // from an earlier process checks it and stops, so nothing meant for the
+    // old tutor is typed into the next one before it has drawn its screen.
+    let gen = 0;
+    function newProcess() { gen++; cancel(queueTimer); queueTimer = null; }
 
     const busy = () => st.running && now() - st.lastData < 1200;
 
@@ -102,6 +107,7 @@
     }
 
     function onExit() {
+      newProcess();
       st.running = false;
       st.ended = new Date(now());
       st.trust = false; st.route = null; st.routeEnded = false; st.free = false;
@@ -143,6 +149,7 @@
       // main process keeps the one it has), but it would wipe the terminal and
       // forget the open route and an unanswered trust question. Do nothing.
       if (st.starting || st.running) return null;
+      newProcess();
       st.starting = true;
       emit("term");
       if (io.prepare) await io.prepare();
@@ -163,6 +170,7 @@
     }
 
     async function stop() {
+      newProcess();
       await io.stopProcess();
       st.running = false;
     }
@@ -170,6 +178,7 @@
     // waiting messages were written for the old vault, so they are dropped
     // rather than sent into the next vault's tutor.
     function markStopped() {
+      newProcess();
       st.running = false;
       st.queue = []; st.queueFor = [];
       emit("flushed");
@@ -206,24 +215,29 @@
     let typing = null;
     function deliver(message) {
       noteRoute(msgText(message));
-      const p = typing ? typing.then(() => type(message)) : type(message);
+      const g = gen;
+      const p = typing ? typing.then(() => type(message, g)) : type(message, g);
       const done = p.then(() => {}, () => {});
       typing = done;
       done.then(() => { if (typing === done) typing = null; });
       return p;
     }
 
-    async function type(message) {
+    async function type(message, g) {
       const text = msgText(message), images = msgImages(message);
+      const stale = () => g !== gen || !st.running;
+      if (stale()) return;
       if (st.interrupted) {
         const presses = Math.min(60, st.interrupted + 4);
         st.interrupted = 0;
-        for (let i = 0; i < presses; i++) { io.write("\x15"); await sleep(30); }
+        for (let i = 0; i < presses; i++) { io.write("\x15"); await sleep(30); if (stale()) return; }
       }
       for (const image of images) {
         const file = await io.saveImage(image.bytes, image.type);
+        if (stale()) return;
         io.write(`\x1b[200~${file}\x1b[201~`);
         await sleep(300);
+        if (stale()) return;
       }
       const body = images.length && text ? ` ${text}` : text;
       if (body) io.write(body.includes("\n") ? `\x1b[200~${body}\x1b[201~` : body);
@@ -233,10 +247,10 @@
       // message still sits in its input box 1.5s later, press Return once more.
       const probe = text.split("\n")[0].trim().slice(0, 24), collapsed = text.split("\n").length >= 4;
       const unsent = (line) => (probe && line.includes(probe)) || (collapsed && PASTE_HOLDER.test(line));
-      later(() => { if (st.running && unsent(io.inputLine())) io.write("\r"); }, 1500);
+      later(() => { if (!stale() && unsent(io.inputLine())) io.write("\r"); }, 1500);
       // The next message starts typing only after this Return.
       await sleep(90);
-      io.write("\r");
+      if (!stale()) io.write("\r");
     }
 
     // A message for subject s needs its session reopened first, unless it is a
