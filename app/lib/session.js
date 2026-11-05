@@ -63,7 +63,7 @@
     const st = io.state || {};
     Object.assign(st, {
       running: false, starting: false, startedAt: 0, ended: null, failed: null, lastData: 0,
-      queue: [], raw: "", trust: false, trustSeen: false, route: null, routeEnded: false, free: false,
+      queue: [], queueFor: [], raw: "", trust: false, trustSeen: false, route: null, routeEnded: false, free: false,
       lastSent: "", interrupted: 0, typed: "", workFrom: 0,
     });
     let queueTimer = null;
@@ -148,8 +148,14 @@
       await io.stopProcess();
       st.running = false;
     }
-    // The main process already stopped the tutor (a vault switch does).
-    function markStopped() { st.running = false; }
+    // The main process already stopped the tutor (a vault switch does). The
+    // waiting messages were written for the old vault, so they are dropped
+    // rather than sent into the next vault's tutor.
+    function markStopped() {
+      st.running = false;
+      st.queue = []; st.queueFor = [];
+      emit("flushed");
+    }
 
     // Type into the running tutor as the learner would: the text, then Return.
     // Several lines go in as one bracketed paste, so the first line break does
@@ -193,9 +199,16 @@
     // route command itself or a review or start owns the conversation.
     const needsReopen = (s, text) => !!s && st.route !== s.slug && !st.free && !OWN_ROUTE.test(text);
 
-    function hold(message) {
+    // Each waiting message remembers the subject it was written for
+    // (queueFor, index for index with queue), so it reaches that subject even
+    // if the learner opens another before it goes.
+    function hold(message, subject, event = "queued") {
       st.queue.push(message);
-      emit("queued");
+      st.queueFor[st.queue.length - 1] = subject === undefined ? io.currentSubject() : subject;
+      emit(event);
+    }
+    function nextFor() {
+      return st.queueFor.length && st.queueFor[0] !== undefined ? st.queueFor[0] : io.currentSubject();
     }
 
     // What the learner says on a subject's Session goes to that subject. When
@@ -205,11 +218,10 @@
     // nothing arrives out of order.
     function say(message) {
       const s = io.currentSubject(), text = msgText(message);
-      if (st.running && st.trust) return hold(message);
+      if (st.running && st.trust) return hold(message, s);
       const reopen = st.running && needsReopen(s, text);
       if (reopen || (st.queue.length && !OWN_ROUTE.test(text))) {
-        st.queue.push(message);
-        emit("queued");
+        hold(message, s);
         if (reopen) return send(io.reopenCommand(s));
         return;
       }
@@ -221,8 +233,7 @@
     // still waiting from before the tutor stopped.
     function submit(message, startPrompt) {
       if (!st.running) {
-        st.queue.push(message);
-        emit("stick");
+        hold(message, undefined, "stick");
         return start(startPrompt || "");
       }
       return say(message);
@@ -235,8 +246,9 @@
     function flushQueue() {
       if (!st.running || !st.queue.length) return;
       if (st.trust || (io.hasWaitingQuestion && io.hasWaitingQuestion())) return;
-      const s = io.currentSubject(), text = msgText(st.queue[0]);
+      const s = nextFor(), text = msgText(st.queue[0]);
       if (needsReopen(s, text)) return send(io.reopenCommand(s));
+      st.queueFor.shift();
       send(st.queue.shift());
       emit("flushed");
     }
@@ -258,7 +270,7 @@
       if (answer === "yes") { io.write("\x1b[B"); later(() => io.write("\r"), 120); }
       else {
         const kept = st.queue.map(msgText).filter((q) => q && !LEARN_CMD.test(q)).join("\n\n");
-        st.queue = [];
+        st.queue = []; st.queueFor = [];
         if (kept) io.restoreDraft(kept);
         io.write("\r");
       }
