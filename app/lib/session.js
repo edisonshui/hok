@@ -173,6 +173,9 @@
       // Return on the trust question picks "No, exit" and Claude Code quits,
       // so nothing is typed while it is on screen. The message waits instead.
       if (st.trust) return hold(message);
+      // End or Break while a message waits goes behind it. Sent first, it
+      // would end the session the waiting message then reopens.
+      if (st.queue.length) return hold(message);
       return deliver(message);
     }
 
@@ -242,7 +245,7 @@
       const reopen = st.running && needsReopen(s, text);
       if (reopen || (st.queue.length && !OWN_ROUTE.test(text))) {
         hold(message, s);
-        if (reopen) return send(io.reopenCommand(s));
+        if (reopen) return deliver(io.reopenCommand(s));
         return;
       }
       return send(message);
@@ -267,9 +270,9 @@
       if (!st.running || !st.queue.length) return;
       if (st.trust || (io.hasWaitingQuestion && io.hasWaitingQuestion())) return;
       const s = nextFor(), text = msgText(st.queue[0]);
-      if (needsReopen(s, text)) return send(io.reopenCommand(s));
+      if (needsReopen(s, text)) return deliver(io.reopenCommand(s));
       st.queueFor.shift();
-      send(st.queue.shift());
+      deliver(st.queue.shift());
       emit("flushed");
     }
 
