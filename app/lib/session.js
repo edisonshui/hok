@@ -24,6 +24,12 @@
   const ROUTE_CMD = /^\s*[/$]learn-(start|resume|practice)\s+([A-Za-z0-9][A-Za-z0-9_.-]*)/;
   const END_CMD = /^\s*[/$]learn-end(?:\s|$)/;
   const OWN_ROUTE = /^\s*[/$]learn-(start|resume|practice|review|end)\b/;
+  // A review works across subjects, and /learn-start may create a subject
+  // whose slug the app cannot guess from the words typed after it. Either way
+  // the conversation belongs to that command until /learn-end or another
+  // route command, so replies go straight to it instead of reopening the
+  // subject on screen.
+  const FREE_CMD = /^\s*[/$]learn-(start|review)\b/;
   const LEARN_CMD = /^\s*[/$]learn-/;
 
   // A message is its text, or { text, images } when screenshots were pasted.
@@ -57,7 +63,7 @@
     const st = io.state || {};
     Object.assign(st, {
       running: false, starting: false, startedAt: 0, ended: null, failed: null, lastData: 0,
-      queue: [], raw: "", trust: false, trustSeen: false, route: null, routeEnded: false,
+      queue: [], raw: "", trust: false, trustSeen: false, route: null, routeEnded: false, free: false,
       lastSent: "", interrupted: 0, typed: "", workFrom: 0,
     });
     let queueTimer = null;
@@ -66,8 +72,9 @@
 
     function noteRoute(text) {
       const m = String(text).match(ROUTE_CMD);
-      if (m) { st.route = m[2].replace(/\.$/, "").replace(/\./g, "-"); st.routeEnded = false; }
-      else if (END_CMD.test(text)) { st.route = null; st.routeEnded = true; }
+      if (m) { st.route = m[2].replace(/\.$/, "").replace(/\./g, "-"); st.routeEnded = false; st.free = m[1] === "start"; }
+      else if (FREE_CMD.test(text)) { st.routeEnded = false; st.free = true; }
+      else if (END_CMD.test(text)) { st.route = null; st.routeEnded = true; st.free = false; }
       else return;
       emit("route");
     }
@@ -91,7 +98,7 @@
     function onExit() {
       st.running = false;
       st.ended = new Date(now());
-      st.trust = false; st.route = null; st.routeEnded = false;
+      st.trust = false; st.route = null; st.routeEnded = false; st.free = false;
       emit("term");
     }
 
@@ -121,7 +128,7 @@
       st.starting = true;
       emit("term");
       if (io.prepare) await io.prepare();
-      st.raw = ""; st.trust = st.trustSeen = false; st.interrupted = 0; st.typed = ""; st.route = null; st.routeEnded = false;
+      st.raw = ""; st.trust = st.trustSeen = false; st.interrupted = 0; st.typed = ""; st.route = null; st.routeEnded = false; st.free = false;
       noteRoute(prompt || "");
       const result = await io.startProcess(prompt || "");
       st.starting = false;
@@ -182,6 +189,10 @@
       emit("sent");
     }
 
+    // A message for subject s needs its session reopened first, unless it is a
+    // route command itself or a review or start owns the conversation.
+    const needsReopen = (s, text) => !!s && st.route !== s.slug && !st.free && !OWN_ROUTE.test(text);
+
     function hold(message) {
       st.queue.push(message);
       emit("queued");
@@ -195,7 +206,7 @@
     function say(message) {
       const s = io.currentSubject(), text = msgText(message);
       if (st.running && st.trust) return hold(message);
-      const reopen = s && st.running && st.route !== s.slug && !OWN_ROUTE.test(text);
+      const reopen = st.running && needsReopen(s, text);
       if (reopen || (st.queue.length && !OWN_ROUTE.test(text))) {
         st.queue.push(message);
         emit("queued");
@@ -225,12 +236,12 @@
       if (!st.running || !st.queue.length) return;
       if (st.trust || (io.hasWaitingQuestion && io.hasWaitingQuestion())) return;
       const s = io.currentSubject(), text = msgText(st.queue[0]);
-      if (s && st.route !== s.slug && !OWN_ROUTE.test(text)) return send(io.reopenCommand(s));
+      if (needsReopen(s, text)) return send(io.reopenCommand(s));
       send(st.queue.shift());
       emit("flushed");
     }
 
-    const sessionOpen = () => !st.running || !io.currentSubject() || st.route === io.currentSubject().slug;
+    const sessionOpen = () => !st.running || !io.currentSubject() || st.free || st.route === io.currentSubject().slug;
 
     function interrupt() {
       if (!st.running) return;
