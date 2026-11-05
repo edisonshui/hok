@@ -3,7 +3,7 @@ name: learn-end
 description: End or checkpoint the current learning session — finalize the session note, update the learner record and plan, rewrite the resume summary, and print it. Use at the end of a session, before a break, or whenever Edison says stop, pause, checkpoint, or break.
 ---
 
-End or checkpoint the current session. If the user asks for a break, treat it as a same-day pause; otherwise end the session. Follow Phase 4 of `learn/system/workflow.md` and the update rules in `learn/system/records.md`.
+End or checkpoint the current session. If the user asks for a break, treat it as a same-day pause; otherwise end the session. Only the learner ends a session: run this when he typed it or asked to stop, never on your own clock. A hard stop coming up (an exam, the 45-minute mark) is a reason to suggest it in one line and wait (2026-10-08, dtx221: the tutor ran it unprompted and had to apologize). Follow Phase 4 of `learn/system/workflow.md` and the update rules in `learn/system/records.md`.
 
 Work in this order so that nothing depends on a file not yet updated. Do every step even for a `break`; the only difference is step 8.
 
