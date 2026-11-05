@@ -3470,6 +3470,8 @@ RESUME = ("user", "/learn-resume oop")
 ASKED = ("assistant", [{"type": "text", "text": "Here is the swap.\n\n```java\nint t = a;\n```\n\nWhat does `*p` print now?"}])
 ANSWER = ("user", "5")
 
+DEFAULT_HOLD = set(rc.HOLD)
+rc.HOLD = set(rc.KINDS)   # every check holds here, to test the hold mechanics and each check
 section("reply-check: the Stop hook holds a bad tutoring reply back once")
 fresh(); subject("oop")
 turn("/learn-resume oop")
@@ -3582,6 +3584,30 @@ eq("a draft with two questions that was blocked and rewritten clean goes through
               ("assistant", [{"type": "text", "text": "Right. What prints after `p = &y`?"}])), "")
 eq("the hook fails open on an unreadable transcript",
    rc.process(VAULT, {"session_id": "conv-a", "hook_event_name": "Stop", "transcript_path": "/nowhere.jsonl"}), "")
+rc.HOLD = DEFAULT_HOLD
+
+section("reply-check: only machinery holds by default; the rest log what they would hold")
+eq("the default holds only the machinery check", rc.HOLD, {"machinery"})
+fresh(); subject("oop")
+turn("/learn-resume oop")
+eq("a long reply goes through",
+   reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text": LONG}])), "")
+eq("and the length and verdict checks are logged", [row["kind"] for row in map(json.loads,
+   rc.log_path(VAULT).read_text().splitlines())], ["length", "verdict"])
+eq("the same reply at the next Stop is not logged twice",
+   (reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text": LONG}])),
+    len(rc.log_path(VAULT).read_text().splitlines())), ("", 2))
+decision = reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text":
+                      "The pointer still holds x. That closes n4. Does that make sense? What does line 3 print?"}]))
+eq("a node id still holds the reply", blocked(decision), "block")
+eq("the reason names only the held check", "n4" in decision["reason"] and "verdict" not in decision["reason"]
+   and "Two questions" not in decision["reason"], True)
+eq("the verdict and two-question checks were logged for it",
+   sorted(row["kind"] for row in map(json.loads, rc.log_path(VAULT).read_text().splitlines()))[-4:],
+   ["length", "questions", "verdict", "verdict"])
+report = rc.log_report(VAULT)
+eq("report counts each logged check", "questions: 1" in report and "verdict: 2" in report and "length: 1" in report, True)
+eq("report on an empty log says so", rc.log_report(VAULT / "nowhere"), "No would-hold entries yet.")
 
 
 # ------------------------------------------------------------------ reply-check: the closing block
