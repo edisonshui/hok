@@ -3609,6 +3609,34 @@ report = rc.log_report(VAULT)
 eq("report counts each logged check", "questions: 1" in report and "verdict: 2" in report and "length: 1" in report, True)
 eq("report on an empty log says so", rc.log_report(VAULT / "nowhere"), "No would-hold entries yet.")
 
+section("reply-check: session start asks for a review after a week")
+sc = load("session_context", "session_context.py")
+dt = sc.datetime
+runtime = VAULT / ".claude/obsidian-live"
+for name in ("reply-check-reviewed", "reply-check-snooze"):
+    (runtime / name).unlink(missing_ok=True)
+rc.log_path(VAULT).write_text("\n".join(json.dumps({"time": t, "kind": "length", "digest": t, "reply": "x"})
+                                         for t in ("2026-11-05 10:00", "2026-11-07 10:00")) + "\n")
+eq("under a week, nothing is asked", sc.reply_check_due(VAULT, dt(2026, 11, 11, 9, 0)), "")
+due = sc.reply_check_due(VAULT, dt(2026, 11, 12, 10, 0))
+eq("a week after the first entry, the start context asks", due.startswith("Reply-check review due: 2 logged since 05 Nov"), True)
+eq("and says how to clear and snooze it", "reply-check.py reviewed" in due and "reply-check.py snooze" in due, True)
+real_due = sc.reply_check_due
+sc.reply_check_due = lambda vault: due
+eq("the line is in the start context", due in sc.start_context(VAULT), True)
+sc.reply_check_due = real_due
+rc.mark_review(VAULT, "snooze", now=dt(2026, 11, 12, 10, 0).timestamp())
+eq("a snooze hides it for two days", sc.reply_check_due(VAULT, dt(2026, 11, 13, 10, 0)), "")
+eq("and it comes back after", sc.reply_check_due(VAULT, dt(2026, 11, 14, 10, 1)) != "", True)
+rc.mark_review(VAULT, "reviewed", now=dt(2026, 11, 14, 11, 0).timestamp())
+eq("once reviewed, old entries are not asked about again", sc.reply_check_due(VAULT, dt(2026, 11, 30, 10, 0)), "")
+with rc.log_path(VAULT).open("a") as handle:
+    handle.write(json.dumps({"time": "2026-11-20 10:00", "kind": "verdict", "digest": "n", "reply": "y"}) + "\n")
+eq("new entries start a new week", sc.reply_check_due(VAULT, dt(2026, 11, 27, 10, 0)).startswith(
+   "Reply-check review due: 1 logged since 20 Nov"), True)
+for name in ("reply-check-reviewed", "reply-check-snooze", "reply-check-log.jsonl"):
+    (runtime / name).unlink(missing_ok=True)
+
 
 # ------------------------------------------------------------------ reply-check: the closing block
 
