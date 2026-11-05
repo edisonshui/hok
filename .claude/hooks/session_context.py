@@ -9,6 +9,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import log_health
 from vaultlib import frontmatter
 
 
@@ -20,7 +21,7 @@ def learn_status():
     return module
 
 
-def start_context(vault, subject=None, host="claude"):
+def start_context(vault, subject=None, host="claude", log_warning=""):
     status = Path(__file__).with_name("learn-status.py")
     command = [sys.executable, str(status), "--vault", str(vault)]
     refresh = subprocess.run(command + ["--quiet"], cwd=vault, text=True,
@@ -71,6 +72,8 @@ def start_context(vault, subject=None, host="claude"):
             lines += [f"learn/subjects/{selected.name}/resume.md:", resume.read_text().strip()]
         else:
             lines.append("Resume missing; recover state from record.md, plan.md, and the latest session note.")
+        if log_warning:
+            lines.append(log_warning)
     preferences = vault / "learn/me/preferences.md"
     if preferences.is_file():
         text = preferences.read_text()
@@ -97,13 +100,16 @@ if __name__ == "__main__":
     vault = args.vault.resolve()
     # Claude's SessionStart payload identifies this conversation. Never borrow
     # another conversation's selection from a global active-session pointer.
-    subject = None
+    subject, log_warning = None, ""
     try:
         payload = json.load(sys.stdin)
         sid = payload.get("session_id", "")
         if isinstance(sid, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,128}", sid):
             state = json.loads((vault / ".claude/obsidian-live" / (sid + ".json")).read_text())
             subject = state.get("subject")
+            if subject:
+                # Agent-only: is this subject's log.md keeping up with the transcript?
+                log_warning = log_health.report(vault, sid)
     except (OSError, ValueError, AttributeError):
         pass
-    print(start_context(vault, subject))
+    print(start_context(vault, subject, log_warning=log_warning))
