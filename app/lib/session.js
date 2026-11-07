@@ -24,7 +24,19 @@
   const ROUTE_CMD = /^\s*[/$]learn-(start|resume|practice)\s+([A-Za-z0-9][A-Za-z0-9_.-]*)/;
   const END_CMD = /^\s*[/$]learn-end(?:\s|$)/;
   const OWN_ROUTE = /^\s*[/$]learn-(start|resume|practice|review|end)\b/;
+  // A review works across subjects, and /learn-start may create a subject
+  // whose slug the app cannot guess from the words typed after it. Either way
+  // the conversation belongs to that command until /learn-end or another
+  // route command, so replies go straight to it instead of reopening the
+  // subject on screen.
+  const FREE_CMD = /^\s*[/$]learn-(start|review)\b/;
   const LEARN_CMD = /^\s*[/$]learn-/;
+  // Claude Code 2.1.318 shows a paste of 5 or more lines in its input box as
+  // this placeholder, not as its text. 2 and 3 lines show as text; 4 was not
+  // checked, so the placeholder is accepted from 4 lines up.
+  // The vault's /learn- skills, for Tab completion typed in the terminal.
+  const LEARN_SKILLS = ["start", "resume", "practice", "review", "end", "check", "close"];
+  const PASTE_HOLDER = /\[Pasted text #\d+/;
 
   // A message is its text, or { text, images } when screenshots were pasted.
   const msgText = (m) => (typeof m === "string" ? m : (m && m.text) || "");
@@ -41,7 +53,8 @@
   //   currentSubject()        the subject on screen, {slug, status} or null
   //   reopenCommand(subject)  the typed command that reopens its session
   //   hasWaitingQuestion()    a question the tutor is waiting on is on screen
-  //   restoreDraft(text)      put dropped queue text back in the composer
+  //   restoreDraft(text, images)  put dropped queue text and screenshots back
+  //                           in the composer
   //   onEvent(kind, payload)  paint: "term" (lifecycle or trust changed),
   //                           "route", "queued", "flushed", "stick", "sent",
   //                           "started", "start-failed"
@@ -57,17 +70,23 @@
     const st = io.state || {};
     Object.assign(st, {
       running: false, starting: false, startedAt: 0, ended: null, failed: null, lastData: 0,
-      queue: [], raw: "", trust: false, trustSeen: false, route: null, routeEnded: false,
+      queue: [], queueFor: [], raw: "", trust: false, trustSeen: false, route: null, routeEnded: false, free: false,
       lastSent: "", interrupted: 0, typed: "", workFrom: 0,
     });
     let queueTimer = null;
+    // Each tutor process gets a new generation. A timer or a half-typed send
+    // from an earlier process checks it and stops, so nothing meant for the
+    // old tutor is typed into the next one before it has drawn its screen.
+    let gen = 0;
+    function newProcess() { gen++; cancel(queueTimer); queueTimer = null; }
 
     const busy = () => st.running && now() - st.lastData < 1200;
 
     function noteRoute(text) {
       const m = String(text).match(ROUTE_CMD);
-      if (m) { st.route = m[2].replace(/\.$/, "").replace(/\./g, "-"); st.routeEnded = false; }
-      else if (END_CMD.test(text)) { st.route = null; st.routeEnded = true; }
+      if (m) { st.route = m[2].replace(/\.$/, "").replace(/\./g, "-"); st.routeEnded = false; st.free = m[1] === "start"; }
+      else if (FREE_CMD.test(text)) { st.routeEnded = false; st.free = true; }
+      else if (END_CMD.test(text)) { st.route = null; st.routeEnded = true; st.free = false; }
       else return;
       emit("route");
     }
@@ -89,28 +108,41 @@
     }
 
     function onExit() {
+      newProcess();
       st.running = false;
       st.ended = new Date(now());
-      st.trust = false; st.route = null; st.routeEnded = false;
+      st.trust = false; st.route = null; st.routeEnded = false; st.free = false;
       emit("term");
     }
 
     // Keystrokes the learner types straight into the terminal: a command typed
-    // there still moves the route. Escape sequences (arrows, function keys) are
-    // skipped whole, and a bare Esc resets the tracked text, since it clears
-    // Claude Code's input box too.
+    // there still moves the route. The tracked text follows what Claude Code
+    // does to its input box. Escape sequences are skipped whole: the
+    // bracketed-paste markers keep the pasted text, and Up and Down reset it,
+    // since they swap in a history entry. A bare Esc and Ctrl+U reset it, since
+    // they clear the box. Tab completes a /learn- command the way Claude Code
+    // does when only one skill fits.
     function onUserInput(d) {
       const s = String(d);
       for (let i = 0; i < s.length; i++) {
         const ch = s[i];
-        if (ch === "\x1b") {
-          if (s[i + 1] === "[" || s[i + 1] === "O") { i += 2; while (i < s.length && !(s[i] >= "@" && s[i] <= "~")) i++; }
-          st.typed = "";
+        if (ch === "\x1b" && (s[i + 1] === "[" || s[i + 1] === "O")) {
+          let j = i + 2;
+          while (j < s.length && !(s[j] >= "@" && s[j] <= "~")) j++;
+          if (s[j] === "A" || s[j] === "B") st.typed = "";
+          i = j;
         }
+        else if (ch === "\x1b" || ch === "\x15") st.typed = "";
         else if (ch === "\r") { noteRoute(st.typed); st.typed = ""; }
         else if (ch === "\x7f") st.typed = st.typed.slice(0, -1);
+        else if (ch === "\t") st.typed = complete(st.typed);
         else if (ch >= " ") st.typed += ch;
       }
+    }
+    function complete(typed) {
+      const m = typed.match(/^(\s*[/$]learn-)([a-z]*)$/);
+      const fits = m ? LEARN_SKILLS.filter((name) => name.startsWith(m[2])) : [];
+      return fits.length === 1 ? m[1] + fits[0] : typed;
     }
 
     async function start(prompt) {
@@ -118,10 +150,11 @@
       // main process keeps the one it has), but it would wipe the terminal and
       // forget the open route and an unanswered trust question. Do nothing.
       if (st.starting || st.running) return null;
+      newProcess();
       st.starting = true;
       emit("term");
       if (io.prepare) await io.prepare();
-      st.raw = ""; st.trust = st.trustSeen = false; st.interrupted = 0; st.typed = ""; st.route = null; st.routeEnded = false;
+      st.raw = ""; st.trust = st.trustSeen = false; st.interrupted = 0; st.typed = ""; st.route = null; st.routeEnded = false; st.free = false;
       noteRoute(prompt || "");
       const result = await io.startProcess(prompt || "");
       st.starting = false;
@@ -137,12 +170,28 @@
       return { ok: true };
     }
 
+    // Restart and a host switch stop the tutor here. The main process sends no
+    // exit for a stop it made, so the trust question and the route are cleared
+    // here, or the trust card would stay up with buttons that do nothing.
+    // Waiting messages stay for the next start.
     async function stop() {
+      newProcess();
       await io.stopProcess();
-      st.running = false;
+      idle();
     }
-    // The main process already stopped the tutor (a vault switch does).
-    function markStopped() { st.running = false; }
+    // The main process already stopped the tutor (a vault switch does). The
+    // waiting messages were written for the old vault, so they are dropped
+    // rather than sent into the next vault's tutor.
+    function markStopped() {
+      newProcess();
+      st.queue = []; st.queueFor = [];
+      idle();
+    }
+    function idle() {
+      st.running = false;
+      st.trust = false; st.route = null; st.routeEnded = false; st.free = false;
+      emit("term");
+    }
 
     // Type into the running tutor as the learner would: the text, then Return.
     // Several lines go in as one bracketed paste, so the first line break does
@@ -153,30 +202,80 @@
     // with the text, Claude Code reads the whole burst as a paste and Return no
     // longer sends. Pasted images go first, each as a temp file path, which
     // Claude Code attaches as an image ([Image #N]).
-    async function send(message) {
+    function send(message) {
       const text = msgText(message), images = msgImages(message);
       if (!text && !images.length) return;
-      if (!st.running) return start(text);
+      // While the tutor starts, a second start would be ignored and the text
+      // lost, so the message waits for the tutor instead.
+      if (!st.running) return st.starting ? hold(message) : start(text);
+      // Return on the trust question picks "No, exit" and Claude Code quits,
+      // so nothing is typed while it is on screen. The message waits instead.
+      if (st.trust) return hold(message);
+      // End or Break while a message waits goes behind it. Sent first, it
+      // would end the session the waiting message then reopens.
+      if (st.queue.length) return hold(message);
+      return deliver(message);
+    }
+
+    // One message is typed at a time. A send pauses between its writes (Ctrl+U
+    // presses, image saves, the Return), so a second send that started typing
+    // meanwhile would land inside the first in Claude Code's input box. The
+    // route moves at once, in the order the sends were made.
+    let typing = null;
+    function deliver(message) {
+      noteRoute(msgText(message));
+      const g = gen;
+      const p = typing ? typing.then(() => type(message, g)) : type(message, g);
+      const done = p.then(() => {}, () => {});
+      typing = done;
+      done.then(() => { if (typing === done) typing = null; });
+      return p;
+    }
+
+    async function type(message, g) {
+      const text = msgText(message), images = msgImages(message);
+      const stale = () => g !== gen || !st.running;
+      if (stale()) return;
       if (st.interrupted) {
         const presses = Math.min(60, st.interrupted + 4);
         st.interrupted = 0;
-        for (let i = 0; i < presses; i++) { io.write("\x15"); await sleep(30); }
+        for (let i = 0; i < presses; i++) { io.write("\x15"); await sleep(30); if (stale()) return; }
       }
       for (const image of images) {
         const file = await io.saveImage(image.bytes, image.type);
+        if (stale()) return;
         io.write(`\x1b[200~${file}\x1b[201~`);
         await sleep(300);
+        if (stale()) return;
       }
       const body = images.length && text ? ` ${text}` : text;
       if (body) io.write(body.includes("\n") ? `\x1b[200~${body}\x1b[201~` : body);
-      later(() => io.write("\r"), 90);
+      st.lastSent = text;
+      emit("sent");
       // Right after an interrupt, Claude Code can drop that Return. If the
       // message still sits in its input box 1.5s later, press Return once more.
-      const probe = text.split("\n")[0].trim().slice(0, 24);
-      later(() => { if (st.running && probe && io.inputLine().includes(probe)) io.write("\r"); }, 1500);
-      st.lastSent = text;
-      noteRoute(text);
-      emit("sent");
+      const probe = text.split("\n")[0].trim().slice(0, 24), collapsed = text.split("\n").length >= 4;
+      const unsent = (line) => (probe && line.includes(probe)) || (collapsed && PASTE_HOLDER.test(line));
+      later(() => { if (!stale() && unsent(io.inputLine())) io.write("\r"); }, 1500);
+      // The next message starts typing only after this Return.
+      await sleep(90);
+      if (!stale()) io.write("\r");
+    }
+
+    // A message for subject s needs its session reopened first, unless it is a
+    // route command itself or a review or start owns the conversation.
+    const needsReopen = (s, text) => !!s && st.route !== s.slug && !st.free && !OWN_ROUTE.test(text);
+
+    // Each waiting message remembers the subject it was written for
+    // (queueFor, index for index with queue), so it reaches that subject even
+    // if the learner opens another before it goes.
+    function hold(message, subject, event = "queued") {
+      st.queue.push(message);
+      st.queueFor[st.queue.length - 1] = subject === undefined ? io.currentSubject() : subject;
+      emit(event);
+    }
+    function nextFor() {
+      return st.queueFor.length && st.queueFor[0] !== undefined ? st.queueFor[0] : io.currentSubject();
     }
 
     // What the learner says on a subject's Session goes to that subject. When
@@ -186,11 +285,14 @@
     // nothing arrives out of order.
     function say(message) {
       const s = io.currentSubject(), text = msgText(message);
-      const reopen = s && st.running && st.route !== s.slug && !OWN_ROUTE.test(text);
+      // Stopped on a subject's Session (Check me from the menu shortcut), the
+      // tutor starts by reopening that subject, as the composer's send does.
+      if (!st.running && s) return submit(message, io.reopenCommand(s));
+      if (st.running && st.trust) return hold(message, s);
+      const reopen = st.running && needsReopen(s, text);
       if (reopen || (st.queue.length && !OWN_ROUTE.test(text))) {
-        st.queue.push(message);
-        emit("queued");
-        if (reopen) return send(io.reopenCommand(s));
+        hold(message, s);
+        if (reopen) return deliver(io.reopenCommand(s));
         return;
       }
       return send(message);
@@ -198,11 +300,17 @@
 
     // The composer's send: a stopped tutor starts first, with the reopen
     // command as its CLI prompt, and the message joins the queue behind any
-    // still waiting from before the tutor stopped.
+    // still waiting from before the tutor stopped. A route command of the
+    // learner's own (/learn-review, /learn-resume b) is the start prompt
+    // itself: reopening the subject on screen first would leave its session
+    // note open.
     function submit(message, startPrompt) {
       if (!st.running) {
-        st.queue.push(message);
-        emit("stick");
+        if (!st.starting && OWN_ROUTE.test(msgText(message)) && !msgImages(message).length) {
+          emit("stick");
+          return start(msgText(message));
+        }
+        hold(message, undefined, "stick");
         return start(startPrompt || "");
       }
       return say(message);
@@ -215,13 +323,14 @@
     function flushQueue() {
       if (!st.running || !st.queue.length) return;
       if (st.trust || (io.hasWaitingQuestion && io.hasWaitingQuestion())) return;
-      const s = io.currentSubject(), text = msgText(st.queue[0]);
-      if (s && st.route !== s.slug && !OWN_ROUTE.test(text)) return send(io.reopenCommand(s));
-      send(st.queue.shift());
+      const s = nextFor(), text = msgText(st.queue[0]);
+      if (needsReopen(s, text)) return deliver(io.reopenCommand(s));
+      st.queueFor.shift();
+      deliver(st.queue.shift());
       emit("flushed");
     }
 
-    const sessionOpen = () => !st.running || !io.currentSubject() || st.route === io.currentSubject().slug;
+    const sessionOpen = () => !st.running || !io.currentSubject() || st.free || st.route === io.currentSubject().slug;
 
     function interrupt() {
       if (!st.running) return;
@@ -231,15 +340,17 @@
     }
 
     // Claude Code's trust question, answered from the thread: down selects
-    // "Yes". A no drops queued commands, keeps the learner's own words.
+    // "Yes". A no drops queued commands and gives the learner's own words and
+    // pasted screenshots back to the composer.
     function answerTrust(answer) {
       if (!st.running || !st.trust) return;
       st.trust = false;
       if (answer === "yes") { io.write("\x1b[B"); later(() => io.write("\r"), 120); }
       else {
-        const kept = st.queue.map(msgText).filter((q) => q && !LEARN_CMD.test(q)).join("\n\n");
-        st.queue = [];
-        if (kept) io.restoreDraft(kept);
+        const own = st.queue.filter((q) => !LEARN_CMD.test(msgText(q)));
+        const kept = own.map(msgText).filter(Boolean).join("\n\n"), images = own.flatMap(msgImages);
+        st.queue = []; st.queueFor = [];
+        if (kept || images.length) io.restoreDraft(kept, images);
         io.write("\r");
       }
       emit("term");
