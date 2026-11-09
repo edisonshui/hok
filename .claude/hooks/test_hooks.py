@@ -3360,6 +3360,19 @@ eq("a one- or two-word rhetorical beat is not a question",
    ["What does it print instead?"])
 eq("a quoted learner line is not a question", rc.questions("> was it 5?\n\nRight, it was 5."), [])
 
+section("reply-check: an engineering report's closing lines")
+REPORT = ("Where: the record now has your goal.\nYour check: nothing tonight.\nOn you:\n\n1. Monday or Tuesday?\n\n"
+          "Skills followed: the bedtime rule is why this is a rundown.")
+eq("the 8 Nov rundown's four labels are found", rc.report_lines(REPORT), ["where", "your check", "on you", "skills followed"])
+eq("bold labels count", rc.report_lines("**Where:** here\n**On you:** pick one"), ["where", "on you"])
+eq("a Skills I followed line alone counts", rc.report_lines("Skills I followed: none."), ["skills followed"])
+eq("one label alone is ordinary teaching", rc.report_lines("Where: inside the loop, i grows."), [])
+eq("a label mid-sentence is not a line", rc.report_lines("Ask yourself where: your check is the base case."), [])
+eq("labels inside fenced code are an example", rc.report_lines("```\nWhere: x\nOn you: y\n```"), [])
+eq("the report rule applies on a command turn too",
+   [k for k, _ in rc.reply_findings([REPORT], command="start")], ["report"])
+eq("and it holds", "report" in rc.HOLD, True)
+
 section("reply-check: machinery the learner never reads")
 eq("a node id is found (jev's one regex)", rc.machinery("That closes n4, so next is n12a."), ["n4", "n12a"])
 eq("a script and a path are found",
@@ -3587,7 +3600,7 @@ eq("the hook fails open on an unreadable transcript",
 rc.HOLD = DEFAULT_HOLD
 
 section("reply-check: only machinery holds by default; the rest log what they would hold")
-eq("the default holds only the machinery check", rc.HOLD, {"machinery"})
+eq("the default holds the machinery and report checks", rc.HOLD, {"machinery", "report"})
 fresh(); subject("oop")
 turn("/learn-resume oop")
 eq("a long reply goes through",

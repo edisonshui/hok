@@ -122,8 +122,15 @@ SKIP_COMMANDS = {"end", "close", "start", "review"}   # replies shaped by a skil
 # two-question and verdict checks flagged good replies ("4 for 4, ..." as no
 # verdict, a confidence question as a second question). `reply-check.py report`
 # counts the log, to tune a check before it joins HOLD.
-KINDS = ("length", "questions", "verdict", "nudge", "machinery")
-HOLD = {"machinery"}
+KINDS = ("length", "questions", "verdict", "nudge", "machinery", "report")
+HOLD = {"machinery", "report"}
+
+# The closing lines of an engineering report: Where, Your check, On you, and a
+# Skills followed paragraph. They come from the global rules for coding work,
+# which exempt tutoring, as CLAUDE.md (Hard rules) does; a /learn-start rundown
+# ended with all four on 8 Nov 2026. One label alone can be ordinary teaching
+# ("Where: inside the loop"), so it takes two of the three, or a Skills line.
+REPORT_LINE = re.compile(r"^[\W_]{0,4}(where|your check|on you|skills (?:i )?followed)[*_]{0,2}\s*:", re.M | re.I)
 LOG_KEEP = 2000            # lines kept in the would-hold log
 
 
@@ -193,6 +200,23 @@ def machinery(text):
                 continue
             found.append(token)
     return found
+
+
+def report_lines(text):
+    """The report labels that start lines in the reply, when they read as the report."""
+    labels = []
+    for match in REPORT_LINE.finditer(CODE_BLOCK_FREE(text)):
+        label = re.sub(r"\s+", " ", match.group(1).lower()).replace("skills i followed", "skills followed")
+        if label not in labels:
+            labels.append(label)
+    if "skills followed" in labels or len([l for l in labels if l != "skills followed"]) >= 2:
+        return labels
+    return []
+
+
+def CODE_BLOCK_FREE(text):
+    """The reply without fenced code, where a label could be part of an example."""
+    return re.sub(r"```.*?```", " ", text, flags=re.S)
 
 
 def is_nudge(text):
@@ -332,8 +356,8 @@ def reply_findings(reply, asked=(), learner=None, command=""):
     `reply` is the list of text blocks the learner saw this turn, `asked` the
     tutor items before the learner's last message, `learner` that message, and
     `command` the /learn-* verb it was, if any. On a command turn the reply is
-    skill-shaped (a recap, a plan), so only the one-question rule and the
-    machinery rule apply.
+    skill-shaped (a recap, a plan), so only the one-question rule, the
+    machinery rule and the report rule apply.
     """
     text = "\n\n".join(block for block in reply if block.strip())
     if not text.strip():
@@ -364,6 +388,11 @@ def reply_findings(reply, asked=(), learner=None, command=""):
         problems.append(("nudge", "This is the second time this turn says the question is still waiting. Either "
                         "answer what the learner said or ask the question again in full; do not "
                         "point back at it."))
+    labels = report_lines(text)
+    if labels:
+        problems.append(("report", "The reply ends like an engineering report (%s). Tutoring replies never carry "
+                        "Where, Your check, On you, or a Skills followed paragraph (CLAUDE.md, Hard rules); "
+                        "say what happens next in plain words instead." % ", ".join(labels)))
     names = machinery(text)
     if names:
         problems.append(("machinery", "The prose names %s. Say the topic's name instead; the learner never reads "
