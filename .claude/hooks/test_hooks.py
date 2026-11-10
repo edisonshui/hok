@@ -3783,6 +3783,21 @@ eq("the Show-the-learner block is untouched",
    run.stdout.find("Log health") > run.stdout.find("End of block."), True)
 shutil.rmtree(VAULT)
 
+section("look-figure: one allowed command checks a drawing and renders it inside the vault")
+LOOK = Path(tempfile.mkdtemp())
+(LOOK / ".claude/hooks").mkdir(parents=True)
+shutil.copy(HOOKS / "look-figure.py", LOOK / ".claude/hooks/look-figure.py")
+(LOOK / "bad.svg").write_text("<svg")
+(LOOK / "good.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>')
+look = lambda f: subprocess.run([sys.executable, str(LOOK / ".claude/hooks/look-figure.py"), str(LOOK / f)], capture_output=True, text=True)
+eq("a malformed SVG fails with exit 1", look("bad.svg").returncode, 1)
+eq("a file that isn't an SVG is refused", look("missing.png").returncode, 2)
+good = look("good.svg")
+eq("a well-formed SVG prints xml ok first", (good.returncode, good.stdout.splitlines()[0]), (0, "xml ok"))
+eq("its render, when there is one, lands in the vault's .claude/figure-looks/",
+   all(str(LOOK / ".claude/figure-looks") in l for l in good.stdout.splitlines()[1:] if l.endswith(".png")), True)
+shutil.rmtree(LOOK)
+
 print()
 if FAILS:
     print("FAILED (%d): %s" % (len(FAILS), ", ".join(FAILS)))

@@ -15,7 +15,9 @@
       "Bash(python3 .claude/hooks/jev.py*)",
       "Bash(python3 ./.claude/hooks/jev.py*)",
       "Bash(python3 .claude/hooks/write-check.py*)",
-      "Bash(python3 ./.claude/hooks/write-check.py*)"
+      "Bash(python3 ./.claude/hooks/write-check.py*)",
+      "Bash(python3 .claude/hooks/look-figure.py*)",
+      "Bash(python3 ./.claude/hooks/look-figure.py*)"
     ],
     "ask": [
       "Edit(/learn/system/**)",
