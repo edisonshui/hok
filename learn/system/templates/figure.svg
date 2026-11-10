@@ -1,10 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 470" font-family="Atkinson Hyperlegible Next, Helvetica Neue, Helvetica, sans-serif">
   <!-- Template for a math figure. Rules: learn/system/diagrams.md, "Math pictures as SVG figures".
        Ink only. Every color is a vault-design token (light value, night value in the media block).
+       No background: the figure sits on whatever the lesson is shown on (the app's glass, an Obsidian note),
+       and its ink follows that surface's light or night.
        Replace the title, draw with the classes below, and keep every label inside the 760 x 470 box. -->
   <title>One line saying what the figure shows</title>
   <style>
-    .paper { fill: #F6F5F2; }                                   /* color-paper */
     .key { stroke: #1B1A17; stroke-width: 3; fill: none; }      /* color-ink: the one thing the reply is about */
     .main { stroke: #4A4741; stroke-width: 2; fill: none; }     /* color-ink-2: the object it sits on */
     .other { stroke: #646059; stroke-width: 1.5; fill: none; }  /* color-ink-3: everything else */
@@ -18,7 +19,6 @@
     .label-2 { fill: #4A4741; font-size: 14px; }                /* color-ink-2 */
     .label-3 { fill: #646059; font-size: 14px; }                /* color-ink-3 */
     @media (prefers-color-scheme: dark) {
-      .paper { fill: #141416; }
       .key { stroke: #F2F1EE; }
       .rejected, .other { stroke: #8F8D87; }
       .main { stroke: #B9B7B1; }
@@ -32,7 +32,6 @@
     <marker id="ah-main" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-main" d="M0,0 L10,5 L0,10 z"/></marker>
     <marker id="ah-other" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head-other" d="M0,0 L10,5 L0,10 z"/></marker>
   </defs>
-  <rect class="paper" width="760" height="470"/>
 
   <!-- Draw here. Example: <line class="key" x1="..." y1="..." x2="..." y2="..." marker-end="url(#ah-key)"/> -->
 

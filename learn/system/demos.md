@@ -53,7 +53,7 @@ These are the rules the builder applies. Each one comes from how people learn fr
 
 ## Building it
 
-1. For phone screens, start from `learn/system/templates/demo.svg`. For anything else (a chart, a poster, a page), start from `learn/system/templates/figure.svg` and delete its `paper` rect. Keep the template's style block and classes for the labels and caption; the depicted thing may add its own classes there.
+1. For phone screens, start from `learn/system/templates/demo.svg`. For anything else (a chart, a poster, a page), start from `learn/system/templates/figure.svg`. Keep the template's style block and classes for the labels and caption; the depicted thing may add its own classes there.
 2. Write it to `learn/subjects/<slug>/figures/<file name>`.
 3. **Look at it.** Run `python3 .claude/hooks/look-figure.py <file>`. It checks the XML (a malformed SVG shows as a broken image) and prints the path of a PNG render, padded to a square; read that PNG. Judge it at full size as the harshest art director you know: the composition first, then the hierarchy, then the details.
 4. Go through the **done list** below. Fix what fails and look again. Three rounds at most; if something still fails, say what in the report.
