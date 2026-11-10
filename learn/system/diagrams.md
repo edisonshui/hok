@@ -2,6 +2,10 @@
 
 Obsidian renders mermaid blocks, LaTeX, and embedded SVG files natively, so a diagram written into a note is a diagram the learner sees. Mermaid draws structure: steps, decisions, dependencies. An SVG figure draws math: curves, vectors, angles, regions, surfaces. A diagram earns its place when the *shape* of an idea is the point: a dependency order, a decision, a flow, a two-axis tradeoff. It does not earn its place as decoration. A diagram makes a plan inspectable; it does not make it correct, so it never replaces a check question.
 
+## Demos: show the thing, not a description of it
+
+When a reply or check asks the learner to judge or notice something visual (a screen, a layout, a chart, a page of type), show the thing itself: brief the `demo-builder` subagent and embed the file it returns. A sentence describing two screens tests reading; the picture tests seeing. The brief, the craft rules and the done list are in `learn/system/demos.md`.
+
 ## When to draw which
 
 | The idea is about… | Draw | Mermaid type |
@@ -14,6 +18,7 @@ Obsidian renders mermaid blocks, LaTeX, and embedded SVG files natively, so a di
 | Order of events between parties | Sequence diagram | `sequenceDiagram` |
 | A state that changes on events | State diagram | `stateDiagram-v2` |
 | A math picture: curves, level curves, vectors, angles, regions, a surface | SVG figure | none; see *Math pictures as SVG figures* |
+| The object itself: a screen, a layout, a chart, a page to judge | Demo | none; see *Demos* above |
 
 If a type fails to render in Obsidian (its bundled mermaid can lag the newest release), fall back to `flowchart`, which always renders.
 

@@ -42,7 +42,7 @@ learn/Dashboard.md index of all subjects, badges, warnings              (generat
 learn/Queries.md   Dataview views over frontmatter                       (authored)
 .obsidian/plugins/learn-live/  follows live logs; the Code runner pane (Java, Python, C++)
 .claude/skills/    the /learn-* commands
-.claude/agents/    fact-checker, plan-reviewer
+.claude/agents/    fact-checker, plan-reviewer, demo-builder
 .claude/hooks/     session-start.sh    prints the subject index and selected resume, refreshes the views,
                                        reports any session note left open
                    obsidian-live.py    mirrors the conversation to log.md; times the session
