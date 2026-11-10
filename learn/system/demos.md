@@ -18,7 +18,7 @@ The brief, in this order:
 
 **The picture carries the material; the words around it don't restate it.** A stem that says what the picture shows ("the plate is in 44 pt bold") hands over the answer the picture was meant to test, and says everything twice (Mayer's redundancy principle). The stem asks the question and names nothing the learner should find by looking. The learner sees the picture in the app or in the log in Obsidian, not in the terminal, and that is fine.
 
-Teaching waits for the demo the way it waits for a fact check: send the brief, say one line to the learner ("Drawing the two screens."), and embed the file when it returns.
+Teaching waits for the demo the way it waits for a fact check. First write one line to the learner that names what is being drawn ("Drawing the two sign-in screens for you to compare."), then send the brief, and embed the file when it returns. The wait is one to three minutes; the live log and the app show a *Drawing* line with that time while it lasts, so the learner knows what the pause is for.
 
 ## Craft rules
 

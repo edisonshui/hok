@@ -99,7 +99,7 @@
             "timeout": 5
           }
         ],
-        "matcher": "AskUserQuestion"
+        "matcher": "AskUserQuestion|Agent|Task"
       }
     ],
     "PostToolUse": [
@@ -115,7 +115,7 @@
             "timeout": 5
           }
         ],
-        "matcher": "AskUserQuestion"
+        "matcher": "AskUserQuestion|Agent|Task"
       }
     ],
     "Stop": [

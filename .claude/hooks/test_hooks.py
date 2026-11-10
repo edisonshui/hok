@@ -3783,6 +3783,30 @@ eq("the Show-the-learner block is untouched",
    run.stdout.find("Log health") > run.stdout.find("End of block."), True)
 shutil.rmtree(VAULT)
 
+section("live log: a demo being drawn shows as one Drawing line, only while it is the last thing")
+fresh(); note("oop", "s05")
+turn("/learn-resume oop")
+log = lambda: (VAULT / "learn/subjects/oop/log.md").read_text()
+draw = lambda event, kind="demo-builder": olive.process(VAULT, {"session_id": "conv-a", "hook_event_name": event,
+    "tool_name": "Agent", "tool_use_id": "toolu_d", "tool_input": {"subagent_type": kind, "description": "Draw", "prompt": "p"}})
+olive.process(VAULT, {"session_id": "conv-a", "hook_event_name": "MessageDisplay", "message_id": "m0",
+                      "index": 0, "final": True, "delta": "Drawing the two sign-in screens."})
+draw("PreToolUse")
+eq("the drawer's call puts a Drawing callout at the end of the log", "> [!drawing] Drawing" in log(), True)
+eq("and it says how long the wait is", "one to three minutes" in log(), True)
+draw("PostToolUse")
+eq("it is gone once the picture is back", "[!drawing]" in log(), False)
+draw("PreToolUse")
+olive.process(VAULT, {"session_id": "conv-a", "hook_event_name": "MessageDisplay", "message_id": "m1",
+                      "index": 0, "final": True, "delta": "Here they are."})
+eq("anything after it hides it, even before the call returns", "[!drawing]" in log(), False)
+olive.process(VAULT, {"session_id": "conv-a", "hook_event_name": "Stop"})
+eq("a turn's end drops it from the state", any(i["role"] == olive.DRAW_ROLE
+   for i in json.loads((VAULT / ".claude/obsidian-live/conv-a.json").read_text())["current"]), False)
+draw("PreToolUse", "fact-checker")
+eq("other subagents add no line", "[!drawing]" in log(), False)
+shutil.rmtree(VAULT)
+
 section("look-figure: one allowed command checks a drawing and renders it inside the vault")
 LOOK = Path(tempfile.mkdtemp())
 (LOOK / ".claude/hooks").mkdir(parents=True)

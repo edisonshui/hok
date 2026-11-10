@@ -36,6 +36,11 @@ FLAGGED_KEEP = 40           # probe digests remembered, so one is withdrawn once
 PROBE_BUDGET = 3.0          # seconds of Jev time per picker; the hook timeout is 5
 NOTICE_ROLE = "Tutor — notice"
 CODE_ROLE = "You — code"
+# While the demo-builder draws (one to three minutes, measured 89 to 157 s on 10 Nov), the log says so, so the
+# learner knows what the wait is for (Edison, 10 Nov). It lives only in `current` and only shows as the last entry.
+DRAW_ROLE = "Claude — drawing"
+DRAW_TEXT = "Drawing the picture. This usually takes one to three minutes."
+DRAW_TOOLS = ("Agent", "Task")
 SHARE_MAX_AGE = 6 * 3600    # a runner share older than this is stale, not a reply
 SHARE_CODE_CHARS = 20000
 SHARE_OUTPUT_CHARS = 8000
@@ -680,7 +685,9 @@ def entry_lines(items):
     the pacing information that makes a session reviewable afterwards.
     """
     lines, headings = [], set()
-    for item in items:
+    for index, item in enumerate(items):
+        if item["role"] == DRAW_ROLE and index != len(items) - 1:
+            continue   # the picture or the reply that follows it says the rest
         text = (item.get("display") or item.get("text") or "").strip()
         if not text:
             continue
@@ -702,6 +709,8 @@ def entry_lines(items):
             # Folded closed in practice: it holds the solution worked out before the problem was posed.
             lines.extend(callout(text, "thinking", "Thinking (shown in the terminal)",
                                  "-" if item.get("practice") else "+") + [""])
+        elif role == DRAW_ROLE:
+            lines.extend(callout(text, "drawing", "Drawing" + suffix) + [""])
         elif role == "Claude — questions":
             lines.extend(callout(text, "question", "Question" + suffix) + [""])
         elif role == "You — answers":
@@ -959,6 +968,8 @@ def process(vault, payload, mode="hook"):
         elif mode == "status":
             state.pop("effort", None)  # Never invent effort for a model that does not report it.
         if event in ("SessionStart", "UserPromptSubmit", "Stop", "SessionEnd"):
+            # A turn boundary means no drawing is under way; a stale line would also keep reconciliation from completing.
+            state["current"] = [item for item in state["current"] if item["role"] != DRAW_ROLE]
             reconciled = promote_or_reconcile(state, canonical)
             if event in ("SessionStart", "UserPromptSubmit"):
                 if not reconciled:
@@ -985,6 +996,12 @@ def process(vault, payload, mode="hook"):
             stream["final"] = bool(payload.get("final"))
             text = "".join(stream["chunks"][index] for index in sorted(stream["chunks"], key=int))
             put_current(state, entry("stream-" + message_id, "Claude", text, stream["time"]))
+        elif payload.get("tool_name") in DRAW_TOOLS and (payload.get("tool_input") or {}).get("subagent_type") == "demo-builder":
+            key = "drawing-" + payload.get("tool_use_id", "demo")
+            if event == "PreToolUse":
+                put_current(state, entry(key, DRAW_ROLE, DRAW_TEXT))
+            else:
+                state["current"] = [item for item in state["current"] if item["key"] != key]
         elif payload.get("tool_name") == "AskUserQuestion":
             tool_id = payload.get("tool_use_id", "question")
             if event == "PreToolUse":
