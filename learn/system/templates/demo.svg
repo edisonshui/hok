@@ -9,7 +9,7 @@
        Replace the title and caption, delete what the brief doesn't need, and fill both screens. -->
   <title>One line saying what the two screens are</title>
   <style>
-    /* Ink, for the labels and caption: vault-design tokens, light then night */
+    /* Ink, for the labels and caption: the vault's ink colors, light then night (the same values as figure.svg) */
     .label-key { fill: #1B1A17; font-size: 17px; font-weight: 700; }
     .label-2 { fill: #4A4741; font-size: 15px; }
     .frame { fill: none; stroke: #646059; stroke-width: 1; stroke-opacity: 0.7; }
