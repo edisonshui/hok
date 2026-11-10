@@ -33,25 +33,27 @@ These are the rules the builder applies. Each one comes from how people learn fr
 ### Draw the real thing
 
 - **Real content.** Write the words a real product would print: a plausible app name, a real-sounding headline, real field labels, real numbers. Never lorem ipsum, never "Button", never "Title here".
-- **Real proportions.** A phone screen is 390 by 844 points, a laptop window about 1440 by 900; scale the whole screen evenly, never squash it. When a whole screen would shrink below legible, crop it to the part the question is about and keep that part at its real scale: the crop is honest, the shrink is not. Use the platform's real sizes in proportion: body text 15 to 17 pt, a tap target at least 44 pt tall, margins 16 to 24 pt.
+- **Real proportions.** A phone screen is 390 by 844 points, a laptop window about 1440 by 900; scale the whole screen evenly, never squash it. When a whole screen would shrink below legible, crop it to the part the question is about and keep that part at its real scale: the crop is honest, the shrink is not. Use the platform's real sizes: body text 17 pt, secondary 15, footnote 13, a tap target at least 44 pt tall, a filled button about 50 pt tall, side margins 16 to 20 pt. `templates/demo.svg` draws each phone in real points, so these numbers are typed as they are.
+- **Real polish.** Each screen has to pass as a screenshot of a shipped app. Use the template's iOS font and system colors (`ui-*` classes). Draw the status bar whole, from the template, or leave it out; a half-drawn one looks fake. A logo is a believable mark, such as the app's initial in a rounded square of its brand color, never a placeholder shape. Lay each screen out the way its designer would have: shared elements line up across the two versions where both screens would naturally put them, and an empty band forced in only to line things up is a flaw.
 - **Real hierarchy.** Draw type the way a good designer sets it: one size for the title, one for body, one for secondary text, with a clear step between each. Align everything to one left edge or one center line, and space with a consistent rhythm (multiples of 4 or 8).
 - **The thing's own color only when color is the point.** Inside a screen frame, the depicted product may use its own colors when the lesson is about color, emphasis or contrast (the big blue button is the point). Otherwise draw it as a grayscale wireframe. The frame, the `A` / `B` labels and the caption always use the template's ink classes, so the vault's own color jobs stay intact.
 - **A screen keeps its own mode.** A depicted light-mode screen stays light at night; it is an object, like a photo. Only the frame, labels and caption follow night mode.
 
 ### Leave out everything else
 
-- Every mark is either part of the depicted thing or the one teaching signal. Cut the rest: gradients, glows, drop shadows on the frame, decorative icons, emoji, illustrated people, background blobs, accent colors that carry no fact. Draw a phone as a plain rounded rectangle with a thin `other` stroke. A heavy frame or a detailed bezel competes with the screen.
+- Every mark is either part of the depicted thing or the one teaching signal. Cut the rest: gradients, glows, drop shadows on the frame, decorative icons, emoji, illustrated people, background blobs, accent colors that carry no fact. Draw a phone as the template's thin outline. A heavy frame or a detailed bezel competes with the screen.
+- **No background.** A demo has no paper or plate behind it: it sits on whatever the lesson is shown on, the app's glass or an Obsidian note, and its ink labels follow that surface's light or night. Only the depicted screens are solid.
 - Icons inside the depicted UI are simple geometric glyphs (a lock, an eye, a back chevron) drawn in two or three strokes, only where a real product would have one.
 
 ### Fit the card
 
-- `viewBox` 760 wide, 470 to 560 tall. Two versions sit side by side at the same scale, tops aligned, with the `A` and `B` labels above them in `label-key`.
-- The app shows a demo at the card's width, which is only about 575 px in a 1400 px window (up to 760 px in a wide one), so the picture shrinks to three quarters of its viewBox. Every word on it is at least 15 px in the viewBox, the depicted screen's smallest text included; size the screen up or crop it before shrinking a word below that. Only true texture (a fine-print footer nobody reads) may be smaller.
+- `viewBox` 760 wide, 470 to 560 tall. Two versions sit side by side at the same scale, tops aligned, with the `A` and `B` labels above them in `label-key`. `templates/demo.svg` has this layout for two phones.
+- The app shows a demo at the card's width, about 575 px in a 1400 px window and up to 760 px in a wide one. At the template's scale, iOS's 17 pt body reads at about 11 px at the narrowest, the size of fine print in a real app. So nothing on a screen goes below 13 pt (the footnote size), and labels and the caption stay at the template's sizes.
 - One caption line at the bottom, in `label-2`.
 
 ## Building it
 
-1. Start from `learn/system/templates/figure.svg` and keep its style block and classes for the frame, labels and caption. The depicted UI may add its own classes in the same style block.
+1. For phone screens, start from `learn/system/templates/demo.svg`. For anything else (a chart, a poster, a page), start from `learn/system/templates/figure.svg` and delete its `paper` rect. Keep the template's style block and classes for the labels and caption; the depicted thing may add its own classes there.
 2. Write it to `learn/subjects/<slug>/figures/<file name>`.
 3. **Look at it.** Run `python3 .claude/hooks/look-figure.py <file>`. It checks the XML (a malformed SVG shows as a broken image) and prints the path of a PNG render, padded to a square; read that PNG. Judge it at full size as the harshest art director you know: the composition first, then the hierarchy, then the details.
 4. Go through the **done list** below. Fix what fails and look again. Three rounds at most; if something still fails, say what in the report.
@@ -66,7 +68,8 @@ The demo is done when every line is true:
 - Every word on the depicted thing is something a real product would print.
 - Proportions, sizes and spacing match the real device.
 - No gradient, glow, shadow, decorative icon or meaningless color.
-- Every word is at least 15 px in the viewBox, so it stays legible at 575 px wide.
+- Each screen would pass as a screenshot of a shipped app: real font, whole status bar or none, a believable logo, no empty band.
+- Nothing on a screen is under 13 pt, and there is no background rect.
 - `look-figure.py` prints `xml ok`, and its PNG shows every label inside the box.
 
 ## What the builder returns

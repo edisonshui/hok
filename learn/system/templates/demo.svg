@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 540" font-family="Atkinson Hyperlegible Next, Helvetica Neue, Helvetica, sans-serif">
+  <!-- Template for a demo: two phone screens to compare. Rules: learn/system/demos.md.
+       No background: the demo sits on whatever the lesson is shown on (the app's glass, an Obsidian note).
+       The A / B labels and the caption are ink and follow light and night. The screens are objects: they stay in
+       their own light mode at night, like a photo of a phone.
+       Each screen is drawn in real iPhone points (390 wide) inside a group scaled by 0.86, so iOS sizes are typed as
+       they are: 17 for body text, 50 for a button's height, 16 for the side margin. The view shows the top 520 points
+       of each screen, cropped straight across; draw nothing below y = 520 in screen points.
+       Replace the title and caption, delete what the brief doesn't need, and fill both screens. -->
+  <title>One line saying what the two screens are</title>
+  <style>
+    /* Ink, for the labels and caption: vault-design tokens, light then night */
+    .label-key { fill: #1B1A17; font-size: 17px; font-weight: 700; }
+    .label-2 { fill: #4A4741; font-size: 15px; }
+    .frame { fill: none; stroke: #646059; stroke-width: 1; stroke-opacity: 0.7; }
+    @media (prefers-color-scheme: dark) {
+      .label-key { fill: #F2F1EE; }
+      .label-2 { fill: #B9B7B1; }
+      .frame { stroke: #8F8D87; }
+    }
+    /* The depicted iPhone screen: iOS's own light-mode system colors and sizes, the same in light and night */
+    .screen { fill: #FFFFFF; }
+    .ui { font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, sans-serif; fill: #000000; }
+    .ui-large-title { font-size: 34px; font-weight: 700; letter-spacing: 0.4px; }
+    .ui-title { font-size: 28px; font-weight: 700; }
+    .ui-headline { font-size: 17px; font-weight: 600; }
+    .ui-body { font-size: 17px; }
+    .ui-sub { font-size: 15px; }
+    .ui-footnote { font-size: 13px; }
+    .ui-2 { fill: #8A8A8E; }                 /* secondaryLabel */
+    .ui-tint { fill: #007AFF; }              /* systemBlue */
+    .ui-on-tint { fill: #FFFFFF; }
+    .field { fill: #F2F2F7; }                /* systemGray6, a filled text field */
+    .field-line { fill: none; stroke: #C6C6C8; stroke-width: 1; }   /* separator */
+    .btn-tint { fill: #007AFF; }
+    .btn-outline { fill: none; stroke: #007AFF; stroke-width: 1.5; }
+    .glyph { fill: none; stroke: #000000; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .glyph-fill { fill: #000000; }
+  </style>
+  <defs>
+    <!-- iPhone status bar, 390 x 54 points: time, signal, Wi-Fi, battery. Use it whole or not at all. -->
+    <symbol id="status-bar" viewBox="0 0 390 54" width="390" height="54">
+      <text class="ui ui-headline" x="51" y="34" text-anchor="middle">9:41</text>
+      <rect class="glyph-fill" x="289" y="25" width="3" height="5" rx="0.8"/>
+      <rect class="glyph-fill" x="294" y="23" width="3" height="7" rx="0.8"/>
+      <rect class="glyph-fill" x="299" y="20.5" width="3" height="9.5" rx="0.8"/>
+      <rect class="glyph-fill" x="304" y="18" width="3" height="12" rx="0.8"/>
+      <path class="glyph" d="M314.5,22.6 a10.5,10.5 0 0 1 14,0 M317,25.4 a6.6,6.6 0 0 1 9,0"/>
+      <circle class="glyph-fill" cx="321.5" cy="28.3" r="1.6"/>
+      <rect x="335" y="19" width="25" height="12" rx="3.6" fill="none" stroke="#000000" stroke-opacity="0.4" stroke-width="1"/>
+      <rect class="glyph-fill" x="337" y="21" width="21" height="8" rx="2"/>
+      <path d="M361.5,23 a2,2 0 0 1 0,4" fill="none" stroke="#000000" stroke-opacity="0.4" stroke-width="1.3"/>
+    </symbol>
+    <!-- A cropped iPhone screen: rounded top corners, straight sides, cut straight across at 520 points -->
+    <clipPath id="crop"><path d="M0,520 L0,55 A55,55 0 0 1 55,0 L335,0 A55,55 0 0 1 390,55 L390,520 Z"/></clipPath>
+  </defs>
+
+  <text class="label-key" x="197.5" y="24" text-anchor="middle">A</text>
+  <text class="label-key" x="562.5" y="24" text-anchor="middle">B</text>
+
+  <!-- Screen A: 390 x 520 points at 0.86, placed at (30, 38) -->
+  <g transform="translate(30,38) scale(0.86)">
+    <g clip-path="url(#crop)">
+      <rect class="screen" width="390" height="520"/>
+      <use href="#status-bar"/>
+      <!-- Draw screen A here, in points. Side margin 16 (content from x = 16 to 374). -->
+    </g>
+    <path class="frame" d="M0,520 L0,55 A55,55 0 0 1 55,0 L335,0 A55,55 0 0 1 390,55 L390,520" vector-effect="non-scaling-stroke"/>
+  </g>
+
+  <!-- Screen B: the same, at (395, 38) -->
+  <g transform="translate(395,38) scale(0.86)">
+    <g clip-path="url(#crop)">
+      <rect class="screen" width="390" height="520"/>
+      <use href="#status-bar"/>
+      <!-- Draw screen B here, in points. -->
+    </g>
+    <path class="frame" d="M0,520 L0,55 A55,55 0 0 1 55,0 L335,0 A55,55 0 0 1 390,55 L390,520" vector-effect="non-scaling-stroke"/>
+  </g>
+
+  <text class="label-2" x="380" y="522" text-anchor="middle">One caption line: what the two screens are, never which is better</text>
+</svg>
