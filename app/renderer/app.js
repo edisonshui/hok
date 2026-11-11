@@ -2079,11 +2079,6 @@ function paintComposer() {
   const s = subj(route.slug);
   msg.dataset.placeholder = T.running && !sessionOpen() ? (T.routeEnded ? "Session saved. Send a message to start a new one" : "Message your tutor to resume this lesson")
     : T.running ? "Reply to your tutor, or paste a screenshot" : T.starting ? `Starting ${tutorName()}…` : s ? "Message your tutor to resume this lesson" : "Message your tutor to start";
-  const convos = (LOG.data && LOG.data.conversations) || [];
-  const model = prettyModel([...convos].reverse().map((c) => c.model).find(Boolean));
-  $("model").innerHTML = `${esc(model || tutorName())}${icon("down", "dn")}`;
-  $("model").dataset.tip = T.running ? "Change the model in the terminal" : "The model the tutor used last";
-  $("model").dataset.tipSide = "up";
   paintSend();
 }
 function paintSend() {
@@ -2232,6 +2227,26 @@ function insertMath() {
   requestAnimationFrame(() => mf.focus());
 }
 ACTIONS.math = () => insertMath();
+// The composer's + (11 Nov, Edison picked B: one row like the question chat's field, so attach and math share one
+// button). The menu opens above the box, lined up with the +, and math goes back where the caret was when it opened.
+let moreRange = null;
+ACTIONS["composer-more"] = (_a, el) => {
+  const sel = getSelection();
+  moreRange = sel.rangeCount && MSG.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null;
+  const r = el.getBoundingClientRect(), box = $("composer").getBoundingClientRect(), scrim = $("scrim");   // above the box, so it never covers the words
+  scrim.classList.add("on", "clear");
+  scrim.innerHTML = `<div class="menu up" role="menu" style="left:${r.left}px;bottom:${innerHeight - box.top + 6}px">
+    <button class="menu-item" role="menuitem" data-act="composer-attach">${icon("clip")}<span class="lbl">Attach a file</span></button>
+    <button class="menu-item" role="menuitem" data-act="composer-math">${icon("math")}<span class="lbl">Insert math</span><kbd>$ or ${key("E")}</kbd></button></div>`;
+  el.setAttribute("aria-expanded", "true");
+  scrim.querySelector(".menu-item").focus();
+};
+function closeMore() {
+  closeOverlay();
+  if (moreRange) { const sel = getSelection(); sel.removeAllRanges(); sel.addRange(moreRange); moreRange = null; }
+}
+ACTIONS["composer-attach"] = () => { closeMore(); ACTIONS.attach(); };
+ACTIONS["composer-math"] = () => { closeMore(); insertMath(); };
 function afterMsgInput() {
   // A box emptied by deleting keeps a stray <br>; clearing it brings the placeholder back.
   if (!MSG.querySelector("math-field") && !MSG.textContent.replace(/\u200b/g, "").trim()) MSG.textContent = "";
@@ -3657,6 +3672,7 @@ function closeOverlay() {
   const s = $("scrim");
   s.classList.remove("on", "clear", "veil"); s.style.opacity = ""; s.innerHTML = ""; pal = null; closeCard = null;   // Esc on a card left .veil, an invisible scrim over everything (7 Nov)
   const sw = $("switcher"); if (sw) sw.setAttribute("aria-expanded", "false");
+  const more = $("composerMore"); if (more) more.setAttribute("aria-expanded", "false");
   if (route.name === "session") { if (T.drawer && T.term) T.term.focus(); else focusMsg(); }
 }
 

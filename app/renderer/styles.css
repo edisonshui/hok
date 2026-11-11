@@ -375,7 +375,13 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .composer .msg{border:0;outline:0;background:none;font:var(--type-ui);font-size:14px;line-height:22px;color:var(--color-ink);min-height:22px;flex:0 1 auto;overflow-y:auto;white-space:pre-wrap;word-break:break-word;cursor:text}
 /* The box grows to a third of the window, then scrolls inside with its top line fading. */
 #composer{max-height:calc(100vh / 3)}
-#composer>.attach,#composer>.composer-row{flex:none}
+#composer>.attach{flex:none}
+/* One row (11 Nov, Edison picked B, after the question chat's field): + on the left, the words, then mic and send.
+   The row grows with the words and its buttons stay on the bottom line. */
+#composer{gap:6px;padding:12px}
+#composer>.composer-row{flex:1 1 auto;min-height:0;align-items:flex-end;gap:10px}
+#composer .msg{flex:1 1 auto;min-width:0;align-self:stretch;max-height:calc(100vh / 3 - 24px);padding:5px 0;font-size:15px;line-height:22px}
+#composer .composer-row .icon-btn{width:32px;height:32px;margin:0;flex:none}
 .composer .msg.fade-top{-webkit-mask-image:linear-gradient(transparent,var(--color-ink) 22px);mask-image:linear-gradient(transparent,var(--color-ink) 22px)}
 /* Edit: the words are on their way back into the box, so they show when they land. */
 .composer .msg.landing{color:transparent;caret-color:transparent}
@@ -610,6 +616,9 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .nav-row:active:not(:disabled),.week-row:active,.plan-card:active,.subject-card:active,.streak-card:active,.menu-item:active,.icon-btn:active:not(:disabled){transform:scale(.98)}
 /* Menus grow from where they were opened. */
 .menu{transform-origin:top left;animation:menu-in 150ms var(--ease-out)}
+.menu.up{transform-origin:bottom left;animation-name:menu-up}
+@keyframes menu-up{from{opacity:0;transform:scale(.97) translateY(3px)}}
+.menu.up{width:220px}
 @keyframes menu-in{from{opacity:0;transform:scale(.97) translateY(-3px)}}
 /* The new-messages pill rises in instead of popping. */
 .newpill{display:inline-flex;opacity:0;pointer-events:none;transform:translate(-50%,6px);transition:opacity var(--duration-fast) var(--ease-out),transform var(--duration-base) var(--ease-out)}
@@ -883,7 +892,7 @@ html.glass #session .question.waiting{box-shadow:inset 0 1px 0 var(--glass-edge)
 html.glass #session :is(.question,.check-card){border-radius:14px}   /* one material, one radius: the composer's */
 /* A figure has no plate of its own (10 Nov): its ink sits straight on the glass, so it gets no rim either. */
 /* The composer takes the field's shape too, so the glide from Home carries one object, not two. */
-html.glass #session .composer{border-radius:14px;padding-left:20px}
+html.glass #session .composer{border-radius:14px}
 /* Tints inside the session are the ink at a low strength, so they take the glass's colour instead of sitting on it as
    gray boxes: your bubbles and hovers 7% (9% at night), code 4%, the tab strip 6% with the selected tab a pill of the
    sidebar's own glass. Outlined buttons drop their fill, like Home's pills. The terminal drawer keeps its solid sheet. */
@@ -1445,7 +1454,7 @@ html.glass .toast{background:var(--glass-float);-webkit-backdrop-filter:blur(30p
 .mic.rec{color:var(--stone-brick,var(--color-action));background:color-mix(in srgb,var(--stone-brick,var(--color-action)) 16%,transparent);box-shadow:0 0 0 calc(var(--lvl,0) * 4px) color-mix(in srgb,var(--stone-brick,var(--color-action)) 22%,transparent);transition:box-shadow 80ms linear}
 .mic.busy svg{opacity:0}
 .mic.busy::after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;border:1.6px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite}
-#session .composer-row .mic{width:28px;height:28px}
+#session .composer-row .mic{width:32px;height:32px}
 .dict-prog{margin-top:14px}
 .dict-prog i{display:block;height:4px;border-radius:2px;background:color-mix(in srgb,var(--color-ink) 10%,transparent);overflow:hidden}
 .dict-prog b{display:block;height:100%;width:0;background:var(--stone-brick,var(--color-action));transition:width 200ms linear}
