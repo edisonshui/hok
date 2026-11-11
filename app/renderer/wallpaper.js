@@ -105,7 +105,8 @@
     if (r.type === "video" && r.url) showVideo(r.url);
     else if (r.type === "image" && r.url) showImage(r.url);
     else if (r.type === "none") set(null, "none");
-    else showStone();   // stone glass, or standing in while a copy is made
+    else if (r.stillUrl) showImage(r.stillUrl);   // the wallpaper's still, at once, while its moving copy is made
+    else showStone();   // stone glass
   }
   // a copy that finishes while you wait replaces the stone glass standing in for it
   F.wall.onStatus((st) => { if (st.done && st.ok && st.key === waiting) reload(); });

@@ -169,14 +169,15 @@ ipcMain.handle("config:get", () => config);
 // The wallpaper behind the window (lib/wallpaper.js). Paths reach the page as wall-file: URLs, nothing else.
 let WALL = null;
 const wallUrl = (f) => (f ? "wall-file:///" + encodeURIComponent(f) : null);
-ipcMain.handle("wall:resolve", async (_e, night, force) => { if (!WALL) return { type: "none" }; const r = await WALL.resolve(config.wallpaper, !!night, !!force); return { ...r, url: wallUrl(r.file), file: undefined }; });
+ipcMain.handle("wall:resolve", async (_e, night, force) => { if (!WALL) return { type: "none" }; const r = await WALL.resolve(config.wallpaper, !!night, !!force); return { ...r, url: wallUrl(r.file), file: undefined, stillUrl: wallUrl(r.still), still: undefined }; });
+ipcMain.handle("wall:clear", async (_e, night) => (WALL ? WALL.clear(config.wallpaper, !!night) : { count: 0, bytes: 0 }));
 // Apple's Aerial server, for the wallpaper's copy-maker only: macOS decides (lib/wallpaper.js trustApple)
 app.on("certificate-error", (event, wc, url, _error, cert, callback) => {
   if (!WALL || !WALL.isMaker(wc)) return;
   event.preventDefault();
   WALL.trustApple(url, cert).then((ok) => callback(ok), () => callback(false));
 });
-ipcMain.handle("wall:catalog", async () => { if (!WALL) return { aerials: [], mac: [] }; const c = await WALL.catalog(config.wallpaper); return { desktopThumb: wallUrl(c.desktopThumb), photoThumb: wallUrl(c.photoThumb), aerials: c.aerials.map((a) => ({ ...a, thumb: wallUrl(a.thumb) })), mac: c.mac.map((m) => ({ ...m, thumb: wallUrl(m.thumb) })) }; });
+ipcMain.handle("wall:catalog", async () => { if (!WALL) return { aerials: [], mac: [] }; const c = await WALL.catalog(config.wallpaper); return { desktopThumb: wallUrl(c.desktopThumb), photoThumb: wallUrl(c.photoThumb), aerials: c.aerials.map((a) => ({ ...a, thumb: wallUrl(a.thumb) })), mac: c.mac.map((m) => ({ ...m, thumb: wallUrl(m.thumb) })), copies: c.copies }; });
 ipcMain.handle("wall:photo", async () => { const r = await dialog.showOpenDialog(win, { properties: ["openFile"], filters: [{ name: "Pictures", extensions: ["jpg", "jpeg", "png", "heic", "webp"] }] }); return r.canceled ? null : r.filePaths[0]; });
 ipcMain.handle("wall:battery", () => !!(powerMonitor && powerMonitor.isOnBatteryPower()));
 // The Dock icon wears your stone (10 Nov 2026). The window draws it and sends a PNG; only the running Dock icon

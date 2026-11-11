@@ -12,7 +12,7 @@
   v.addEventListener("loadeddata", async () => {
     const end = Math.min(secs, v.duration || secs);
     const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8"].find((m) => MediaRecorder.isTypeSupported(m));
-    const rec = new MediaRecorder(c.captureStream(24), { mimeType: mime, videoBitsPerSecond: 700000 });
+    const rec = new MediaRecorder(c.captureStream(24), { mimeType: mime, videoBitsPerSecond: +q.get("bits") || 2400000 });
     const parts = []; rec.ondataavailable = (e) => parts.push(e.data);
     rec.onstop = async () => maker.done(await new Blob(parts, { type: mime }).arrayBuffer());
     x.filter = "blur(3px)";

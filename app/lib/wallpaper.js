@@ -22,6 +22,10 @@ const STORE = path.join(HOME, "Library/Application Support/com.apple.wallpaper/S
 const MAC_DIR = "/System/Library/Desktop Pictures/.wallpapers";
 const PICKS = require("./wallpaper-picks.json");   // the Aerials Edison chose to offer (10 Nov); Cities are left out as too busy
 const CLIP_SECONDS = 90;   // a copy holds at most this much, then loops
+// Copies are recorded at 2.4 Mbit/s (11 Nov, Edison: the picture looked "really grainy"; at 0.7 the smooth colours
+// of Mac Blue broke into blocks and bands once stretched over the window). A copy is near 25 MB. V marks this
+// quality in the file name, so copies made before it are made again and the old ones are cleared at launch.
+const COPY_BITS = 2400000, V = ".v2";
 
 const run = (cmd, args) => new Promise((resolve) => execFile(cmd, args, { maxBuffer: 1 << 24 }, (err, out) => resolve(err ? null : String(out))));
 const exists = (f) => { try { return fs.statSync(f).size > 0; } catch { return false; } };
@@ -29,7 +33,10 @@ const exists = (f) => { try { return fs.statSync(f).size > 0; } catch { return f
 function make({ BrowserWindow, userData, onStatus }) {
   const CACHE = path.join(userData, "wallpapers");
   fs.mkdirSync(CACHE, { recursive: true });
+  const copyFile = (key) => path.join(CACHE, `${key}${V}.webm`);
+  try { fs.readdirSync(CACHE).filter((f) => /\.webm(\.part)?$/.test(f) && !f.endsWith(`${V}.webm`)).forEach((f) => fs.rmSync(path.join(CACHE, f), { force: true })); } catch { /* nothing to clear */ }
   const jobs = new Map();   // key -> promise of the finished copy, so a second ask waits for the first
+  const stops = new Map();  // key -> stops that copy, when you pick another wallpaper before it finishes
   const failed = new Map();   // key -> when its copy last failed: not retried on its own for ten minutes
   const makers = new Set();   // the hidden pages making copies, by webContents id (main.js trusts Apple's server for these only)
 
@@ -104,13 +111,13 @@ function make({ BrowserWindow, userData, onStatus }) {
   // The page runs with web security off so a video streamed from Apple can be drawn into its canvas (a cross-origin
   // frame taints the canvas and the recorder refuses it); it is the app's own page and loads only that one video.
   function videoCopy(key, src, label) {
-    const out = path.join(CACHE, `${key}.webm`);
+    const out = copyFile(key);
     if (exists(out)) return Promise.resolve(out);
     if (jobs.has(key)) return jobs.get(key);
     const job = new Promise((resolve) => {
       const w = new BrowserWindow({ width: 640, height: 360, show: false, webPreferences: { offscreen: true, backgroundThrottling: false, sandbox: true, contextIsolation: true, webSecurity: false, preload: path.join(__dirname, "wall-maker-preload.js") } });
       makers.add(w.webContents.id);
-      const done = (file) => { if (jobs.get(key) !== job) return; jobs.delete(key); if (!file) failed.set(key, Date.now()); makers.delete(w.webContents.id); if (!w.isDestroyed()) w.destroy(); onStatus({ key, label, done: true, ok: !!file }); resolve(file); };
+      const done = (file, stopped) => { if (jobs.get(key) !== job) return; jobs.delete(key); stops.delete(key); if (stopped) { makers.delete(w.webContents.id); if (!w.isDestroyed()) w.destroy(); onStatus({ key, label, done: true, ok: false, stopped: true }); return resolve(null); } if (!file) failed.set(key, Date.now()); makers.delete(w.webContents.id); if (!w.isDestroyed()) w.destroy(); onStatus({ key, label, done: true, ok: !!file }); resolve(file); };
       const { ipcMain } = require("electron");
       const chan = `wall-maker:${key}`;
       ipcMain.once(`${chan}:done`, (_e, bytes) => { try { fs.writeFileSync(out + ".part", Buffer.from(bytes)); fs.renameSync(out + ".part", out); done(out); } catch { done(null); } });
@@ -119,7 +126,8 @@ function make({ BrowserWindow, userData, onStatus }) {
       w.webContents.once("destroyed", () => { ipcMain.removeAllListeners(`${chan}:progress`); ipcMain.removeAllListeners(`${chan}:done`); ipcMain.removeAllListeners(`${chan}:fail`); });
       if (process.env.WALL_DEBUG) w.webContents.on("console-message", (e) => console.log("[wall-maker]", e.message));
       w.webContents.on("render-process-gone", (_e, d) => { console.error("[wall-maker] gone", d.reason); done(null); });
-      w.loadFile(path.join(__dirname, "..", "renderer", "wall-maker.html"), { query: { src, chan, secs: String(CLIP_SECONDS) } });
+      w.loadFile(path.join(__dirname, "..", "renderer", "wall-maker.html"), { query: { src, chan, secs: String(CLIP_SECONDS), bits: String(COPY_BITS) } });
+      stops.set(key, () => done(null, true));
       setTimeout(() => { if (jobs.get(key) === job) done(null); }, (CLIP_SECONDS + 120) * 1000);   // a stalled stream gives up
       onStatus({ key, label, progress: 0 });
     });
@@ -136,22 +144,36 @@ function make({ BrowserWindow, userData, onStatus }) {
     if (c.kind === "mac") {
       const m = macWallpapers().find((x) => x.id === c.id); if (!m) return { type: "stone" };
       const src = night ? m.night : m.day, key = "mac-" + c.id.replace(/\W+/g, "-") + (src === m.night && m.night !== m.day ? "-dark" : "");
-      return ready(key, src, m.name, force);
+      return ready(key, src, m.name, force, m.thumb);
     }
     if (c.kind === "aerial") {
       const a = aerial(c.id), src = localAerial(c.id) || (a && a["url-4K-SDR-240FPS"]);
       if (!src) return { type: "stone" };
-      return ready("aerial-" + c.id, src, (a && a.accessibilityLabel) || "Aerial", force);
+      return ready("aerial-" + c.id, src, (a && a.accessibilityLabel) || "Aerial", force, aerialThumb(c.id));
     }
     return { type: "stone" };
   }
   // A copy on disk is used now; one still being made says so, and the page hears again when it lands.
-  async function ready(key, src, label, force) {
-    const out = path.join(CACHE, `${key}.webm`);
+  // Until the moving copy lands, the page shows the wallpaper's still (its thumbnail, blurred), so a pick shows at
+  // once (11 Nov, Edison: "nothing was loading when I was selecting wallpapers"). Picking another wallpaper stops
+  // the copies still being made for the ones you passed over.
+  async function ready(key, src, label, force, still) {
+    [...stops.keys()].filter((k) => k !== key).forEach((k) => stops.get(k)());
+    const out = copyFile(key);
     if (exists(out)) return { type: "video", file: out };
-    if (!force && Date.now() - (failed.get(key) || 0) < 10 * 60e3) return { type: "stone", failed: { key, label } };
+    if (!force && Date.now() - (failed.get(key) || 0) < 10 * 60e3) return { type: "stone", failed: { key, label }, still };
     videoCopy(key, src.startsWith("http") ? src : "file://" + src, label);
-    return { type: "stone", preparing: { key, label } };
+    return { type: "stone", preparing: { key, label }, still };
+  }
+  // The copies kept on this Mac, and clearing them (all but the one in use) to give the space back.
+  function copies() {
+    let files = []; try { files = fs.readdirSync(CACHE).filter((f) => f.endsWith(".webm")); } catch { /* none */ }
+    return { count: files.length, bytes: files.reduce((n, f) => { try { return n + fs.statSync(path.join(CACHE, f)).size; } catch { return n; } }, 0) };
+  }
+  async function clear(choice, night) {
+    const now = await resolve(choice, night).catch(() => null), keep = now && now.file ? path.basename(now.file) : null;
+    try { fs.readdirSync(CACHE).filter((f) => f.endsWith(".webm") && f !== keep).forEach((f) => fs.rmSync(path.join(CACHE, f), { force: true })); } catch { /* nothing to clear */ }
+    return copies();
   }
 
   // The choices Settings offers. Thumbnails are files already on this Mac.
@@ -169,8 +191,9 @@ function make({ BrowserWindow, userData, onStatus }) {
     return {
       desktopThumb: await desktopPicture().then(thumbOf).catch(() => null),
       photoThumb: current && current.kind === "photo" ? await thumbOf(current) : null,
-      aerials: PICKS.map((p) => ({ ...p, thumb: thumb(p.id), local: !!localAerial(p.id), ready: exists(path.join(CACHE, `aerial-${p.id}.webm`)) })),
-      mac: macWallpapers().map((m) => ({ id: m.id, name: m.name, thumb: m.thumb })),
+      aerials: PICKS.map((p) => ({ ...p, thumb: thumb(p.id), local: !!localAerial(p.id), key: `aerial-${p.id}`, ready: exists(copyFile(`aerial-${p.id}`)), busy: jobs.has(`aerial-${p.id}`) })),
+      mac: macWallpapers().map((m) => { const key = "mac-" + m.id.replace(/\W+/g, "-"); return { id: m.id, name: m.name, thumb: m.thumb, key, ready: exists(copyFile(key)) || exists(copyFile(key + "-dark")), busy: jobs.has(key) || jobs.has(key + "-dark") }; }),
+      copies: copies(),
     };
   }
 
@@ -188,7 +211,7 @@ function make({ BrowserWindow, userData, onStatus }) {
     return (await run("/usr/bin/security", ["verify-cert", ...files, "-p", "ssl", "-s", host])) !== null;
   }
 
-  return { resolve, catalog, allowed, isMaker, trustApple, CACHE };
+  return { resolve, catalog, clear, allowed, isMaker, trustApple, CACHE };
 }
 
 // A file for the page, with the byte ranges a <video> asks for.

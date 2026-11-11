@@ -64,6 +64,7 @@ contextBridge.exposeInMainWorld("flash", {
   wall: {
     resolve: (night, force) => ipcRenderer.invoke("wall:resolve", !!night, !!force),
     catalog: () => ipcRenderer.invoke("wall:catalog"),
+    clear: (night) => ipcRenderer.invoke("wall:clear", !!night),
     choosePhoto: () => ipcRenderer.invoke("wall:photo"),
     battery: () => ipcRenderer.invoke("wall:battery"),
     onPlace: on("wall:place"),

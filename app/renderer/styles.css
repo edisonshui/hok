@@ -1403,3 +1403,32 @@ html.glass .setup .seg button.on{background:var(--glass-field);box-shadow:inset 
 html.glass .start-card .start-in{background:color-mix(in srgb,var(--color-ink) 5%,transparent);border-color:color-mix(in srgb,var(--color-ink) 12%,transparent);color:var(--color-ink)}
 html.glass .start-card .start-in::placeholder{color:var(--color-ink-3)}
 html.glass .start-card .start-in:focus{border-color:color-mix(in srgb,var(--color-ink) 32%,transparent)}
+
+/* Flat buttons (11 Nov, Edison: the buttons felt "a little bit too 3D", not sleek; the Documents / Desktop switch
+   "feels better"). No gradient, lit top edge, drop shadow or blur: the main button is the switch's light chip, the
+   second one its quiet track, and the label is medium weight, not bold. */
+.btn:not(.text){font-weight:500}
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral),html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral){-webkit-backdrop-filter:none;backdrop-filter:none}
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral){background:rgba(255,255,255,.58);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--stone-brick) 22%,transparent)}
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral):hover:not(:disabled){background:rgba(255,255,255,.74)}
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral):active:not(:disabled){background:rgba(255,255,255,.46)}
+html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral){background:rgba(255,255,255,.13);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.10)}
+html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral):hover:not(:disabled){background:rgba(255,255,255,.19)}
+html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral):active:not(:disabled){background:rgba(255,255,255,.09)}
+html.glass[data-stone] .btn:not(.text):not(.neutral):disabled{background:color-mix(in srgb,var(--color-ink) 5%,transparent);box-shadow:none}
+html.glass[data-stone]:not([data-theme="night"]) :is(.btn.neutral,.home2 .pill),html.glass[data-stone][data-theme="night"] :is(.btn.neutral,.home2 .pill),html.glass[data-stone] .setup .btn.neutral{border-color:transparent;background:color-mix(in srgb,var(--color-ink) 7%,transparent);box-shadow:none}
+html.glass[data-stone]:not([data-theme="night"]) :is(.btn.neutral,.home2 .pill):hover:not(:disabled),html.glass[data-stone][data-theme="night"] :is(.btn.neutral,.home2 .pill):hover:not(:disabled){background:color-mix(in srgb,var(--color-ink) 12%,transparent)}
+
+/* Wallpaper tiles say where their moving copy stands (11 Nov): an arrow when it is not on this Mac yet, a bar that
+   fills while it is made. The line above the choices says the same in words, where you can see it. */
+.wall-opt .wt{position:relative}
+.wall-opt .wt-get,.wall-opt .wt-bar{display:none;position:absolute}
+.wall-opt.need .wt-get{display:grid;place-items:center;right:5px;bottom:5px;width:18px;height:18px;border-radius:5px;background:rgba(10,12,16,.55);color:#fff}
+.wall-opt.busy .wt-get{display:none}
+.wall-opt.busy .wt-bar{display:block;left:6px;right:6px;bottom:6px;height:4px;border-radius:2px;background:rgba(10,12,16,.5);overflow:hidden}
+.wall-opt .wt-bar b{display:block;height:100%;width:var(--p,0%);background:#fff;border-radius:2px;transition:width 400ms linear}
+.wall-opt.busy .wt img{opacity:.6}
+.wall-status{position:sticky;bottom:-24px;z-index:2;margin:10px -26px 0;padding:9px 26px 10px;color:var(--color-ink);background:var(--stone-sheet,var(--color-surface));box-shadow:0 -1px 0 var(--color-line)}   /* stays in view at the foot of Settings while you scroll the choices */
+.wall-status:empty{display:none}
+.wall-kept{display:flex;align-items:center;gap:8px;margin-top:12px;min-height:28px}
+.wall-kept [hidden]{display:none}

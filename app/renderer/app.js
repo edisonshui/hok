@@ -684,7 +684,7 @@ function paintHome() {
   const starting = top.kind === "Start";
   inkAction = starting ? () => $("ask") && $("ask").focus() : () => run(top);
   let { line } = plain(top);
-  if (starting) line = "Type a topic, and what it's for if there's something: a class, an exam, a project. The tutor asks a few questions to find where you start, then builds a plan.";
+  if (starting) line = "Your tutor asks a few questions, then builds a plan.";   // 11 Nov, Edison: the longer line was "a bit long to read"
   const has = (x) => x.days_to_deadline !== null && x.days_to_deadline !== undefined && x.days_to_deadline !== "";
   const soon = S.subjects.filter((x) => x.status !== "done" && has(x) && +x.days_to_deadline >= 0 && +x.days_to_deadline <= 2).sort((p, q) => p.days_to_deadline - q.days_to_deadline);
   const topic = (x) => { const m = afterCode(x).match(/(?: [—–-] |: )(.+)$/); return m ? m[1].replace(/\s*\([^)]*\)\s*$/, "") : ""; };
@@ -711,7 +711,7 @@ function paintHome() {
     <h1 class="h-head" data-line="greeting">${esc(head)}</h1>
     <div class="h-sub" data-line="action-line">${md(line)}</div>
     ${starting ? "" : `<div class="h-go"><button class="btn" id="homeGo" data-line="go" data-surface data-act="ink" data-prefetch="${s ? s.slug : ""}">${esc(label)}</button><button class="h-new" data-act="start">Start a subject</button></div>`}
-    <div class="composer h-field${starting ? " h-start" : ""}" data-line="field" data-surface><div class="h-att" id="homeAtt"></div><input id="ask" placeholder="${starting ? START_EXAMPLE : "Ask your tutor anything"}" aria-label="${starting ? "What you want to learn" : "Ask your tutor"}" autocomplete="off"><button class="send" data-act="ask" id="askSend" aria-label="Send" disabled>${icon("send", "sm")}</button></div>
+    <div class="composer h-field${starting ? " h-start" : ""}" data-line="field" data-surface><div class="h-att" id="homeAtt"></div><input id="ask" placeholder="Ask your tutor anything" aria-label="${starting ? "What you want to learn" : "Ask your tutor"}" autocomplete="off"><button class="send" data-act="ask" id="askSend" aria-label="Send" disabled>${icon("send", "sm")}</button></div>
     ${rows.length ? `<div class="h-also">${rows.map(rowHtml).join("")}</div>` : ""}
   </div></div>`);
   centerHome();
@@ -3546,20 +3546,35 @@ ACTIONS.settings = () => openSettings();
 // Edison picked (lib/wallpaper-picks.json) by group. Thumbnails are files already on this Mac.
 async function wallSettings() {
   const cat = await F.wall.catalog(), wk = wallKey(cfg.wallpaper);
-  const opt = (arg, label, inner, act = "set-wall") => `<button class="wall-opt ${(arg || "photo") === wk || (act === "wall-photo" && wk.startsWith("photo")) ? "on" : ""}" role="radio" aria-checked="${arg === wk}" data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ""}><span class="wt">${inner}</span><span class="wl">${esc(label)}</span></button>`;
+  // A moving wallpaper plays from a small copy the app makes once (about a minute and a half). A tile says where its
+  // copy stands, on the tile itself (11 Nov, Edison: "nothing was loading... didn't know things were downloading",
+  // "no indication of what wallpapers I have downloaded"): an arrow when there is none yet, a bar while it is made.
+  const opt = (arg, label, inner, act = "set-wall", st = null) => `<button class="wall-opt ${(arg || "photo") === wk || (act === "wall-photo" && wk.startsWith("photo")) ? "on" : ""}${st && !st.ready ? " need" : ""}${st && st.busy ? " busy" : ""}" role="radio" aria-checked="${arg === wk}" data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ""}${st ? ` data-key="${esc(st.key)}"` : ""}><span class="wt">${inner}${st ? `<i class="wt-get" aria-hidden="true">${WALL_GET}</i><i class="wt-bar" aria-hidden="true"><b></b></i>` : ""}</span><span class="wl">${esc(label)}</span></button>`;
   const img = (u) => (u ? `<img alt="" loading="lazy" src="${esc(u)}">` : "");
+  const air = (a) => opt(`aerial:${a.id}`, a.name, img(a.thumb), "set-wall", a);
   const groups = ["Landscapes", "Underwater", "Space"].map((g) => {
     const xs = cat.aerials.filter((a) => a.group === g); if (!xs.length) return "";
-    return `<div class="wall-group">${g}</div><div class="walls" role="radiogroup" aria-label="${g}">${xs.map((a) => opt(`aerial:${a.id}`, a.name, img(a.thumb))).join("")}</div>`;
+    return `<div class="wall-group">${g}</div><div class="walls" role="radiogroup" aria-label="${g}">${xs.map(air).join("")}</div>`;
   }).join("");
   const macAerials = cat.aerials.filter((a) => a.group === "Mac");   // Apple files some Aerials under Mac (Mac Blue)
-  const mac = cat.mac.length || macAerials.length ? `<div class="wall-group">Mac</div><div class="walls" role="radiogroup" aria-label="Mac">${cat.mac.map((m) => opt(`mac:${m.id}`, m.name, img(m.thumb))).join("")}${macAerials.map((a) => opt(`aerial:${a.id}`, a.name, img(a.thumb))).join("")}</div>` : "";
+  const mac = cat.mac.length || macAerials.length ? `<div class="wall-group">Mac</div><div class="walls" role="radiogroup" aria-label="Mac">${cat.mac.map((m) => opt(`mac:${m.id}`, m.name, img(m.thumb), "set-wall", m)).join("")}${macAerials.map(air).join("")}</div>` : "";
   return `<div class="sec"><div class="t-sec">Wallpaper</div>
-      <div class="cap" style="margin-top:2px">Moves on Home while your Mac is plugged in. Holds still in sessions and on battery. An Aerial that isn't on this Mac yet downloads from Apple once.</div>
+      <div class="cap" style="margin-top:2px">Moves on Home while your Mac is plugged in. Holds still in sessions and on battery. A wallpaper marked with an arrow gets ready the first time you pick it, in about a minute and a half. Its still shows until then.</div>
       <div class="walls" role="radiogroup" aria-label="Wallpaper">${opt("desktop", "Your desktop", img(cat.desktopThumb))}${opt("stone", "Stone glass", '<i class="wt-stone"></i>')}${opt("", "A photo…", cat.photoThumb ? img(cat.photoThumb) : `<i class="wt-add">${icon("plus")}</i>`, "wall-photo")}</div>
       ${mac}${groups}
-      <div id="wallStatus" class="cap" style="margin-top:8px" aria-live="polite"></div></div>`;
+      <div id="wallStatus" class="cap wall-status" aria-live="polite"></div>
+      <div class="wall-kept"><span class="cap" id="wallKept">${keptWords(cat.copies)}</span><button class="btn text" id="wallClear" data-act="wall-clear"${cat.copies && cat.copies.count > 1 ? "" : " hidden"}>Remove the others</button></div></div>`;
 }
+const WALL_GET = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 1.8v6.4"/><path d="M3.4 5.8 6 8.4l2.6-2.6"/><path d="M2.4 10.4h7.2"/></svg>`;
+const keptWords = (c) => (!c || !c.count ? "No moving wallpapers are kept on this Mac yet." : `${c.count} moving ${c.count === 1 ? "wallpaper is" : "wallpapers are"} kept on this Mac, ${Math.max(1, Math.round(c.bytes / 1e6))} MB.`);
+// Give the space back: every copy goes but the one in use. A removed wallpaper shows its arrow again.
+ACTIONS["wall-clear"] = async () => {
+  const c = await F.wall.clear(document.documentElement.dataset.theme === "night"), cat = await F.wall.catalog();
+  const ready = new Set([...cat.aerials, ...cat.mac].filter((x) => x.ready).map((x) => x.key));
+  document.querySelectorAll("#scrim .wall-opt[data-key]").forEach((b) => b.classList.toggle("need", !ready.has(b.dataset.key)));
+  if ($("wallKept")) $("wallKept").textContent = keptWords(c);
+  if ($("wallClear")) $("wallClear").hidden = !(c.count > 1);
+};
 ACTIONS.close = () => closeOverlay();
 // Picking a theme or a stone updates the open sheet in place; drawing it again replayed its entrance (10 Nov, Edison:
 // "the settings tab pops up again or like reloads when you switch the colors").
@@ -3587,9 +3602,17 @@ ACTIONS["wall-photo"] = async () => {
   const file = await F.wall.choosePhoto(); if (!file) return;
   await setCfg({ wallpaper: { kind: "photo", file } }); syncSettings(); if (window.Wall) Wall.reload();
 };
-// a copy being made shows its progress under the choices while Settings is open
+// A copy being made shows on its own tile (a bar that fills) and in one line above the choices, while Settings is open.
+const wallTile = (key) => [...document.querySelectorAll("#scrim .wall-opt[data-key]")].find((b) => key === b.dataset.key || key === b.dataset.key + "-dark");
 if (F.wall) F.wall.onStatus((st) => {
-  const el = document.querySelector("#scrim #wallStatus"); if (!el) return;
+  const el = document.querySelector("#scrim #wallStatus"), tile = wallTile(st.key);
+  if (tile) {
+    tile.classList.toggle("busy", !st.done);
+    if (!st.done) tile.style.setProperty("--p", `${st.progress || 0}%`);
+    if (st.done && st.ok) tile.classList.remove("need");
+  }
+  if (st.done && st.ok) F.wall.catalog().then((cat) => { if ($("wallKept")) $("wallKept").textContent = keptWords(cat.copies); if ($("wallClear")) $("wallClear").hidden = !(cat.copies.count > 1); });
+  if (!el || st.stopped) return;
   el.textContent = st.done ? (st.ok ? `${st.label} is ready.` : `Couldn't get ${st.label}. Check your connection and pick it again.`) : `Getting ${st.label} ready… ${st.progress || 0}%`;
 });
 ACTIONS["set-host"] = async (h) => {
