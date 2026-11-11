@@ -45,7 +45,7 @@ function readState() {
     if (!config.vault || !tools.python) return resolve({ error: "no-vault" });
     const script = path.join(config.vault, ".claude", "hooks", "learn-status.py");
     execFile(tools.python, [script, "--json", "--host", config.host, "--vault", config.vault],
-      { env: { ...process.env, PATH, PYTHONDONTWRITEBYTECODE: "1" }, maxBuffer: 32 * 1024 * 1024, timeout: 20000 },
+      { env: { ...process.env, PATH, PYTHONDONTWRITEBYTECODE: "1", PYTHONUTF8: "1" }, maxBuffer: 32 * 1024 * 1024, timeout: 20000 },   // UTF-8: Windows Python otherwise reads the records in the system code page
       (error, stdout, stderr) => {
         if (error) return resolve({ error: "status-failed", detail: String(stderr || error.message).trim().split("\n").slice(-4).join("\n") });
         lastState = stdout;
@@ -124,19 +124,24 @@ function quote(arg) {
 // CLAUDE_CODE_CHILD_SESSION turns transcript saving off, and the live log is
 // built from the transcript.
 function tutorEnv() {
-  const out = { ...process.env, PATH, TERM: "xterm-256color", COLORTERM: "truecolor", TERM_PROGRAM: APP_NAME };
+  const out = { ...process.env, PATH, TERM: "xterm-256color", COLORTERM: "truecolor", TERM_PROGRAM: APP_NAME, PYTHONUTF8: "1" };   // the vault's hooks are Python and read UTF-8 records
   for (const name of Object.keys(out)) {
     if (/^(CLAUDECODE|CLAUDE_CODE_|CLAUDE_AGENT_SDK|CLAUDE_PID|CLAUDE_EFFORT|T3CODE_|ELECTRON_RUN_AS_NODE)/.test(name)) delete out[name];
   }
   return out;
 }
+// How to run a tutor command line. Mac and Linux: through the login shell, so the tutor sees the learner's own
+// setup. Windows (never run on a Windows PC as of 11 Nov 2026): cmd.exe gets the line verbatim inside one pair of
+// quotes, because Node and node-pty would otherwise backslash-escape the quotes around a prompt and split it.
+function tutorCommand(cmd) {
+  return isWin ? { file: env.loginShell(), args: ["/d", "/s", "/c", `"${cmd}"`], verbatim: true } : { file: env.loginShell(), args: ["-ilc", `exec ${cmd}`], verbatim: false };
+}
 function startTerminal({ cols, rows, prompt }) {
   if (term) return { running: true };
   if (!pty) pty = require("node-pty");
   const command = [config.host, ...(prompt ? [quote(prompt)] : [])].join(" ");
-  const shellName = env.loginShell();
-  const args = isWin ? ["/d", "/s", "/c", command] : ["-ilc", `exec ${command}`];
-  term = pty.spawn(shellName, args, {
+  const run = tutorCommand(command);
+  term = pty.spawn(run.file, run.verbatim ? run.args.join(" ") : run.args, {   // node-pty passes a string to Windows as it is
     name: "xterm-256color",
     cols: Math.max(20, cols | 0), rows: Math.max(5, rows | 0),
     cwd: config.vault,
@@ -189,6 +194,7 @@ ipcMain.handle("config:set", async (_e, patch) => {
   return config;
 });
 ipcMain.handle("setup:check", async () => {
+  PATH = await env.shellPath();   // read again: a tool installed since launch may sit in a folder that was not on PATH then
   tools = env.checkTools(PATH, config.host);
   const problems = [...tools.problems];
   if (tools.tutor && !(await signedIn(tools.tutor, config.host))) {
@@ -202,10 +208,12 @@ ipcMain.handle("setup:check", async () => {
 // A check that can't run (an older version, a timeout) counts as signed in, so it never blocks a working setup.
 function signedIn(tutor, host) {
   return new Promise((resolve) => {
-    execFile(tutor, host === "codex" ? ["login", "status"] : ["auth", "status"], { env: tutorEnv(), timeout: 6000 }, (error, stdout, stderr) => {
-      if (host === "codex") return resolve(!error || !/not logged in/i.test(`${stdout}\n${stderr}`));   // Codex says so on stderr
-      try { resolve(JSON.parse(String(stdout)).loggedIn !== false); } catch { resolve(true); }
-    });
+    try {
+      execFile(tutor, host === "codex" ? ["login", "status"] : ["auth", "status"], { env: tutorEnv(), timeout: 6000, shell: isWin && /\.(cmd|bat)$/i.test(tutor), windowsHide: true }, (error, stdout, stderr) => {
+        if (host === "codex") return resolve(!error || !/not logged in/i.test(`${stdout}\n${stderr}`));   // Codex says so on stderr
+        try { resolve(JSON.parse(String(stdout)).loggedIn !== false); } catch { resolve(true); }
+      });
+    } catch { resolve(true); }   // a check that can't start never blocks setup
   });
 }
 // A new learner's vault, copied from the starter the app carries (scripts/make-starter-vault.js). Setup offers it only
@@ -281,9 +289,9 @@ ipcMain.handle("tutor:close", (_e, slug) => {
   const cmd = config.host === "codex"
     ? ["codex", "exec", "--skip-git-repo-check", "-s", "workspace-write", "-C", quote(config.vault), quote(`$learn-close${slug ? " " + slug : ""}`)].join(" ")
     : [config.host, "-p", "--model", "sonnet", quote(`/learn-close${slug ? " " + slug : ""}`)].join(" ");
-  const args = isWin ? ["/d", "/s", "/c", cmd] : ["-ilc", `exec ${cmd}`];
+  const run = tutorCommand(cmd);
   closing = new Promise((resolve) => {
-    const child = execFile(env.loginShell(), args, { cwd: config.vault, env: tutorEnv(), timeout: 5 * 60 * 1000, maxBuffer: 4e6 }, (error, stdout, stderr) => {
+    const child = execFile(run.file, run.args, { cwd: config.vault, env: tutorEnv(), timeout: 5 * 60 * 1000, maxBuffer: 4e6, windowsVerbatimArguments: run.verbatim, windowsHide: true }, (error, stdout, stderr) => {
       closing = null;
       resolve({ ok: !error, text: String(stdout || "").trim() || String(stderr || (error && error.message) || "").trim() });
     });
@@ -321,7 +329,12 @@ function questionPrompt() {
 }
 const Q = questions({
   root: path.join(app.getPath("userData"), "questions"),
-  command: (args, host) => { const cmd = [host === "codex" ? "codex" : "claude", ...args.map(quote)].join(" "); return { file: env.loginShell(), args: isWin ? ["/d", "/s", "/c", cmd] : ["-ilc", `exec ${cmd}`] }; },
+  // On Windows a tutor that is a real program (claude.exe) runs directly with its arguments untouched: the question
+  // prompt has line breaks, which cmd.exe cannot carry. An npm shim (.cmd) still goes through cmd.exe.
+  command: (args, host) => {
+    if (isWin && tools.tutor && /\.exe$/i.test(tools.tutor)) return { file: tools.tutor, args, verbatim: false };
+    return tutorCommand([host === "codex" ? "codex" : "claude", ...args.map(quote)].join(" "));
+  },
   host: () => config.host,
   env: tutorEnv,
   prompt: questionPrompt,

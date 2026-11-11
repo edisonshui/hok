@@ -14,17 +14,21 @@
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux",
     "icon": "electron scripts/make-icon.js",
-    "dist:friends": "node scripts/check-starter.js && electron-builder --mac --universal -c.extraResources=starter-vault -c.directories.output=dist.friends.noindex"
+    "dist:friends": "node scripts/check-starter.js && electron-builder --mac --universal -c.extraResources=starter-vault -c.directories.output=dist.friends.noindex",
+    "dist:friends:win": "node scripts/check-starter.js && electron-builder --win -c.extraResources=starter-vault -c.directories.output=dist.friends.noindex",
+    "dist:friends:linux": "node scripts/check-starter.js && electron-builder --linux -c.extraResources=starter-vault -c.directories.output=dist.friends.noindex"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^6.0.0",
-    "electron-liquid-glass": "1.1.1",
     "katex": "^0.19.1",
     "mathlive": "^0.111.1",
     "mermaid": "^12.2.0",
     "node-pty": "^1.1.0"
+  },
+  "optionalDependencies": {
+    "electron-liquid-glass": "1.1.1"
   },
   "devDependencies": {
     "electron": "^45.0.0",
@@ -49,7 +53,8 @@
       "renderer/**",
       "node_modules/**",
       "!node_modules/**/*.{md,map,ts}",
-      "!node_modules/**/{test,tests,docs,example,examples}/**"
+      "!node_modules/**/{test,tests,docs,example,examples}/**",
+      "!node_modules/node-pty/prebuilds/**/*.pdb"
     ],
     "asarUnpack": [
       "node_modules/node-pty/**",
@@ -63,7 +68,7 @@
       "category": "public.app-category.education",
       "identity": "-",
       "hardenedRuntime": false,
-      "x64ArchFiles": "Contents/Resources/app.asar.unpacked/node_modules/node-pty/prebuilds/**"
+      "x64ArchFiles": "Contents/Resources/app.asar.unpacked/node_modules/{node-pty,electron-liquid-glass}/prebuilds/**"
     },
     "win": {
       "target": [

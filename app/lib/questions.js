@@ -116,8 +116,8 @@ function questions({ root, command, env, prompt, send, host = () => "claude" }) 
   }
   function start(c, args, stdin) {
     fs.mkdirSync(run, { recursive: true });
-    const { file: exe, args: argv } = command(args, host());
-    const child = spawn(exe, argv, { cwd: run, env: env(), stdio: ["pipe", "pipe", "pipe"] });
+    const { file: exe, args: argv, verbatim } = command(args, host());
+    const child = spawn(exe, argv, { cwd: run, env: env(), stdio: ["pipe", "pipe", "pipe"], windowsVerbatimArguments: !!verbatim, windowsHide: true });
     const t = { child, text: "", started: c.started, result: null, stopped: false, err: "", threadId: null };
     live.set(c.id, t);
     let buf = "", pending = null;
