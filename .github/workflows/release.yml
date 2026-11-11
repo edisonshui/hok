@@ -97,7 +97,7 @@ jobs:
           merge-multiple: true
       - run: |
           gh release create "$GITHUB_REF_NAME" installers/* --repo "$GITHUB_REPOSITORY" --draft \
-            --title "Obsidian Learning ${GITHUB_REF_NAME#v}" \
+            --title "Hok ${GITHUB_REF_NAME#v}" \
             --notes-file app/INSTALL.md
         env:
           GH_TOKEN: ${{ github.token }}

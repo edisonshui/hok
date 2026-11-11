@@ -1,4 +1,4 @@
-# Obsidian Learning (the desktop app)
+# Hok (the desktop app)
 
 A desktop app for the learning vault. It puts your tutor's terminal, the live
 log, and your progress in one window. It runs your own `claude` (or `codex`)
@@ -35,8 +35,8 @@ compiles it, which needs `make`, a C++ compiler, and Python. The glass package
 
 | Platform | Command | Output in `dist.noindex/` |
 | --- | --- | --- |
-| macOS | `npm run dist:mac` | `Obsidian-Learning-<version>-mac-arm64.dmg` and a `.zip` |
-| Windows | `npm run dist:win` | `Obsidian-Learning-<version>-win-x64.exe` |
+| macOS | `npm run dist:mac` | `Hok-<version>-mac-arm64.dmg` and a `.zip` |
+| Windows | `npm run dist:win` | `Hok-<version>-win-x64.exe` |
 | Linux | `npm run dist:linux` | an `.AppImage` and a `.deb` |
 
 Builds are not signed by a paid developer account (the Mac build is ad-hoc
