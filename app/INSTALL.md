@@ -1,6 +1,8 @@
-# Installing Obsidian Learning
+# Installing Hok
 
-Obsidian Learning is a tutor that runs on your own Claude Code or Codex account. You pick something to learn. It finds where you're starting from, builds a plan, teaches one step at a time, and brings old skills back for review so they stick. Everything it records stays in a folder on your computer.
+Hok (學) is Cantonese for "learn". It was called Obsidian Learning until November 2026.
+
+Hok is a tutor that runs on your own Claude Code or Codex account. You pick something to learn. It finds where you're starting from, builds a plan, teaches one step at a time, and brings old skills back for review so they stick. Everything it records stays in a folder on your computer.
 
 **Tested so far:** Macs with Apple chips. The Intel Mac, Windows and Linux builds have not been opened on a real machine yet. If you try one, tell me what happened, even if it's "it worked".
 
@@ -23,24 +25,24 @@ Obsidian Learning is a tutor that runs on your own Claude Code or Codex account.
 
 ## 2. Install the app
 
-Download the file for your computer from the [latest release](https://github.com/edisonshui/obsidian-learning/releases/latest).
+Download the file for your computer from the [latest release](https://github.com/edisonshui/hok/releases/latest).
 
 **Mac** (`.dmg`, one file for Apple and Intel chips)
 
-1. Open the `.dmg` and drag Obsidian Learning into Applications.
+1. Open the `.dmg` and drag Hok into Applications.
 2. Open it. macOS says it can't check the app, because it isn't notarized by Apple. Click **Done**.
-3. Open System Settings, then Privacy & Security. Scroll down, click **Open Anyway** next to Obsidian Learning, and confirm.
+3. Open System Settings, then Privacy & Security. Scroll down, click **Open Anyway** next to Hok, and confirm.
 4. Open the app again. From now on it opens normally.
 
 **Windows** (`.exe`)
 
 1. Run the installer. Windows SmartScreen says it protected your PC, because the app isn't signed. Click **More info**, then **Run anyway**.
-2. Open Obsidian Learning from the Start menu.
+2. Open Hok from the Start menu.
 
 **Linux** (`.deb` or `.AppImage`)
 
-- Debian or Ubuntu: `sudo apt install ./Obsidian-Learning-*.deb`, then open it from your apps.
-- Anything else: `chmod +x Obsidian-Learning-*.AppImage`, then run it. If it won't start, it needs FUSE 2: `sudo apt install libfuse2` (`libfuse2t64` on Ubuntu 24.04).
+- Debian or Ubuntu: `sudo apt install ./Hok-*.deb`, then open it from your apps.
+- Anything else: `chmod +x Hok-*.AppImage`, then run it. If it won't start, it needs FUSE 2: `sudo apt install libfuse2` (`libfuse2t64` on Ubuntu 24.04).
 
 ## 3. First run
 
@@ -63,4 +65,4 @@ Download the file for your computer from the [latest release](https://github.com
 - **"Python 3 is not installed":** follow step 1 for your system, then click **Check again**.
 - **"The claude command is not installed" right after installing it:** click **Check again**. If it still says so, quit the app and open it again.
 - **The tutor seems stuck:** open the terminal from the header (the box icon) to see what it's doing.
-- **Anything else:** [open an issue](https://github.com/edisonshui/obsidian-learning/issues) and say which system you're on.
+- **Anything else:** [open an issue](https://github.com/edisonshui/hok/issues) and say which system you're on.

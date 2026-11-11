@@ -830,7 +830,7 @@ html.glass .panel{background:var(--glass-panel);border-color:transparent;box-sha
 /* ---------- Home (5 Nov 2026, the locked front page) ----------
    Five sizes: 32 head, 15 line and field, 13.5 names and button, 12.5 labels and captions. The field's middle is the
    window's middle (centerHome); rows sit under it in four columns: label, name, what, when. */
-.home2{min-height:100%}
+.home2{min-height:100%;display:flow-root}   /* flow-root keeps the column's centring margin inside, or Home scrolled by that margin with nothing below (11 Nov) */
 .home2 .h-col{width:min(var(--reading-max),calc(100% - 96px));margin:0 auto;padding-bottom:56px}   /* the composer's width, so the glide between them is a move */
 .home2 .h-head{font:600 32px/1.15 var(--font-sans);letter-spacing:-.02em;color:var(--color-ink)}
 .home2 .h-sub{margin-top:8px;font:400 15px/22px var(--font-sans);color:var(--color-ink-2);text-wrap:pretty}

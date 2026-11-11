@@ -1,6 +1,6 @@
 {
   "name": "flash",
-  "productName": "Obsidian Learning",
+  "productName": "Hok",
   "version": "0.1.0",
   "description": "A desktop companion for the learning vault: your tutor's terminal, the live log, and your progress in one window.",
   "main": "main.js",
@@ -42,9 +42,9 @@
     "email": "edisonshui@users.noreply.github.com"
   },
   "build": {
-    "appId": "com.edisonshui.obsidian-learning",
-    "productName": "Obsidian Learning",
-    "artifactName": "Obsidian-Learning-${version}-${os}-${arch}.${ext}",
+    "appId": "com.edisonshui.hok",
+    "productName": "Hok",
+    "artifactName": "Hok-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "dist.noindex",
       "buildResources": "build"
@@ -98,5 +98,5 @@
   "allowScripts": {
     "node-pty@1.1.0": true
   },
-  "homepage": "https://github.com/edisonshui/obsidian-learning"
+  "homepage": "https://github.com/edisonshui/hok"
 }

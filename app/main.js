@@ -13,8 +13,10 @@ const { questions } = require("./lib/questions");
 const wallpaper = require("./lib/wallpaper");
 const dictation = require("./lib/dictation");
 
-const APP_NAME = "Obsidian Learning";   // a working name (Edison, 5 Nov); the real one is still to come
+const APP_NAME = "Hok";   // 學, "learn" in Cantonese (Edison, 11 Nov 2026); it was Obsidian Learning until then
 app.setName(APP_NAME);
+try { const moved = require("./lib/rename").moveOldData(app.getPath("appData"), app.getPath("userData")); if (/moved|copied/.test(moved)) console.log(`[rename] settings ${moved} from Obsidian Learning`); }
+catch (e) { console.error("[rename] could not take over the old settings:", e.message); }
 // Never hand this to the tutor: it would make any Electron tool it starts run as plain Node.
 delete process.env.ELECTRON_RUN_AS_NODE;
 
@@ -338,7 +340,7 @@ ipcMain.handle("dictation:mic", async () => {
   try { return await systemPreferences.askForMediaAccess("microphone"); } catch { return false; }
 });
 // Questions from Home: their own chats, one short Claude Code turn per message (lib/questions.js).
-const QPROMPT = `You are the learner's tutor in Obsidian Learning, answering a question they asked from Home. This chat belongs to no subject, and nothing in it is recorded as learning, so never say you saved progress or updated a record. You have no tools: answer from what you know, and say so plainly when you are not sure of a fact.
+const QPROMPT = `You are the learner's tutor in Hok, answering a question they asked from Home. This chat belongs to no subject, and nothing in it is recorded as learning, so never say you saved progress or updated a record. You have no tools: answer from what you know, and say so plainly when you are not sure of a fact.
 
 Teach the way this learner prefers:
 {prefs}
