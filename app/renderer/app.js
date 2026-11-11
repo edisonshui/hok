@@ -2077,8 +2077,8 @@ function closeBtn(s, big) {
 function paintComposer() {
   const msg = $("msg");
   const s = subj(route.slug);
-  msg.dataset.placeholder = T.running && !sessionOpen() ? (T.routeEnded ? "Session saved. Send a message to start a new one" : `Message your tutor to resume ${subName(s)}`)
-    : T.running ? "Reply to your tutor, or paste a screenshot" : T.starting ? `Starting ${tutorName()}…` : s ? `Message your tutor to resume ${subName(s)}` : "Message your tutor to start";
+  msg.dataset.placeholder = T.running && !sessionOpen() ? (T.routeEnded ? "Session saved. Send a message to start a new one" : "Message your tutor to resume this lesson")
+    : T.running ? "Reply to your tutor, or paste a screenshot" : T.starting ? `Starting ${tutorName()}…` : s ? "Message your tutor to resume this lesson" : "Message your tutor to start";
   const convos = (LOG.data && LOG.data.conversations) || [];
   const model = prettyModel([...convos].reverse().map((c) => c.model).find(Boolean));
   $("model").innerHTML = `${esc(model || tutorName())}${icon("down", "dn")}`;
