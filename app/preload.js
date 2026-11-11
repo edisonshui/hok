@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld("flash", {
   info: () => ipcRenderer.invoke("app:info"),
   config: () => ipcRenderer.invoke("config:get"),
   setConfig: (patch) => ipcRenderer.invoke("config:set", patch),
-  setDockIcon: (png) => ipcRenderer.send("dock:icon", png),
+  setDockIcon: (png, key) => ipcRenderer.send("dock:icon", png, key),
   setupCheck: () => ipcRenderer.invoke("setup:check"),
   chooseVault: () => ipcRenderer.invoke("vault:choose"),
   createVault: (parent) => ipcRenderer.invoke("vault:create", parent),

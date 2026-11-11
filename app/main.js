@@ -188,7 +188,33 @@ ipcMain.handle("wall:photo", async () => { const r = await dialog.showOpenDialog
 ipcMain.handle("wall:battery", () => !!(powerMonitor && powerMonitor.isOnBatteryPower()));
 // The Dock icon wears your stone (10 Nov 2026). The window draws it and sends a PNG; only the running Dock icon
 // changes, the icon Finder shows stays the one in the app bundle.
-ipcMain.on("dock:icon", (_e, url) => { if (app.dock && typeof url === "string" && url.startsWith("data:image/png")) app.dock.setIcon(nativeImage.createFromDataURL(url)); });
+ipcMain.on("dock:icon", (_e, url, key) => {
+  if (!app.dock || typeof url !== "string" || !url.startsWith("data:image/png")) return;
+  const img = nativeImage.createFromDataURL(url);
+  app.dock.setIcon(img);
+  saveBundleIcon(img, key);
+});
+// The closed app wears the same icon (11 Nov 2026, Edison: "make it so that the icon matches what theme you're
+// currently on"): the stone and theme's lantern is saved onto Hok.app as its custom icon, as Finder's "paste icon"
+// does, so Spotlight, Finder and the Dock show it after quitting. Once per change, after the picks settle. Only the
+// installed Mac app; the build's own icon (build/Hok.icon) stays underneath and comes back if the file is removed.
+let bundleIconTimer = 0;
+function saveBundleIcon(img, key) {
+  if (process.platform !== "darwin" || !app.isPackaged || !key) return;
+  const bundle = path.resolve(process.execPath, "..", "..", "..");
+  if (!bundle.endsWith(".app")) return;
+  if (key === config.bundleIcon && fs.existsSync(path.join(bundle, "Icon\r"))) return;   // a new install drops the custom icon: put it back
+  clearTimeout(bundleIconTimer);
+  bundleIconTimer = setTimeout(() => {
+    const tmp = path.join(app.getPath("temp"), "hok-icon.png");
+    try { fs.writeFileSync(tmp, img.toPNG()); } catch { return; }
+    const js = `ObjC.import("AppKit"); $.NSWorkspace.sharedWorkspace.setIconForFileOptions($.NSImage.alloc.initWithContentsOfFile(${JSON.stringify(tmp)}), ${JSON.stringify(bundle)}, 0)`;
+    execFile("/usr/bin/osascript", ["-l", "JavaScript", "-e", js], { timeout: 10000 }, (err, out) => {
+      fs.rmSync(tmp, { force: true });
+      if (!err && /true/.test(String(out))) { config.bundleIcon = key; saveConfig(); }
+    });
+  }, 1500);
+}
 ipcMain.handle("config:set", async (_e, patch) => {
   const hostChanged = patch.host && patch.host !== config.host;
   const vaultChanged = "vault" in patch && patch.vault !== config.vault;

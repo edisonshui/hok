@@ -3905,7 +3905,7 @@ function applyStone(night) {
   const stone = Stone.pick(cfg && cfg.stone);
   Stone.apply(stone, night);
   const k = stone + (night ? "-night" : "-day");
-  if (k !== dockKey && F.setDockIcon) { dockKey = k; Stone.png(stone, night).then((png) => png && dockKey === k && F.setDockIcon(png)); }
+  if (k !== dockKey && F.setDockIcon) { dockKey = k; Stone.png(stone, night, 1024).then((png) => png && dockKey === k && F.setDockIcon(png, k)); }
 }
 
 // ---------- keys ----------
