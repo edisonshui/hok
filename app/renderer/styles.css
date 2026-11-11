@@ -895,7 +895,7 @@ html.glass #session .btn.neutral,html.glass #session .btn.neutral:disabled{backg
 /* The question and check cards are the composer's glass (the v2 prototype drew them as one material); their option rows,
    answer fields and the stop button are outlines on it. */
 :where(html.glass #session) :is(.option,.cc-opt,.cc-field){background:color-mix(in srgb,var(--glass-field) 50%,transparent)}   /* half the card's glass, so a row reads as an outline on the card, not a hole through it; :where keeps their selected and hover fills winning */
-:where(html.glass #session) :is(.send[data-act="interrupt"],.codeblock .copy,.shot-chip){background:var(--glass-field)}
+:where(html.glass #session) :is(.codeblock .copy,.shot-chip){background:var(--glass-field)}
 html.glass #session .codeblock{border-color:transparent}
 html.glass #session{--color-action-soft:color-mix(in srgb,var(--color-ink) 9%,transparent)}   /* a picked answer and math chips: a tint, not a gray slab */
 html.glass #session .btn.neutral:hover:not(:disabled){background:var(--color-selected)}
@@ -1311,12 +1311,15 @@ html.glass[data-stone]:not([data-theme="night"]) :is(.home2 .h-field,#session .c
 .side-end{flex:none;padding-top:6px}
 /* the send button on a stone (10 Nov, Edison picked C of three: "I like C the most", on Home's field too): a faint circle
    of the stone with the arrow in its deep shade, one shape on Home and in a session. Arrow on its circle, measured as
-   solid colour: worst 4.19:1 by day (Sakura), 4.45:1 at night (Maple). Stop and Interrupt keep their own look. */
-html.glass[data-stone] .send:not([data-act="interrupt"]):not([data-act="question-stop"]){--send-ink:color-mix(in srgb,var(--stone-brick) 70%,black);width:32px;height:32px;border-radius:var(--radius-button);background:color-mix(in srgb,var(--stone-brick) 16%,transparent);color:var(--send-ink);box-shadow:none}
-html.glass[data-stone][data-theme="night"] .send:not([data-act="interrupt"]):not([data-act="question-stop"]){--send-ink:color-mix(in srgb,var(--stone-brick) 80%,white);background:color-mix(in srgb,var(--stone-brick) 22%,transparent)}
-html.glass[data-stone] .send:not([data-act="interrupt"]):not([data-act="question-stop"]):not(:disabled):hover{background:color-mix(in srgb,var(--stone-brick) 26%,transparent)}
-html.glass[data-stone] .send:not([data-act="interrupt"]):not([data-act="question-stop"]):disabled{background:color-mix(in srgb,var(--stone-brick) 8%,transparent);color:color-mix(in srgb,var(--send-ink) 40%,transparent)}
+   solid colour: worst 4.19:1 by day (Sakura), 4.45:1 at night (Maple). Stop wears the same tint, so the
+   button keeps one look while the tutor writes and only its mark changes (11 Nov, Edison picked B: the old outlined
+   6px square felt too small for its box). */
+html.glass[data-stone] .send{--send-ink:color-mix(in srgb,var(--stone-brick) 70%,black);width:32px;height:32px;border-radius:var(--radius-button);background:color-mix(in srgb,var(--stone-brick) 16%,transparent);color:var(--send-ink);box-shadow:none}
+html.glass[data-stone][data-theme="night"] .send{--send-ink:color-mix(in srgb,var(--stone-brick) 80%,white);background:color-mix(in srgb,var(--stone-brick) 22%,transparent)}
+html.glass[data-stone] .send:not(:disabled):hover{background:color-mix(in srgb,var(--stone-brick) 26%,transparent)}
+html.glass[data-stone] .send:disabled{background:color-mix(in srgb,var(--stone-brick) 8%,transparent);color:color-mix(in srgb,var(--send-ink) 40%,transparent)}
 html.glass[data-stone] #session .composer-row .send{width:32px;height:32px}
+html.glass[data-stone] .send:is([data-act="interrupt"],[data-act="question-stop"]) svg.i{width:24px;height:24px;fill:currentColor;stroke:none}   /* the stop mark solid, 10px: a third of the box */
 
 /* the stone reaches the ink (10 Nov, Edison: Home "doesn't have the right contrast and the colors are off... everything
    surrounding the app should compliment that specific color palette", on every stone and every screen). Text is a deep
