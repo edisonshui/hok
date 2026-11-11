@@ -60,6 +60,10 @@ git tag v0.1.0 && git push origin v0.1.0   # builds, then makes a DRAFT release 
 
 Nothing is public until you open the draft release and press Publish.
 
+Each build also runs `npm run smoke` on its own system: a friend's first run (setup, Make a
+new vault, Home, Settings, Skills) with no tutor started. Its stills are in the run's
+`first-run-stills-<system>` artifact. On your own machine it opens the app window.
+
 ### A build for friends
 
 A friend has no learning vault, so their build carries a starter vault and setup

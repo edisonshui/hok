@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js",
+    "smoke": "node scripts/smoke.mjs",
     "dist": "electron-builder",
     "postinstall": "node scripts/fix-pty.js",
     "dist:mac": "electron-builder --mac",

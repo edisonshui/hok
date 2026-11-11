@@ -52,6 +52,20 @@ jobs:
           cp -R "$RUNNER_TEMP/starter/starter-vault" starter-vault
           cp "$RUNNER_TEMP/starter/starter-vault-review.md" starter-vault-review.md
           node scripts/check-starter.js
+      # Opens the app the way a friend's first run does (no tutor is started), and saves a still of each step. It
+      # does not stop the build: until each system has passed once, read its result and stills before publishing.
+      - name: Smoke test, a first run on this system
+        id: smoke
+        continue-on-error: true
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a node scripts/smoke.mjs smoke-out; else node scripts/smoke.mjs smoke-out; fi
+      - if: always()
+        run: echo "First-run smoke test on $RUNNER_OS - ${{ steps.smoke.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: first-run-stills-${{ runner.os }}
+          path: app/smoke-out
       - run: npx electron-builder ${{ matrix.target }} -c.extraResources=starter-vault --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
