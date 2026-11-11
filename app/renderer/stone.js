@@ -22,6 +22,8 @@
     root.style.setProperty("--stone-glow", night ? c.s0 : c.tn || c.s0);   // the Skills sun glow
     root.style.setProperty("--bk2", !night && c.bp ? "68%" : night ? "55%" : "48%");
   }
+  // the glass tone a theme gives a stone, for a picture of the other theme (Settings' Appearance previews)
+  const tone = (stone, night) => { const c = STONES[pick(stone)][night ? "night" : "day"]; return night ? `color-mix(in srgb, ${c.tn || c.s1} 75%, black)` : c.tn || c.s0; };
   const icon = (stone, night) => ICONS[`${pick(stone)}-${night ? "night" : "day"}`];
   // the Dock wants a bitmap: draw the icon on a canvas (a data: SVG never taints it) and hand over a PNG
   function png(stone, night, size = 512) {
@@ -32,5 +34,5 @@
       img.src = icon(stone, night);
     });
   }
-  window.Stone = { ORDER, NAMES, apply, icon, png, pick };
+  window.Stone = { ORDER, NAMES, apply, icon, png, pick, tone };
 })();

@@ -137,7 +137,7 @@
       .sk .mk.mini u.now, .sk-float .mk.mini u.now { background: ${NOW}; box-shadow: ${night ? `0 0 5px color-mix(in srgb, ${NOW} 70%, transparent)` : "none"}; }
       .sk .mk.mini u.repair, .sk-float .mk.mini u.repair { background: none; box-shadow: inset 0 0 0 1px ${ink(night ? 0.7 : 0.75)}; }
       .sk-float .mk.mini u.gap { background: none; box-shadow: inset 0 0 0 1px ${ink(0.45)}; } .sk-float .mk.mini u.laid { background: ${ink(night ? 0.75 : 0.7)}; }
-      .sk .pb { justify-self: start; display: inline-flex; align-items: center; gap: 8px; height: 22px; padding: 0 12px; border: 0; border-radius: 999px; font: 13px/18px var(--font-sans); color: ${INK}; cursor: default; ${GL(night ? 0.07 : 0.55)}
+      .sk .pb { justify-self: start; display: inline-flex; align-items: center; gap: 8px; height: 22px; padding: 0 12px; border: 0; border-radius: 6px; font: 13px/18px var(--font-sans); color: ${INK}; cursor: default; ${GL(night ? 0.07 : 0.55)}
         transition: background 90ms ease, transform 160ms var(--eo); }
       .sk .pb:active { transform: scale(.97); } .sk .pb:focus-visible { outline: 2px solid ${INK}; outline-offset: 2px; }
       .sk .lx { display: grid; grid-template-rows: 0fr; } .sk .grp.open .lx { grid-template-rows: 1fr; }

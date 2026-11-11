@@ -42,6 +42,7 @@
   function set(el, k) {
     if (raf) { cancelAnimationFrame(raf); raf = 0; }
     box.textContent = ""; media = el; kind = k; stoneDraw = null;
+    root.dataset.wkind = k;   // a picture takes a lighter stone tint than the stone glass (styles.css)
     if (el) { el.classList.add("wall-pic"); box.append(el); }
     root.classList.toggle("wall-on", !!el);
     fit(); sync();

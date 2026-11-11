@@ -44,9 +44,9 @@ Download the file for your computer from the [latest release](https://github.com
 
 ## 3. First run
 
-1. Under *Your learning vault*, click **Make a new vault** and pick where it goes, like Documents. The app makes a folder called *Learning vault* there.
+1. Under *Your learning vault*, pick where it goes: Documents (the default), Desktop, or **Other folder…**. The line under your choice shows the exact folder. Click **Make a new vault** and the app makes a folder called *Learning vault* there.
 2. Under *Your tutor*, pick Claude Code or Codex. The app checks that it and Python are installed and that you're signed in, and says what to do if not. After you fix something, click **Check again**.
-3. On Home, type a question, or press **Start something new** to begin a subject with a plan.
+3. Home asks what you want to learn. Type a topic and what it's for, like "How vaccines work, for Friday's bio exam", and press Return. The tutor asks a few questions, then builds a plan.
 4. The first time the tutor opens your vault, it asks whether you trust the folder. Say yes. It's the folder the app just made.
 
 ## What it costs and where your data goes

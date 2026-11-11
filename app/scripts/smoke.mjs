@@ -24,12 +24,14 @@ try {
   const setup = await text(); console.log("setup says:", setup.slice(0, 500));
   check(/Make a new vault/.test(setup), "setup offers Make a new vault");
   check(!/Python 3 is not installed/.test(setup), "Python 3 found and runs");
+  check(/Documents/.test(setup), "setup offers Documents for the new vault");
+  await press('[data-act="vault-where"][data-arg="other"]'); await page.waitForTimeout(800);   // the stubbed folder dialog answers with the test's folder, never the real Documents
   await press('[data-act="make-vault"]');
   await page.waitForSelector(".sidebar [data-arg=\"home\"]", { timeout: 30000 }).catch(() => {}); await page.waitForTimeout(3000); await shot("2-home");
   const home = await text(); console.log("home says:", home.slice(0, 300));
   const vault = path.join(parent, "Learning vault");
   check(fs.existsSync(path.join(vault, ".claude", "hooks", "learn-status.py")), "the new vault was made");
-  check(/Start something new/.test(home), "Home drew from the new vault's records (learn-status.py ran)");
+  check(/What do you want to learn/.test(home), "Home drew from the new vault's records (learn-status.py ran)");
   check(await page.evaluate(() => document.documentElement.classList.contains("glass") && !!document.querySelector("#wall canvas, #wall video")), "the glass and its wallpaper are drawn");
   await press('[data-act="settings"]'); await page.waitForTimeout(1200); await shot("3-settings");
   await page.keyboard.press("Escape"); await press('.sidebar [data-arg="system"]'); await page.waitForTimeout(1500); await shot("4-skills");

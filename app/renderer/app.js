@@ -459,7 +459,7 @@ function askStart() {
   const scrim = $("scrim");
   scrim.innerHTML = `<div class="card float quit-card start-card" role="dialog" aria-labelledby="startQ"><div class="qc-h" id="startQ">What do you want to learn?</div>
     <p class="qc-p">A topic, and what it's for if there's something: a class, an exam, a project. The tutor asks a few questions to find where you start, then builds a plan.</p>
-    <input class="field start-in" id="startIn" placeholder="Recursion for CS 124's next quiz" aria-label="What you want to learn" autocomplete="off">
+    <input class="field start-in" id="startIn" placeholder="${START_EXAMPLE}" aria-label="What you want to learn" autocomplete="off">
     <div class="qc-b"><button class="btn text" data-act="start-answer" data-arg="">Cancel</button><button class="btn" data-act="start-answer" data-arg="go" disabled>Start</button></div></div>`;
   scrim.classList.add("on", "veil");
   const card = scrim.querySelector(".start-card"), p = $("panel").getBoundingClientRect(), input = $("startIn"), go = card.querySelector('[data-arg="go"]');
@@ -478,11 +478,16 @@ ACTIONS["start-answer"] = (arg) => {
   const done = () => { const scrim = $("scrim"); scrim.style.opacity = ""; scrim.classList.remove("veil"); closeOverlay(); };
   if (!topic) { tweenAlways("snappy", (v) => { if (card.isConnected) { card.style.opacity = String(1 - v); $("scrim").style.opacity = String(1 - v); } }).then(() => { if (card.isConnected) done(); }); return; }
   done();
+  startTopic(topic);
+};
+// The example in every "what do you want to learn" field: a topic and what it's for, that means something at any school.
+const START_EXAMPLE = "How vaccines work, for Friday's bio exam";
+function startTopic(topic) {
   const slug = startSlug(topic);
   Q.pending = { id: null, home: true, slug, topic, at: Date.now(), known: new Set(S.subjects.map((x) => x.slug)) };
   sendCommand(`${command(`learn-start ${slug}`)} ${topic}`);
   toast("Setting up your new subject. It opens here when it's ready.");
-};
+}
 // A subject's name from what you typed: its course code first (the vault names subjects that way), then up to three
 // words that carry the topic, never one that exists.
 const START_FILLER = new Set("i im i'm want wanna to learn learning about how the a an for my me on in of and with some more understand study get better at is are what do does really please".split(" "));
@@ -673,15 +678,19 @@ function paintHome() {
   // Due (a deadline within two days), Waiting (a subject with no deadline left two weeks or more), Ended (past its date,
   // not closed out). No tiles, feeds or streaks: Home answers "what should I do now".
   const top = S.ranked[0], s = top && top.subject ? subj(top.subject) : null;
-  inkAction = () => run(top);
+  // With nothing to continue, Home has one thing to do, so it has one field (11 Nov, Edison asked how Start something
+  // new differed from Ask your tutor anything; on this Home they both began a conversation). The field starts a subject,
+  // the button goes, and the headline asks the question when there are no subjects yet.
+  const starting = top.kind === "Start";
+  inkAction = starting ? () => $("ask") && $("ask").focus() : () => run(top);
   let { line } = plain(top);
-  if (top.kind === "Start") line = "Pick a topic and a goal. The tutor asks a few questions to find where you start, then builds a plan.";
+  if (starting) line = "Type a topic, and what it's for if there's something: a class, an exam, a project. The tutor asks a few questions to find where you start, then builds a plan.";
   const has = (x) => x.days_to_deadline !== null && x.days_to_deadline !== undefined && x.days_to_deadline !== "";
   const soon = S.subjects.filter((x) => x.status !== "done" && has(x) && +x.days_to_deadline >= 0 && +x.days_to_deadline <= 2).sort((p, q) => p.days_to_deadline - q.days_to_deadline);
   const topic = (x) => { const m = afterCode(x).match(/(?: [—–-] |: )(.+)$/); return m ? m[1].replace(/\s*\([^)]*\)\s*$/, "") : ""; };
   const when = (d) => lateWords(d === 0 ? "today" : d === 1 ? "tomorrow" : DAYS_LONG[dayDate(d).getDay()]);
   const head = s && has(s) && +s.days_to_deadline >= 0 && +s.days_to_deadline <= 6 ? `${nick(s)} is due ${when(+s.days_to_deadline)}.`
-    : soon.length ? `${greeting()}.` : `Your day is clear${firstName() ? `, ${firstName()}` : ""}.`;
+    : soon.length ? `${greeting()}.` : starting && !S.subjects.length ? `What do you want to learn${firstName() ? `, ${firstName()}` : ""}?` : `Your day is clear${firstName() ? `, ${firstName()}` : ""}.`;
   const label = top.kind === "Start" ? "Start something new" : top.kind === "Review" && !s ? "Review across subjects" : `${top.kind === "Repair" ? "Repair" : top.kind === "Review" ? "Review" : "Continue"} ${s ? nick(s) : ""}`.trim();
   // a name that says which subject: "CS 100 Quiz" alone does not, so a bare quiz takes its topic's first words
   const homeName = indexName;
@@ -701,8 +710,8 @@ function paintHome() {
   const changed = put($("screen"), `<div class="home2"><div class="h-col">
     <h1 class="h-head" data-line="greeting">${esc(head)}</h1>
     <div class="h-sub" data-line="action-line">${md(line)}</div>
-    <div class="h-go"><button class="btn" id="homeGo" data-line="go" data-surface data-act="ink" data-prefetch="${s ? s.slug : ""}">${esc(label)}</button>${top.kind === "Start" ? "" : `<button class="h-new" data-act="start">Start a subject</button>`}</div>
-    <div class="composer h-field" data-line="field" data-surface><div class="h-att" id="homeAtt"></div><input id="ask" placeholder="Ask your tutor anything" aria-label="Ask your tutor" autocomplete="off"><button class="send" data-act="ask" id="askSend" aria-label="Send" disabled>${icon("send", "sm")}</button></div>
+    ${starting ? "" : `<div class="h-go"><button class="btn" id="homeGo" data-line="go" data-surface data-act="ink" data-prefetch="${s ? s.slug : ""}">${esc(label)}</button><button class="h-new" data-act="start">Start a subject</button></div>`}
+    <div class="composer h-field${starting ? " h-start" : ""}" data-line="field" data-surface><div class="h-att" id="homeAtt"></div><input id="ask" placeholder="${starting ? START_EXAMPLE : "Ask your tutor anything"}" aria-label="${starting ? "What you want to learn" : "Ask your tutor"}" autocomplete="off"><button class="send" data-act="ask" id="askSend" aria-label="Send" disabled>${icon("send", "sm")}</button></div>
     ${rows.length ? `<div class="h-also">${rows.map(rowHtml).join("")}</div>` : ""}
   </div></div>`);
   centerHome();
@@ -859,6 +868,11 @@ let homeStale = false;
 // A subject's name resumes it; anything else starts the tutor with the question.
 ACTIONS.ask = () => {
   const text = ($("ask") || {}).value ? $("ask").value.trim() : "";
+  if ($("ask") && $("ask").closest(".h-start")) {   // Home's start field (paintHome)
+    if (!text) return;
+    HOME_ATT.splice(0); paintHomeAtt(); localStorage.removeItem("flash-home-draft");
+    return startTopic(text);
+  }
   const att = HOME_ATT.splice(0);
   if (!text && !att.length) return;
   const q = text.toLowerCase();
@@ -3501,7 +3515,9 @@ async function openSettings() {
   const theme = cfg.theme || "system";
   const stone = Stone.pick(cfg.stone), nightNow = document.documentElement.dataset.theme === "night";
   // Each preview wears its own theme's tokens, so it shows true colors in either mode.
-  const pv = (t) => `<span data-theme="${t}"><i></i><i></i></span>`;
+  // Each preview is a small window of the app in that theme: the stone's glass, a sidebar, a sheet with a headline and
+  // the field (11 Nov, Edison: the flat white and black bars "don't match the vibe of the app").
+  const pv = (t) => `<span class="pv-${t}" style="--pv-tone:${Stone.tone(stone, t === "night")}"><b class="pv-side"></b><b class="pv-sheet"><i></i><i></i><u></u></b></span>`;
   const wallSection = F.wall && F.platform === "darwin" ? await wallSettings() : "";   // pictures come from macOS; elsewhere the wallpaper is the stone glass
   const thumb = (value, label, preview) => `<button class="thumb ${theme === value ? "on" : ""}" data-act="set-theme" data-arg="${value}" aria-pressed="${theme === value}"><div class="pv">${preview}</div><div class="lab">${label}</div></button>`;
   scrim.innerHTML = `<div class="card float sheet" role="dialog" aria-label="Settings">
@@ -3551,6 +3567,7 @@ function syncSettings() {
   const sheet = document.querySelector("#scrim .sheet"); if (!sheet) return;
   const theme = cfg.theme || "system", stone = Stone.pick(cfg.stone), night = document.documentElement.dataset.theme === "night";
   sheet.querySelectorAll('.thumb[data-act="set-theme"]').forEach((b) => { const on = b.dataset.arg === theme; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  sheet.querySelectorAll(".thumb .pv span").forEach((sp) => sp.style.setProperty("--pv-tone", Stone.tone(stone, sp.classList.contains("pv-night"))));
   const wk = wallKey(cfg.wallpaper);
   sheet.querySelectorAll(".wall-opt").forEach((b) => { const on = (b.dataset.arg || "photo") === wk || (b.dataset.act === "wall-photo" && wk.startsWith("photo")); b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
   sheet.querySelectorAll('.stone[data-act="set-stone"]').forEach((b) => {
@@ -3593,7 +3610,7 @@ function closeOverlay() {
 
 async function chooseVault(make) {
   closeOverlay();
-  const r = await (make ? F.createVault() : F.chooseVault());
+  const r = await (make ? F.createVault(vaultParent()) : F.chooseVault());
   if (r.canceled) return;
   if (r.problem) { toast(r.problem); return; }
   T.running = false;
@@ -3605,6 +3622,21 @@ async function chooseVault(make) {
 }
 ACTIONS["open-vault"] = () => chooseVault();
 ACTIONS["make-vault"] = () => chooseVault(true);
+// Where a new vault goes (11 Nov, Edison: let a friend choose, Documents by default). Setup offers Documents, the
+// Desktop, or any folder; the line under the choice says the exact folder Make a new vault will create.
+let vaultWhere = { key: "documents", dir: null };
+const vaultParent = () => vaultWhere.dir || ((setupInfo || {}).places || {})[vaultWhere.key] || null;
+ACTIONS["vault-where"] = async (k) => {
+  if (k === "other") { const dir = await F.pickVaultParent(); if (!dir) return; vaultWhere = { key: "other", dir }; }
+  else vaultWhere = { key: k, dir: null };
+  paintSetup();
+};
+async function showVaultTarget() {
+  const el = $("vaultTarget"), parent = vaultParent();
+  if (!el || !parent) return;
+  const dir = await F.vaultTarget(parent), home = ((setupInfo || {}).places || {}).home;
+  if (el.isConnected && dir) el.textContent = home && F.platform !== "win32" && dir.startsWith(home + "/") ? "~" + dir.slice(home.length) : dir;
+}
 
 // ---------- setup ----------
 function paintSetup() {
@@ -3617,25 +3649,29 @@ function paintSetup() {
   const v = setupInfo || {};
   const vaultOk = !v.vaultProblem;
   const steps = [
-    { ok: vaultOk, title: "Your learning vault", text: vaultOk ? "" : v.vault ? v.vaultProblem : v.starter ? "The folder where your subjects, plans and progress live. Make a fresh one, or open one you already have." : `Pick the folder that holds your copy of the learning vault. It has a learn/ folder inside.`, path: v.vault, action: true },
-    ...(v.problems || []).map((p) => ({ ok: false, title: p.what, text: p.fix })),
+    { title: "Your learning vault", text: vaultOk ? "" : v.vault ? v.vaultProblem : v.starter ? "The folder where your subjects, plans and progress live. Make a fresh one, or open one you already have." : `Pick the folder that holds your copy of the learning vault. It has a learn/ folder inside.`, path: v.vault, action: true },
+    ...(v.problems || []).map((p) => ({ title: p.what, text: p.fix })),
   ];
-  if (!(v.problems || []).length) steps.push({ ok: true, title: `Python 3 and ${tutorName()} found`, text: "" });
+  // a found tool is a quiet row with its state on the right, as in System Settings (11 Nov, Edison: the green check
+  // "makes it seem unprofessional")
+  if (!(v.problems || []).length) steps.push({ title: `Python 3 and ${tutorName()}`, state: "Installed" });
   inkAction = vaultOk ? null : v.starter ? () => chooseVault(true) : chooseVault;   // Return takes the first button
+  const where = !vaultOk && v.starter ? `<div class="where"><span class="where-l">Make it in</span><div class="seg" role="radiogroup" aria-label="Where your vault goes">${[["documents", "Documents"], ["desktop", "Desktop"], ["other", "Other folder…"]].filter(([k]) => k === "other" || (v.places || {})[k]).map(([k, l]) => `<button class="${vaultWhere.key === k ? "on" : ""}" role="radio" aria-checked="${vaultWhere.key === k}" data-act="vault-where" data-arg="${k}">${l}</button>`).join("")}</div></div><div class="path" id="vaultTarget">&nbsp;</div>` : "";
   unput($("screen")); $("screen").innerHTML = `<div class="setup">
     <h1 class="t-title">Welcome to ${esc(info.name)}</h1>
     <p class="t-ui ink2" style="font-size:15px;line-height:22px;margin-top:8px">Your tutor, your skill maps, and your progress in one window. ${esc(info.name)} runs your own ${esc(tutorName())} in your vault, so everything works as it does in the terminal.</p>
-    ${steps.map((st, i) => `<div class="card stepc"><span class="num ${st.ok ? "ok" : ""}">${st.ok ? icon("check", "xs") : i + 1}</span><div style="flex:1;min-width:0">
-      <div class="t-sec">${esc(st.title)}</div>${st.path ? `<div class="path">${esc(st.path)}</div>` : ""}${st.text ? `<div class="fix">${esc(st.text)}</div>` : ""}
-      ${st.action ? `<div style="margin-top:12px;display:flex;gap:8px">${vaultOk ? `<button class="btn neutral" data-act="choose-vault">Choose another folder</button>`
+    ${steps.map((st) => `<div class="card stepc${st.state ? " row" : ""}"><div class="sc-top"><div class="t-sec">${esc(st.title)}</div>${st.state ? `<span class="sc-state">${esc(st.state)}</span>` : ""}</div>
+      ${st.path ? `<div class="path">${esc(st.path)}</div>` : ""}${st.text ? `<div class="fix">${esc(st.text)}</div>` : ""}
+      ${st.action ? `${where}<div class="sc-acts">${vaultOk ? `<button class="btn neutral" data-act="choose-vault">Choose another folder</button>`
         : v.starter ? `<button class="btn" data-act="make-vault">Make a new vault</button><button class="btn neutral" data-act="choose-vault" data-tip="${key("O")}">Open one I have</button>`
         : `<button class="btn" data-act="choose-vault" data-tip="${key("O")}">Choose folder</button>`}</div>` : ""}
-    </div></div>`).join("")}
+    </div>`).join("")}
     ${(v.problems || []).length ? `<div style="margin-top:18px;display:flex;gap:10px;align-items:center"><button class="btn${vaultOk ? "" : " neutral"}" data-act="recheck">Check again</button><span class="cap">After installing or signing in, check again.</span></div>` : ""}
     <div class="t-sec" style="margin-top:26px">Your tutor</div><div class="cap" style="margin-top:2px">The app runs it with your own subscription.</div>
     <div class="seg" style="margin-top:10px" role="radiogroup" aria-label="Tutor">${[["claude", "Claude Code"], ["codex", "Codex"]].map(([h, l]) => `<button class="${cfg.host === h ? "on" : ""}" role="radio" aria-checked="${cfg.host === h}" data-act="setup-host" data-arg="${h}">${l}</button>`).join("")}</div>
   </div>`;
   if (vaultOk && (v.problems || []).length) inkAction = boot;
+  showVaultTarget();
 }
 ACTIONS.recheck = () => boot();
 ACTIONS["setup-host"] = async (h) => { await setCfg({ host: h }); boot(); };

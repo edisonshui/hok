@@ -202,7 +202,7 @@ ipcMain.handle("setup:check", async () => {
       ? { what: "Codex isn't signed in", fix: "Open Terminal, run codex login, and sign in with your ChatGPT account. Then check again." }
       : { what: "Claude Code isn't signed in", fix: "Open Terminal, run claude, and sign in with your Claude account. Then check again." });
   }
-  return { vaultProblem: env.checkVault(config.vault), vault: config.vault, problems, host: config.host, starter: hasStarter() };
+  return { vaultProblem: env.checkVault(config.vault), vault: config.vault, problems, host: config.host, starter: hasStarter(), places: vaultPlaces() };
 });
 // Whether the tutor has an account to run on: `claude auth status` says loggedIn, `codex login status` exits 0.
 // A check that can't run (an older version, a timeout) counts as signed in, so it never blocks a working setup.
@@ -220,14 +220,32 @@ function signedIn(tutor, host) {
 // when a starter is there; a build carries one only after its review (starter-vault-review.md) has been read.
 const STARTER = app.isPackaged ? path.join(process.resourcesPath, "starter-vault") : path.join(__dirname, "starter-vault");
 const hasStarter = () => fs.existsSync(path.join(STARTER, ".starter-vault"));
-ipcMain.handle("vault:create", async () => {
-  if (!hasStarter()) return { problem: "This copy of the app has no starter vault." };
-  const result = await dialog.showOpenDialog(win, { title: "Where should your learning vault go?", properties: ["openDirectory", "createDirectory"], buttonLabel: "Make it here", defaultPath: app.getPath("documents") });
-  if (result.canceled || !result.filePaths[0]) return { canceled: true };
-  const parent = result.filePaths[0];
+// Setup offers Documents (the default), the Desktop, or a folder you pick (11 Nov, Edison), and says the exact folder
+// it will make: "Learning vault" inside the one chosen, numbered when that name is taken, never into a folder that exists.
+function vaultPlaces() {
+  const at = (k) => { try { return app.getPath(k); } catch { return null; } };
+  return { documents: at("documents"), desktop: at("desktop"), home: at("home") };
+}
+const isFolderArg = (p) => typeof p === "string" && path.isAbsolute(p);
+function newVaultDir(parent) {
   let dir = path.join(parent, "Learning vault");
-  for (let n = 2; fs.existsSync(dir); n++) dir = path.join(parent, `Learning vault ${n}`);   // never into a folder that exists
-  try { fs.cpSync(STARTER, dir, { recursive: true }); fs.rmSync(path.join(dir, ".starter-vault"), { force: true }); }
+  for (let n = 2; fs.existsSync(dir); n++) dir = path.join(parent, `Learning vault ${n}`);
+  return dir;
+}
+ipcMain.handle("vault:target", (_e, parent) => (isFolderArg(parent) ? newVaultDir(parent) : null));
+ipcMain.handle("vault:pick-parent", async () => {
+  const r = await dialog.showOpenDialog(win, { title: "Where should your learning vault go?", properties: ["openDirectory", "createDirectory"], buttonLabel: "Choose", defaultPath: app.getPath("documents") });
+  return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
+});
+ipcMain.handle("vault:create", async (_e, parent) => {
+  if (!hasStarter()) return { problem: "This copy of the app has no starter vault." };
+  if (!isFolderArg(parent)) {
+    const result = await dialog.showOpenDialog(win, { title: "Where should your learning vault go?", properties: ["openDirectory", "createDirectory"], buttonLabel: "Make it here", defaultPath: app.getPath("documents") });
+    if (result.canceled || !result.filePaths[0]) return { canceled: true };
+    parent = result.filePaths[0];
+  }
+  let dir;
+  try { fs.mkdirSync(parent, { recursive: true }); dir = newVaultDir(parent); fs.cpSync(STARTER, dir, { recursive: true }); fs.rmSync(path.join(dir, ".starter-vault"), { force: true }); }
   catch (e) { return { problem: `Couldn't make the vault there: ${e.message}` }; }
   const problem = env.checkVault(dir);
   if (problem) return { problem, dir };
