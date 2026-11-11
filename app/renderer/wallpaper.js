@@ -88,7 +88,7 @@
   function showStone() {
     const cv = document.createElement("canvas"); cv.width = 400; cv.height = 225;
     const gl = cv.getContext("webgl", { antialias: false, alpha: false, powerPreference: "low-power" });
-    if (!gl) return set(null, "none");
+    if (!gl) return stillStone(cv);   // no WebGL (a Linux without a GPU driver): the same light, drawn once and held
     const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); return o; };
     const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, "attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}")); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); gl.useProgram(pr);
     const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
@@ -99,6 +99,20 @@
     set(cv, "stone"); stoneDraw = draw; draw((performance.now() - t0) / 1000);
   }
 
+  // The stone glass without WebGL (11 Nov: the first Linux run had none, and the window fell back to the flat page):
+  // one still frame of the same bands, from the stone's tone, drawn with a 2D canvas.
+  function stillStone(cv) {
+    const x = cv.getContext("2d"); if (!x) return set(null, "none");
+    const [r, g, b] = stoneRGB().map((v) => Math.round(v * 255)), ink = [6, 8, 11];
+    const mix = (t, c) => `rgb(${[r, g, b].map((v, i) => Math.round(Math.min(255, (v * (1 - t) + c[i] * t) / 0.74))).join(",")})`;
+    const base = x.createLinearGradient(0, 0, cv.width, cv.height);
+    base.addColorStop(0, mix(0.7, ink)); base.addColorStop(0.55, mix(0.25, ink)); base.addColorStop(1, mix(0.6, ink));
+    x.fillStyle = base; x.fillRect(0, 0, cv.width, cv.height);
+    const glow = x.createRadialGradient(cv.width * 0.25, cv.height * 1.1, 10, cv.width * 0.25, cv.height * 1.1, cv.width * 0.8);
+    glow.addColorStop(0, mix(0.4, [230, 247, 255])); glow.addColorStop(1, "rgba(0,0,0,0)");
+    x.fillStyle = glow; x.fillRect(0, 0, cv.width, cv.height);
+    set(cv, "stone");
+  }
   async function reload(force) {
     const r = MAC ? await F.wall.resolve(root.dataset.theme === "night", force) : { type: "stone" };
     waiting = r.preparing ? r.preparing.key : null;

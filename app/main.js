@@ -225,7 +225,11 @@ const hasStarter = () => fs.existsSync(path.join(STARTER, ".starter-vault"));
 // it will make: "Learning vault" inside the one chosen, numbered when that name is taken, never into a folder that exists.
 function vaultPlaces() {
   const at = (k) => { try { return app.getPath(k); } catch { return null; } };
-  return { documents: at("documents"), desktop: at("desktop"), home: at("home") };
+  const home = at("home");
+  // A Linux without XDG folders reports the home folder for both; Documents then means ~/Documents, made when needed
+  // (11 Nov: the first Linux run showed "Documents" over ~/Learning vault).
+  const own = (k, name) => { const p = at(k); return p && p !== home ? p : home && path.join(home, name); };
+  return { documents: own("documents", "Documents"), desktop: own("desktop", "Desktop"), home };
 }
 const isFolderArg = (p) => typeof p === "string" && path.isAbsolute(p);
 function newVaultDir(parent) {

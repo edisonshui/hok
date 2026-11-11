@@ -1367,16 +1367,14 @@ html.wall-on,html.wall-on body{background:transparent!important}
 #wall .wall-pic{position:absolute;left:0;top:0;display:block;object-fit:cover;transform-origin:0 0;background:#0b0d10}
 #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#2E9C96) 36%,transparent)}
 html[data-theme="night"] #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#21807B) 46%,transparent)}
-#wall .wall-shade{background:rgba(255,255,255,.18);transition:background-color var(--duration-base) var(--ease-out)}
-html[data-theme="night"] #wall .wall-shade{background:rgba(6,8,12,.26)}
+/* one glass on every screen, as thick as a session's (11 Nov, Edison: Home and sessions read as "two distinct
+   sections"; "everything should feel harmonious") */
+#wall .wall-shade{background:rgba(255,255,255,.34)}
+html[data-theme="night"] #wall .wall-shade{background:rgba(6,8,12,.44)}
 /* over a picture the stone is a light tint, so the picture keeps its own colours (11 Nov, Edison picked C of three:
    Sakura over the blue Tahiti waves turned the window mauve at 46%). The stone glass keeps its full tint above. */
 html:not([data-wkind="stone"]) #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#2E9C96) 16%,transparent)}
 html[data-theme="night"]:not([data-wkind="stone"]) #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#21807B) 20%,transparent)}
-html:not([data-wkind="stone"]) #wall .wall-shade{background:rgba(255,255,255,.22)}
-html[data-theme="night"]:not([data-wkind="stone"]) #wall .wall-shade{background:rgba(6,8,12,.32)}
-html[data-wroute="session"] #wall .wall-shade{background:rgba(255,255,255,.34)}
-html[data-theme="night"][data-wroute="session"] #wall .wall-shade{background:rgba(6,8,12,.44)}
 /* Settings: the wallpaper choices */
 .walls{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:8px}
 .wall-opt{display:flex;flex-direction:column;gap:4px;padding:0;border:0;background:none;text-align:left;cursor:pointer;color:var(--color-ink-2);font:var(--type-caption)}
@@ -1432,3 +1430,6 @@ html.glass[data-stone]:not([data-theme="night"]) :is(.btn.neutral,.home2 .pill):
 .wall-status:empty{display:none}
 .wall-kept{display:flex;align-items:center;gap:8px;margin-top:12px;min-height:28px}
 .wall-kept [hidden]{display:none}
+
+/* Toasts are the same frosted glass as the menus and sheets (11 Nov, Edison: "solid black") */
+html.glass .toast{background:var(--glass-float);-webkit-backdrop-filter:blur(30px) saturate(1.4);backdrop-filter:blur(30px) saturate(1.4);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 18px 44px -14px rgba(0,0,0,.35)}
