@@ -1450,3 +1450,4 @@ html.glass .toast{background:var(--glass-float);-webkit-backdrop-filter:blur(30p
 .dict-prog b{display:block;height:100%;width:0;background:var(--stone-brick,var(--color-action));transition:width 200ms linear}
 .dict-prog span{display:block;margin-top:6px;font:var(--type-caption);color:var(--color-ink-3)}
 #dictRemove[hidden]{display:none}
+#wall .wall-held{background:transparent}   /* the twin still never shows a dark box while its picture comes in (wallpaper.js) */

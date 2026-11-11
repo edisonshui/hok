@@ -21,31 +21,88 @@
   function fit() {
     if (!place || !media) return;
     const w = place.dw / z, h = place.dh / z;
-    media.style.width = w + "px"; media.style.height = h + "px";
-    media.style.transform = `translate(${-place.x / z}px,${-place.y / z}px)`;
+    for (const el of [media, twin]) { if (!el) continue; el.style.width = w + "px"; el.style.height = h + "px"; el.style.transform = `translate(${-place.x / z}px,${-place.y / z}px)`; }
   }
   F.wall.onPlace((p) => { place = p; fit(); });
   if (F.onZoom) F.onZoom((f) => { z = f || 1; fit(); });
 
   // play or hold, every time something that decides it changes
   let raf = 0;
+  // The wallpaper comes to rest and back gently, instead of cutting (11 Nov, Edison: the waves stopping "feels a
+  // little bit too sudden when you leave the home page"). A video is never slowed down: slowed, each frame stays up
+  // longer and the waves stutter (Edison, 11 Nov: "laggy and not smooth"). Instead a still of the frame on screen fades
+  // in over the moving picture (650 ms), and only then does the video stop beneath it; coming back, the video plays
+  // under the still and the still fades away (500 ms). The stone glass is drawn, so its clock slows (900 ms out, 700 in).
+  // Reduce motion, and a hidden window, stop at once.
+  let speed = 0, target = 0, ramp = 0, rampT = 0, held = null, heldTimer = 0;
+  const curve = (x) => x * x * (3 - 2 * x);
+  function apply() {
+    const k = curve(speed);
+    if (kind === "stone") { if (k > 0 && !raf) loop(); if (k === 0 && raf) { cancelAnimationFrame(raf); raf = 0; } }
+  }
+  const dropHeld = () => { clearTimeout(heldTimer); held = null; if (twin) { twin.remove(); twin.removeAttribute("src"); twin.load(); twin = null; } };   // a removed twin lets go of its decoder
+  // The still is a second, paused video of the same file, loaded with the wallpaper and kept hidden above it; leaving
+  // Home it jumps to the moment on screen and fades in, never a copy of pixels: drawn from a video the graphics chip
+  // decodes, a canvas copy came out black on screen (11 Nov, Edison: "it just flashes a black screen"), though it
+  // worked off-screen. It fades in only once it has drawn that frame; if that takes over 700 ms the video simply stops.
+  let twin = null;
+  function makeTwin(v) {
+    twin = document.createElement("video");
+    twin.muted = true; twin.playsInline = true; twin.preload = "auto"; twin.disableRemotePlayback = true;
+    twin.className = "wall-pic wall-held"; twin.style.opacity = "0"; twin.src = v.src;
+    box.append(twin); fit();
+    twin.addEventListener("loadedmetadata", () => { twin.currentTime = 0.01; }, { once: true });   // decode a first picture now, so a later jump is short
+  }
+  function holdVideo(now) {
+    if (!media) return;
+    const v = media, t = twin;
+    if (now || v.paused || v.readyState < 2 || !t || t.readyState < 1) { v.pause(); return; }
+    if (held === t) return;   // already coming to rest (the route is set twice on the way to a session)
+    clearTimeout(heldTimer); held = t;
+    let shown = false;
+    const show = () => {
+      if (shown || held !== t) return; shown = true; clearTimeout(heldTimer);
+      t.style.transition = "opacity 650ms cubic-bezier(.4,0,.2,1)"; t.style.opacity = "1";
+      heldTimer = setTimeout(() => { if (held === t && !shouldPlay()) v.pause(); }, 680);
+    };
+    // a transparent video may never report its frames, so the jump's end is the signal: the frame is decoded by then
+    t.addEventListener("seeked", () => requestAnimationFrame(() => requestAnimationFrame(show)), { once: true });
+    t.currentTime = v.currentTime;
+    heldTimer = setTimeout(() => { if (held === t && !shown) { held = null; t.style.transition = "none"; t.style.opacity = "0"; if (!shouldPlay()) v.pause(); } }, 700);   // the waves keep moving while it waits
+  }
+  function releaseVideo(now) {
+    if (!media) return;
+    media.play().catch(() => {});
+    const t = held; held = null; clearTimeout(heldTimer);
+    if (!t) return;
+    t.style.transition = now ? "none" : "opacity 500ms cubic-bezier(.4,0,.2,1)"; t.style.opacity = "0";
+  }
+
+  function step(t) {
+    const dt = Math.min(100, t - rampT); rampT = t;
+    speed = target > speed ? Math.min(target, speed + dt / 700) : Math.max(target, speed - dt / 900);
+    apply();
+    ramp = speed !== target ? requestAnimationFrame(step) : 0;
+  }
   function sync() {
-    const on = shouldPlay();
-    if (kind === "video" && media) { if (on) media.play().catch(() => {}); else media.pause(); }
-    if (kind === "stone") { if (on && !raf) loop(); if (!on && raf) { cancelAnimationFrame(raf); raf = 0; } }
+    target = shouldPlay() ? 1 : 0;
+    const now = calm() || document.visibilityState !== "visible";
+    if (kind === "video") { if (target) releaseVideo(now); else holdVideo(now); }
+    if (now) { if (ramp) cancelAnimationFrame(ramp); ramp = 0; speed = target; apply(); return; }
+    if (!ramp && speed !== target) { rampT = performance.now(); ramp = requestAnimationFrame(step); }
   }
   // the stone glass draws at 15 frames a second into a small canvas the layer stretches (energy 12.4 against 18.6 at
-  // full size and 60 frames, measured 10 Nov)
-  let last = 0, t0 = performance.now();
-  const loop = (ms) => { raf = requestAnimationFrame(loop); if (ms && ms - last < 66) return; last = ms || 0; if (stoneDraw) stoneDraw(((ms || performance.now()) - t0) / 1000); };
+  // full size and 60 frames, measured 10 Nov); its clock runs at the wallpaper's speed, so it eases like the video
+  let last = 0, clock = 0;
+  const loop = (ms) => { raf = requestAnimationFrame(loop); ms = ms || performance.now(); if (last && ms - last < 66) return; if (last) clock += ((ms - last) / 1000) * curve(speed); last = ms; if (stoneDraw) stoneDraw(clock); };
 
   function set(el, k) {
-    if (raf) { cancelAnimationFrame(raf); raf = 0; }
-    box.textContent = ""; media = el; kind = k; stoneDraw = null;
+    if (raf) { cancelAnimationFrame(raf); raf = 0; last = 0; }
+    dropHeld(); box.textContent = ""; media = el; kind = k; stoneDraw = null;
     root.dataset.wkind = k;   // a picture takes a lighter stone tint than the stone glass (styles.css)
     if (el) { el.classList.add("wall-pic"); box.append(el); }
     root.classList.toggle("wall-on", !!el);
-    fit(); sync();
+    fit(); apply(); sync();
   }
   function showVideo(url) {
     const v = document.createElement("video");
@@ -53,6 +110,7 @@
     v.src = url;
     v.addEventListener("loadeddata", () => { if (media === v) sync(); }, { once: true });
     set(v, "video");
+    makeTwin(v);
     // A video that should hold still (on battery, in a session) is started until its first frame is drawn, then paused
     // there: never played, it loaded nothing and the window showed only the dark tint (11 Nov, Edison: "screen went dark").
     if (!shouldPlay()) {
@@ -102,7 +160,7 @@
     gl.uniform2f(gl.getUniformLocation(pr, "R"), cv.width, cv.height);
     const uS = gl.getUniformLocation(pr, "S"), uT = gl.getUniformLocation(pr, "T");
     const draw = (t) => { gl.uniform3f(uS, ...stoneRGB()); gl.uniform1f(uT, t + 20); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); };
-    set(cv, "stone"); stoneDraw = draw; draw((performance.now() - t0) / 1000);
+    set(cv, "stone"); stoneDraw = draw; draw(clock);
   }
 
   // The stone glass without WebGL (11 Nov: the first Linux run had none, and the window fell back to the flat page):
@@ -139,7 +197,7 @@
     route(name) { routeName = name; root.dataset.wroute = name; sync(); },
     moveOnBattery(on) { onBattery = !!on; sync(); },
     reload,
-    stone() { if (kind === "stone" && stoneDraw) stoneDraw((performance.now() - t0) / 1000); },
+    stone() { if (kind === "stone" && stoneDraw) stoneDraw(clock); },
   };
   reload();
 })();
