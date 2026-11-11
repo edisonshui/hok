@@ -3546,8 +3546,7 @@ async function openSettings() {
   const nameIn = $("nameIn");
   nameIn.addEventListener("change", () => { setCfg({ name: nameIn.value.trim() }); if (route.name === "home") paintHome(); });
   paintDictSettings();
-  const batt = $("wallBattery");   // a change listener: the page's click handler cancels a checkbox's own toggle
-  if (batt) batt.addEventListener("change", () => { setCfg({ wallBattery: batt.checked }); if (window.Wall && Wall.moveOnBattery) Wall.moveOnBattery(batt.checked); });
+
 }
 ACTIONS.settings = () => openSettings();
 // Settings' Wallpaper choices: your desktop, stone glass, a photo, the moving Mac wallpapers, then the Aerials
@@ -3567,8 +3566,9 @@ async function wallSettings() {
   const macAerials = cat.aerials.filter((a) => a.group === "Mac");   // Apple files some Aerials under Mac (Mac Blue)
   const mac = cat.mac.length || macAerials.length ? `<div class="wall-group">Mac</div><div class="walls" role="radiogroup" aria-label="Mac">${cat.mac.map((m) => opt(`mac:${m.id}`, m.name, img(m.thumb), "set-wall", m)).join("")}${macAerials.map(air).join("")}</div>` : "";
   return `<div class="sec"><div class="t-sec">Wallpaper</div>
-      <label class="wall-batt"><input type="checkbox" id="wallBattery"${cfg.wallBattery ? " checked" : ""}><span>Keep moving on battery</span></label>
-      <div class="cap" style="margin-top:2px">Moves on Home, and holds still in sessions. On battery it holds still unless you tick the box above, which costs about as much power as a music app. A wallpaper marked with an arrow gets ready the first time you pick it, in about a minute and a half. Its still shows until then.</div>
+      <div class="cap" style="margin-top:2px">Moves on Home. Wallpapers marked with an arrow download the first time you pick one.</div>
+      <div class="wall-batt"><span class="where-l">On battery</span><div class="seg" role="radiogroup" aria-label="On battery">${[[false, "Hold still"], [true, "Keep moving"]].map(([v, l]) => `<button class="${!!cfg.wallBattery === v ? "on" : ""}" role="radio" aria-checked="${!!cfg.wallBattery === v}" data-act="wall-battery" data-arg="${v}">${l}</button>`).join("")}</div></div>
+
       <div class="walls" role="radiogroup" aria-label="Wallpaper">${opt("desktop", "Your desktop", img(cat.desktopThumb))}${opt("stone", "Stone glass", '<i class="wt-stone"></i>')}${opt("", "A photo…", cat.photoThumb ? img(cat.photoThumb) : `<i class="wt-add">${icon("plus")}</i>`, "wall-photo")}</div>
       ${mac}${groups}
       <div id="wallStatus" class="cap wall-status" aria-live="polite"></div>
@@ -3622,6 +3622,11 @@ async function paintDictSettings() {
 }
 ACTIONS["dict-remove"] = async () => { await Dictate.remove(); paintDictSettings(); };
 ACTIONS["dict-lang"] = async (v) => { await setCfg({ dictLang: v }); Dictate.lang = v; document.querySelectorAll('#scrim [data-act="dict-lang"]').forEach((b) => { const on = b.dataset.arg === v; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); }); };
+// Settings > Wallpaper, On battery: Hold still or Keep moving (11 Nov, Edison: the checkbox's style, and less to read)
+ACTIONS["wall-battery"] = async (arg) => {
+  const on = arg === "true"; await setCfg({ wallBattery: on }); if (window.Wall && Wall.moveOnBattery) Wall.moveOnBattery(on);
+  document.querySelectorAll('#scrim [data-act="wall-battery"]').forEach((b) => { const v = b.dataset.arg === String(on); b.classList.toggle("on", v); b.setAttribute("aria-checked", v); });
+};
 ACTIONS["wall-photo"] = async () => {
   const file = await F.wall.choosePhoto(); if (!file) return;
   await setCfg({ wallpaper: { kind: "photo", file } }); syncSettings(); if (window.Wall) Wall.reload();

@@ -1434,8 +1434,8 @@ html.glass[data-stone]:not([data-theme="night"]) :is(.btn.neutral,.home2 .pill):
 /* Toasts are the same frosted glass as the menus and sheets (11 Nov, Edison: "solid black") */
 html.glass .toast{background:var(--glass-float);-webkit-backdrop-filter:blur(30px) saturate(1.4);backdrop-filter:blur(30px) saturate(1.4);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 18px 44px -14px rgba(0,0,0,.35)}
 
-.wall-batt{display:flex;align-items:center;gap:8px;margin-top:8px;font:var(--type-ui);color:var(--color-ink)}
-.wall-batt input{width:15px;height:15px;margin:0;accent-color:var(--stone-brick,var(--color-action))}
+.wall-batt{display:flex;align-items:center;gap:12px;margin-top:10px}
+.wall-batt .where-l{font:var(--type-caption);color:var(--color-ink-2)}
 
 /* Dictation (dictation.js): the mic sits beside send, quiet until it listens; listening, it takes the stone's colour
    and a ring that follows your voice (--lvl, 0 to 1); writing, it spins. */
@@ -1451,3 +1451,8 @@ html.glass .toast{background:var(--glass-float);-webkit-backdrop-filter:blur(30p
 .dict-prog span{display:block;margin-top:6px;font:var(--type-caption);color:var(--color-ink-3)}
 #dictRemove[hidden]{display:none}
 #wall .wall-held{background:transparent}   /* the twin still never shows a dark box while its picture comes in (wallpaper.js) */
+/* Settings' two-way switches (On battery, Tutor, Dictation language) are the glass's own tint, not a dark well
+   (11 Nov: the new On battery switch read as a black box); the picked side is a lighter step of the same ink */
+html.glass .sheet .seg{background:color-mix(in srgb,var(--color-ink) 7%,transparent)}
+html.glass .sheet .seg button.on{background:color-mix(in srgb,var(--color-ink) 13%,transparent);box-shadow:none}
+.wall-batt{margin-bottom:12px}

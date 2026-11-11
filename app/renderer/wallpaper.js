@@ -190,6 +190,9 @@
   F.wall.onStatus((st) => { if (st.done && st.ok && st.key === waiting) reload(); });
   F.wall.onPower((b) => { battery = !!b; sync(); });
   F.wall.battery().then((b) => { battery = !!b; sync(); });
+  // Settings' "On battery" choice, read here at launch: handed over by app.js it could arrive before this file ran and
+  // was lost, so a ticked choice did nothing until it was ticked again (11 Nov, Edison)
+  if (F.config) F.config().then((c) => { onBattery = !!(c && c.wallBattery); sync(); }).catch(() => {});
   document.addEventListener("visibilitychange", sync);
 
   window.Wall = {
