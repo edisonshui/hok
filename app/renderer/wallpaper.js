@@ -53,6 +53,12 @@
     v.src = url;
     v.addEventListener("loadeddata", () => { if (media === v) sync(); }, { once: true });
     set(v, "video");
+    // A video that should hold still (on battery, in a session) is started until its first frame is drawn, then paused
+    // there: never played, it loaded nothing and the window showed only the dark tint (11 Nov, Edison: "screen went dark").
+    if (!shouldPlay()) {
+      v.requestVideoFrameCallback(() => { if (media === v && !shouldPlay()) v.pause(); });
+      v.play().catch(() => {});
+    }
   }
   // a still is drawn once, small and blurred, and stretched: nothing to decode or redraw after that
   function showImage(url) {

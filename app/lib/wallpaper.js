@@ -24,7 +24,8 @@ const PICKS = require("./wallpaper-picks.json");   // the Aerials Edison chose t
 const CLIP_SECONDS = 90;   // a copy holds at most this much, then loops
 // Copies are recorded at 2.4 Mbit/s (11 Nov, Edison: the picture looked "really grainy"; at 0.7 the smooth colours
 // of Mac Blue broke into blocks and bands once stretched over the window), as H.264, which the Mac decodes in hardware:
-// as VP9 the same copy cost energy impact 23.6 playing, as H.264 8.0 (measured 11 Nov, bench in home-r5). A copy is
+// playing, a VP9 copy measured energy impact 23.6 and the H.264 copy this records 14.2 (one 20 s sample each, 11 Nov,
+// bench in home-r5; an H.264 file made by ffmpeg measured 8.0, so the recorder's fragmented MP4 costs some of it back). A copy is
 // 10 to 27 MB. V marks this format in the file name, so older copies are made again and cleared at launch.
 const COPY_BITS = 2400000, V = ".v3", COPY = /\.(webm|mp4)$/;
 
