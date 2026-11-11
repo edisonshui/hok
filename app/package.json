@@ -10,7 +10,7 @@
     "test": "node --test test/*.test.js",
     "smoke": "node scripts/smoke.mjs",
     "dist": "electron-builder",
-    "postinstall": "node scripts/fix-pty.js",
+    "postinstall": "node scripts/fix-pty.js && node scripts/vendor-dictation.js",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux",
@@ -34,7 +34,8 @@
   "devDependencies": {
     "electron": "^45.0.0",
     "electron-builder": "^26.18.0",
-    "playwright": "^1.64.1"
+    "playwright": "^1.64.1",
+    "@huggingface/transformers": "4.3.2"
   },
   "author": {
     "name": "Edison Hui",
@@ -70,7 +71,10 @@
       "category": "public.app-category.education",
       "identity": "-",
       "hardenedRuntime": false,
-      "x64ArchFiles": "Contents/Resources/app.asar.unpacked/node_modules/{node-pty,electron-liquid-glass}/prebuilds/**"
+      "x64ArchFiles": "Contents/Resources/app.asar.unpacked/node_modules/{node-pty,electron-liquid-glass}/prebuilds/**",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Dictation listens while you hold the microphone button. Your voice is turned into text on this computer and is never sent anywhere."
+      }
     },
     "win": {
       "target": [

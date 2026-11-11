@@ -684,7 +684,8 @@ function paintHome() {
   const starting = top.kind === "Start";
   inkAction = starting ? () => $("ask") && $("ask").focus() : () => run(top);
   let { line } = plain(top);
-  if (starting) line = "Your tutor asks a few questions, then builds a plan.";   // 11 Nov, Edison: the longer line was "a bit long to read"
+  // 11 Nov, Edison: a question here gets an answer first; the tutor offers a full lesson after, if it's worth one
+  if (starting) line = "Ask anything. If it's worth a full lesson, your tutor offers one.";
   const has = (x) => x.days_to_deadline !== null && x.days_to_deadline !== undefined && x.days_to_deadline !== "";
   const soon = S.subjects.filter((x) => x.status !== "done" && has(x) && +x.days_to_deadline >= 0 && +x.days_to_deadline <= 2).sort((p, q) => p.days_to_deadline - q.days_to_deadline);
   const topic = (x) => { const m = afterCode(x).match(/(?: [—–-] |: )(.+)$/); return m ? m[1].replace(/\s*\([^)]*\)\s*$/, "") : ""; };
@@ -711,7 +712,7 @@ function paintHome() {
     <h1 class="h-head" data-line="greeting">${esc(head)}</h1>
     <div class="h-sub" data-line="action-line">${md(line)}</div>
     ${starting ? "" : `<div class="h-go"><button class="btn" id="homeGo" data-line="go" data-surface data-act="ink" data-prefetch="${s ? s.slug : ""}">${esc(label)}</button><button class="h-new" data-act="start">Start a subject</button></div>`}
-    <div class="composer h-field${starting ? " h-start" : ""}" data-line="field" data-surface><div class="h-att" id="homeAtt"></div><input id="ask" placeholder="Ask your tutor anything" aria-label="${starting ? "What you want to learn" : "Ask your tutor"}" autocomplete="off"><button class="send" data-act="ask" id="askSend" aria-label="Send" disabled>${icon("send", "sm")}</button></div>
+    <div class="composer h-field${starting ? " h-start" : ""}" data-line="field" data-surface><div class="h-att" id="homeAtt"></div><input id="ask" placeholder="Ask your tutor anything" aria-label="${starting ? "What you want to learn" : "Ask your tutor"}" autocomplete="off"><button class="icon-btn mic" data-act="dictate" data-arg="ask" aria-label="Dictate" data-tip="Dictate  ${key("D")}" data-tip-side="up">${icon("mic", "sm")}</button><button class="send" data-act="ask" id="askSend" aria-label="Send" disabled>${icon("send", "sm")}</button></div>
     ${rows.length ? `<div class="h-also">${rows.map(rowHtml).join("")}</div>` : ""}
   </div></div>`);
   centerHome();
@@ -868,11 +869,6 @@ let homeStale = false;
 // A subject's name resumes it; anything else starts the tutor with the question.
 ACTIONS.ask = () => {
   const text = ($("ask") || {}).value ? $("ask").value.trim() : "";
-  if ($("ask") && $("ask").closest(".h-start")) {   // Home's start field (paintHome)
-    if (!text) return;
-    HOME_ATT.splice(0); paintHomeAtt(); localStorage.removeItem("flash-home-draft");
-    return startTopic(text);
-  }
   const att = HOME_ATT.splice(0);
   if (!text && !att.length) return;
   const q = text.toLowerCase();
@@ -1045,6 +1041,7 @@ function paintQuestion(toEnd) {
       <div class="attach" id="qAttach"></div>
       <div class="q-row">
         <textarea id="qMsg" rows="1" placeholder="${c.id ? "Ask a follow-up, or paste a screenshot" : "Ask about it"}" aria-label="Message"></textarea>
+        <button class="icon-btn mic" data-act="dictate" data-arg="qMsg" aria-label="Dictate" data-tip="Dictate  ${key("D")}" data-tip-side="up">${icon("mic", "sm")}</button>
         <button class="send" id="qSend" data-act="${c.running ? "question-stop" : "question-send"}" aria-label="${c.running ? "Stop" : "Send"}" ${c.running ? "" : "disabled"}>${icon(c.running ? "stop" : "send", "sm")}</button>
       </div>
     </div></div>
@@ -3527,6 +3524,10 @@ async function openSettings() {
     <div class="sec"><div class="t-sec">Stone</div>
       <div class="stones" role="radiogroup" aria-label="Stone">${Stone.ORDER.map((c) => `<button class="stone ${stone === c ? "on" : ""}" role="radio" aria-checked="${stone === c}" data-act="set-stone" data-arg="${c}"><span class="st-tile"><img alt="" src="${Stone.icon(c, nightNow)}"></span><span class="lab">${Stone.NAMES[c]}</span></button>`).join("")}</div></div>
     ${wallSection}
+    <div class="sec"><div class="t-sec">Dictation</div>
+      <div class="cap" style="margin-top:2px">Press the microphone beside any field, or ${key("D")}, and talk. Press it again or Return to write it in. Whisper, an open-source speech model, turns it into text on this computer; your voice is never sent anywhere.</div>
+      <div class="cap" id="dictState" style="margin-top:8px;color:var(--color-ink)">&nbsp;</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px"><div class="seg" role="radiogroup" aria-label="Dictation language">${[["en", "English"], ["auto", "Any language"]].map(([v, l]) => `<button class="${(cfg.dictLang || "en") === v ? "on" : ""}" role="radio" aria-checked="${(cfg.dictLang || "en") === v}" data-act="dict-lang" data-arg="${v}">${l}</button>`).join("")}</div><button class="btn text" id="dictRemove" data-act="dict-remove" hidden>Remove the speech model</button></div></div>
     <div class="sec"><div class="t-sec">Your name</div>
       <div class="cap" style="margin-top:2px">For the greeting on Home.</div>
       <input id="nameIn" class="field" value="${esc(firstName())}" placeholder="Your first name" aria-label="Your first name"></div>
@@ -3540,6 +3541,9 @@ async function openSettings() {
   </div>`;
   const nameIn = $("nameIn");
   nameIn.addEventListener("change", () => { setCfg({ name: nameIn.value.trim() }); if (route.name === "home") paintHome(); });
+  paintDictSettings();
+  const batt = $("wallBattery");   // a change listener: the page's click handler cancels a checkbox's own toggle
+  if (batt) batt.addEventListener("change", () => { setCfg({ wallBattery: batt.checked }); if (window.Wall && Wall.moveOnBattery) Wall.moveOnBattery(batt.checked); });
 }
 ACTIONS.settings = () => openSettings();
 // Settings' Wallpaper choices: your desktop, stone glass, a photo, the moving Mac wallpapers, then the Aerials
@@ -3559,7 +3563,8 @@ async function wallSettings() {
   const macAerials = cat.aerials.filter((a) => a.group === "Mac");   // Apple files some Aerials under Mac (Mac Blue)
   const mac = cat.mac.length || macAerials.length ? `<div class="wall-group">Mac</div><div class="walls" role="radiogroup" aria-label="Mac">${cat.mac.map((m) => opt(`mac:${m.id}`, m.name, img(m.thumb), "set-wall", m)).join("")}${macAerials.map(air).join("")}</div>` : "";
   return `<div class="sec"><div class="t-sec">Wallpaper</div>
-      <div class="cap" style="margin-top:2px">Moves on Home while your Mac is plugged in. Holds still in sessions and on battery. A wallpaper marked with an arrow gets ready the first time you pick it, in about a minute and a half. Its still shows until then.</div>
+      <label class="wall-batt"><input type="checkbox" id="wallBattery"${cfg.wallBattery ? " checked" : ""}><span>Keep moving on battery</span></label>
+      <div class="cap" style="margin-top:2px">Moves on Home, and holds still in sessions. On battery it holds still unless you tick the box above, which costs about as much power as a music app. A wallpaper marked with an arrow gets ready the first time you pick it, in about a minute and a half. Its still shows until then.</div>
       <div class="walls" role="radiogroup" aria-label="Wallpaper">${opt("desktop", "Your desktop", img(cat.desktopThumb))}${opt("stone", "Stone glass", '<i class="wt-stone"></i>')}${opt("", "A photo…", cat.photoThumb ? img(cat.photoThumb) : `<i class="wt-add">${icon("plus")}</i>`, "wall-photo")}</div>
       ${mac}${groups}
       <div id="wallStatus" class="cap wall-status" aria-live="polite"></div>
@@ -3598,6 +3603,21 @@ ACTIONS["set-wall"] = async (arg) => {
   const [kind, ...rest] = arg.split(":"), id = rest.join(":");
   await setCfg({ wallpaper: id ? { kind, id } : { kind } }); syncSettings(); if (window.Wall) Wall.reload(true);   // a pick you make tries again even after a failure
 };
+// Dictation (dictation.js): the mic beside a field writes into that field; ⌘D picks the field on screen.
+ACTIONS.dictate = (id, el) => { if (window.Dictate) Dictate.toggle(el, $(id)); };
+function dictateHere() {
+  const id = Dictate.active() ? null : route.name === "session" ? "msg" : $("qMsg") && $("qMsg").offsetParent ? "qMsg" : route.name === "home" && $("ask") ? "ask" : null;
+  const btn = Dictate.active() ? document.querySelector(".mic.rec") : id && document.querySelector(`.mic[data-arg="${id}"]`);
+  if (btn) Dictate.toggle(btn, id ? $(id) : null);
+}
+async function paintDictSettings() {
+  const el = $("dictState"); if (!el || !window.Dictate) return;
+  const st = await Dictate.status();
+  el.textContent = st.ready ? `Ready. The speech model takes ${Math.round(st.onDisk / 1e6)} MB on this computer.` : `Not on this computer yet. It downloads the first time you press the microphone, ${Math.round(st.need / 1e6)} MB.`;
+  if ($("dictRemove")) $("dictRemove").hidden = !st.onDisk;
+}
+ACTIONS["dict-remove"] = async () => { await Dictate.remove(); paintDictSettings(); };
+ACTIONS["dict-lang"] = async (v) => { await setCfg({ dictLang: v }); Dictate.lang = v; document.querySelectorAll('#scrim [data-act="dict-lang"]').forEach((b) => { const on = b.dataset.arg === v; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); }); };
 ACTIONS["wall-photo"] = async () => {
   const file = await F.wall.choosePhoto(); if (!file) return;
   await setCfg({ wallpaper: { kind: "photo", file } }); syncSettings(); if (window.Wall) Wall.reload();
@@ -3926,7 +3946,7 @@ F.onMenu((id) => {
     review: ACTIONS.review, check: ACTIONS.check, hint: ACTIONS.hint, break: ACTIONS.break, end: ACTIONS.end,
     start: ACTIONS.start, restart: ACTIONS.restart, "toggle-side": ACTIONS["toggle-side"], "hide-side": ACTIONS["hide-side"],
     "toggle-panel": () => { if (route.name === "session") ACTIONS["toggle-panel"](); },
-    "toggle-term": ACTIONS["toggle-term"], math: ACTIONS.math,
+    "toggle-term": ACTIONS["toggle-term"], math: ACTIONS.math, dictate: dictateHere,
     "tab:note": () => { if (route.name !== "session") go("session"); ACTIONS["toggle-note"](); },
     "zoom-in": () => ACTIONS.zoom("in"), "zoom-out": () => ACTIONS.zoom("out"), "zoom-fit": () => ACTIONS.zoom("fit"),
   };
@@ -3984,6 +4004,8 @@ let booted = false;
 async function boot() {
   info = info || await F.info();
   cfg = await F.config();
+  if (window.Dictate) Dictate.lang = cfg.dictLang || "en";
+  if (window.Wall && Wall.moveOnBattery) Wall.moveOnBattery(cfg.wallBattery);
   // The plan panel starts closed each launch (7 Nov, Edison: it shouldn't be remembered after a quit); the terminal
   // already starts closed. Within a run, the toggle holds.
   if (!booted) { booted = true; if (cfg.panel) setCfg({ panel: false }); }

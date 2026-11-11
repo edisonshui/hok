@@ -23,9 +23,10 @@ const MAC_DIR = "/System/Library/Desktop Pictures/.wallpapers";
 const PICKS = require("./wallpaper-picks.json");   // the Aerials Edison chose to offer (10 Nov); Cities are left out as too busy
 const CLIP_SECONDS = 90;   // a copy holds at most this much, then loops
 // Copies are recorded at 2.4 Mbit/s (11 Nov, Edison: the picture looked "really grainy"; at 0.7 the smooth colours
-// of Mac Blue broke into blocks and bands once stretched over the window). A copy is near 25 MB. V marks this
-// quality in the file name, so copies made before it are made again and the old ones are cleared at launch.
-const COPY_BITS = 2400000, V = ".v2";
+// of Mac Blue broke into blocks and bands once stretched over the window), as H.264, which the Mac decodes in hardware:
+// as VP9 the same copy cost energy impact 23.6 playing, as H.264 8.0 (measured 11 Nov, bench in home-r5). A copy is
+// 10 to 27 MB. V marks this format in the file name, so older copies are made again and cleared at launch.
+const COPY_BITS = 2400000, V = ".v3", COPY = /\.(webm|mp4)$/;
 
 const run = (cmd, args) => new Promise((resolve) => execFile(cmd, args, { maxBuffer: 1 << 24 }, (err, out) => resolve(err ? null : String(out))));
 const exists = (f) => { try { return fs.statSync(f).size > 0; } catch { return false; } };
@@ -33,8 +34,8 @@ const exists = (f) => { try { return fs.statSync(f).size > 0; } catch { return f
 function make({ BrowserWindow, userData, onStatus }) {
   const CACHE = path.join(userData, "wallpapers");
   fs.mkdirSync(CACHE, { recursive: true });
-  const copyFile = (key) => path.join(CACHE, `${key}${V}.webm`);
-  try { fs.readdirSync(CACHE).filter((f) => /\.webm(\.part)?$/.test(f) && !f.endsWith(`${V}.webm`)).forEach((f) => fs.rmSync(path.join(CACHE, f), { force: true })); } catch { /* nothing to clear */ }
+  const copyFile = (key) => path.join(CACHE, `${key}${V}.mp4`);
+  try { fs.readdirSync(CACHE).filter((f) => /\.(webm|mp4)(\.part)?$/.test(f) && !f.endsWith(`${V}.mp4`)).forEach((f) => fs.rmSync(path.join(CACHE, f), { force: true })); } catch { /* nothing to clear */ }
   const jobs = new Map();   // key -> promise of the finished copy, so a second ask waits for the first
   const stops = new Map();  // key -> stops that copy, when you pick another wallpaper before it finishes
   const failed = new Map();   // key -> when its copy last failed: not retried on its own for ten minutes
@@ -167,12 +168,12 @@ function make({ BrowserWindow, userData, onStatus }) {
   }
   // The copies kept on this Mac, and clearing them (all but the one in use) to give the space back.
   function copies() {
-    let files = []; try { files = fs.readdirSync(CACHE).filter((f) => f.endsWith(".webm")); } catch { /* none */ }
+    let files = []; try { files = fs.readdirSync(CACHE).filter((f) => COPY.test(f)); } catch { /* none */ }
     return { count: files.length, bytes: files.reduce((n, f) => { try { return n + fs.statSync(path.join(CACHE, f)).size; } catch { return n; } }, 0) };
   }
   async function clear(choice, night) {
     const now = await resolve(choice, night).catch(() => null), keep = now && now.file ? path.basename(now.file) : null;
-    try { fs.readdirSync(CACHE).filter((f) => f.endsWith(".webm") && f !== keep).forEach((f) => fs.rmSync(path.join(CACHE, f), { force: true })); } catch { /* nothing to clear */ }
+    try { fs.readdirSync(CACHE).filter((f) => COPY.test(f) && f !== keep).forEach((f) => fs.rmSync(path.join(CACHE, f), { force: true })); } catch { /* nothing to clear */ }
     return copies();
   }
 
@@ -217,7 +218,7 @@ function make({ BrowserWindow, userData, onStatus }) {
 // A file for the page, with the byte ranges a <video> asks for.
 function serve(file, request) {
   const size = fs.statSync(file).size;
-  const type = file.endsWith(".webm") ? "video/webm" : file.endsWith(".png") ? "image/png" : "image/jpeg";
+  const type = file.endsWith(".mp4") ? "video/mp4" : file.endsWith(".webm") ? "video/webm" : file.endsWith(".png") ? "image/png" : "image/jpeg";
   const m = /bytes=(\d*)-(\d*)/.exec(request.headers.get("range") || "");
   if (!m) return new Response(fs.readFileSync(file), { headers: { "Content-Type": type, "Content-Length": String(size), "Accept-Ranges": "bytes" } });
   const start = m[1] ? +m[1] : 0, end = m[2] ? Math.min(+m[2], size - 1) : size - 1;

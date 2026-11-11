@@ -61,6 +61,14 @@ contextBridge.exposeInMainWorld("flash", {
   onMenu: on("menu"),
   onFocus: on("window:focus"),
   // the wallpaper behind the window (lib/wallpaper.js)
+  dictation: {
+    status: (kind) => ipcRenderer.invoke("dictation:status", kind),
+    download: (kind) => ipcRenderer.invoke("dictation:download", kind),
+    stop: () => ipcRenderer.invoke("dictation:stop"),
+    remove: (kind) => ipcRenderer.invoke("dictation:remove", kind),
+    mic: () => ipcRenderer.invoke("dictation:mic"),
+    onProgress: on("dictation:progress"),
+  },
   wall: {
     resolve: (night, force) => ipcRenderer.invoke("wall:resolve", !!night, !!force),
     catalog: () => ipcRenderer.invoke("wall:catalog"),
