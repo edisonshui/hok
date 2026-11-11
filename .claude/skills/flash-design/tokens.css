@@ -93,7 +93,7 @@
   --radius-option: 8px;           /* answer options, segmented tabs, small buttons */
   --radius-chip: 4px;             /* deadline chips */
   --radius-icon: 6px;             /* 20px subject icon; 8px at 28 to 30px */
-  --radius-pill: 999px;           /* buttons and quick actions */
+  --radius-button: 8px;           /* every button, quick action and send: a rounded square, never a pill */
   --button-height: 34px;
 
   /* Icons. Drawn line icons from icons.js (Edison picked option A, 26 Oct 2026).
