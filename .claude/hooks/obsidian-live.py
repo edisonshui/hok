@@ -8,7 +8,10 @@ No network calls, background service, Obsidian plugin, or AI tokens are needed.
 
 import argparse
 import base64
-import fcntl
+try:
+    import fcntl
+except ImportError:  # Windows has no fcntl: turns are not locked against each other there
+    fcntl = None
 import hashlib
 import json
 import os
@@ -356,7 +359,8 @@ def update_clock(vault, runtime, state, kind):
     stamp = datetime.now(timezone.utc)
     notice = ""
     with (runtime / "clocks.lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        if fcntl:
+            fcntl.flock(lock, fcntl.LOCK_EX)
         store = read_clocks(runtime)
         notes = store["notes"]
         clock = notes.setdefault(key, {})
@@ -925,7 +929,8 @@ def process(vault, payload, mode="hook"):
     runtime = vault / ".claude" / "obsidian-live"
     runtime.mkdir(parents=True, exist_ok=True)
     with (runtime / f"{session_id}.lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        if fcntl:
+            fcntl.flock(lock, fcntl.LOCK_EX)
         state_path = runtime / f"{session_id}.json"
         state = json.loads(state_path.read_text()) if state_path.exists() else {
             "session_id": session_id, "baseline": [], "current": [], "streams": {},
