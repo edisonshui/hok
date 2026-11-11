@@ -2,7 +2,20 @@
 
 A one-to-one AI tutor that runs in Claude Code or Codex. You chat with it in the terminal. Everything it learns about you, such as what you have been taught, what you got right, and what to do next session, is saved as Markdown notes that you read in Obsidian. A new session picks up where the last one stopped, because the notes carry the state, not the chat history.
 
-## Set it up
+## Get the app
+
+The easiest way in is the desktop app, Obsidian Learning. It runs the same tutor in one window, makes your vault for you, and needs no Obsidian or git.
+
+1. Install [Claude Code](https://claude.com/claude-code) (or Codex) and sign in, and make sure you have Python 3.
+2. Download the installer for your Mac, Windows PC or Linux machine from the [latest release](https://github.com/edisonshui/obsidian-learning/releases/latest).
+3. Open it, click **Make a new vault**, and start a subject.
+
+[The install guide](app/INSTALL.md) has every step, including how to get past the "unverified app" warning. The app is tested on Macs with Apple chips; the Intel Mac, Windows and Linux builds are new and untested, so tell me what you find.
+
+## Set it up by hand
+
+This is the terminal and Obsidian route, without the app.
+
 
 You need [Claude Code](https://claude.com/claude-code) with your own Claude account, [Obsidian](https://obsidian.md), Python 3, and git.
 

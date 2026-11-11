@@ -1,11 +1,11 @@
-# Flash
+# Obsidian Learning (the desktop app)
 
 A desktop app for the learning vault. It puts your tutor's terminal, the live
-log, and your progress in one window. Flash runs your own `claude` (or `codex`)
+log, and your progress in one window. It runs your own `claude` (or `codex`)
 in your vault folder, so every hook, skill, and record rule works as it does in
-a plain terminal. Flash writes no learning record; the tutor does.
+a plain terminal. The app writes no learning record; the tutor does.
 
-Flash is the working name.
+The code still says `flash` in places (the package name, `window.flash`): that was the old app's working name.
 
 ## What you need
 
@@ -13,7 +13,7 @@ Flash is the working name.
 - Python 3.
 - Claude Code or Codex, installed and signed in once in a terminal.
 
-Flash checks all three on first launch and says how to install anything missing.
+The app checks all three on first launch and says how to install anything missing.
 
 ## Run it from source
 
@@ -30,26 +30,35 @@ If your shell sets `ELECTRON_RUN_AS_NODE` (some agent tools do), unset it first:
 
 Build each platform on that platform. node-pty, the piece that runs the
 terminal, ships prebuilt binaries for macOS and Windows; on Linux, `npm install`
-compiles it, which needs `make`, a C++ compiler, and Python.
+compiles it, which needs `make`, a C++ compiler, and Python. The glass package
+(`electron-liquid-glass`) is Mac-only and optional, so `npm install` skips it elsewhere.
 
-| Platform | Command | Output in `dist/` |
+| Platform | Command | Output in `dist.noindex/` |
 | --- | --- | --- |
-| macOS | `npm run dist:mac` | `Obsidian Learning-<version>-arm64.dmg` and a `.zip` (in `dist.noindex/`) |
-| Windows | `npm run dist:win` | `Flash Setup <version>.exe` |
-| Linux | `npm run dist:linux` | `.AppImage` and `.deb` |
+| macOS | `npm run dist:mac` | `Obsidian-Learning-<version>-mac-arm64.dmg` and a `.zip` |
+| Windows | `npm run dist:win` | `Obsidian-Learning-<version>-win-x64.exe` |
+| Linux | `npm run dist:linux` | an `.AppImage` and a `.deb` |
 
 Builds are not signed by a paid developer account (the Mac build is ad-hoc
-signed). The first time a friend opens Flash:
-
-- macOS 15 or later: open it once and macOS blocks it. Then System Settings >
-  Privacy & Security, scroll down, Open Anyway, and confirm. Later opens are normal.
-- Windows: SmartScreen says it protected the PC. Choose More info > Run anyway.
-- Linux: `chmod +x Flash-*.AppImage` and run it, or `sudo apt install ./flash_*.deb`.
+signed). `INSTALL.md` tells a friend how to get past the warning on each system.
 
 `dist:mac` builds for Apple chips only. `dist:friends` builds one universal app that
-runs on Apple chips and Intel (about 250 MB). node-pty ships both chips' builds side
-by side, so `x64ArchFiles` tells the merge to keep them as they are. The Intel half
-built on 9 Nov but hasn't been opened: this Mac has no Rosetta.
+runs on Apple chips and Intel (about 250 MB). node-pty and the glass package ship both
+chips' builds side by side, so `x64ArchFiles` tells the merge to keep them as they are.
+The Intel half has never been opened: this Mac has no Rosetta. The Windows and Linux
+apps have never been opened either (11 Nov 2026). Off the Mac the page draws the stone
+glass itself, so the design is the same; that was checked only in a simulated run.
+
+### Releases
+
+`.github/workflows/release.yml` builds all three on GitHub's machines, each with a
+starter vault made from this repository. Run it from the Actions tab, or push a tag:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0   # builds, then makes a DRAFT release with the installers
+```
+
+Nothing is public until you open the draft release and press Publish.
 
 ### A build for friends
 
@@ -61,6 +70,7 @@ still names you, your school, your courses or your subjects:
 ```sh
 node scripts/make-starter-vault.js ~/Desktop/vault   # writes starter-vault/ and starter-vault-review.md (both git-ignored)
 npm run dist:friends                                  # refuses without them; a universal .dmg in dist.friends.noindex/
+npm run dist:friends:win                              # the same for Windows, run on Windows (dist:friends:linux on Linux)
 ```
 
 Read the review before sending the build. `npm run dist:mac` never carries a starter.
@@ -91,5 +101,5 @@ Each step runs in the window, then a PNG lands in `/tmp/shots` and the app quits
   tokens from `.claude/skills/vault-design/tokens.css`. Update the copy when the tokens change.
 - `build/icon.png` is made by `npm run icon` from `scripts/icon.html`.
 
-Fonts are Bricolage Grotesque, Atkinson Hyperlegible Next, and Atkinson
-Hyperlegible Mono, all under the SIL Open Font License 1.1.
+Fonts are IBM Plex Sans and IBM Plex Mono, under the SIL Open Font License 1.1.
+(`renderer/fonts/` still holds four older font files the styles no longer load.)

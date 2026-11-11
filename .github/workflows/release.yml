@@ -1,0 +1,89 @@
+# Builds the app's installers for friends on a Mac, a Windows, and a Linux machine. Each build carries a starter
+# vault made from this repository's own teaching system, so setup can offer "Make a new vault".
+#
+# Runs from the Run workflow button, and on a v* tag. A tag also makes a DRAFT GitHub Release holding the
+# installers: nothing is public until someone opens the draft, reads it, and presses Publish.
+#
+# Before the first release, read the starter's review file (the "starter-vault-review" artifact of a run, or
+# app/starter-vault-review.md after `node scripts/make-starter-vault.js` locally): it lists every line of the
+# starter that still names the vault's owner.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: --mac --universal
+          - os: windows-latest
+            target: --win
+          - os: ubuntu-latest
+            target: --linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: app
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      # On Linux, node-pty has no prebuilt binary, so npm ci compiles it.
+      - run: npm ci
+      - run: npm test
+      # The starter is built outside the checkout (the script refuses to write inside the vault it reads), then
+      # placed where electron-builder and scripts/check-starter.js look for it.
+      - name: Make the starter vault
+        run: |
+          node scripts/make-starter-vault.js .. "$RUNNER_TEMP/starter/starter-vault"
+          cp -R "$RUNNER_TEMP/starter/starter-vault" starter-vault
+          cp "$RUNNER_TEMP/starter/starter-vault-review.md" starter-vault-review.md
+          node scripts/check-starter.js
+      - run: npx electron-builder ${{ matrix.target }} -c.extraResources=starter-vault --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installers-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            app/dist.noindex/*.dmg
+            app/dist.noindex/*.exe
+            app/dist.noindex/*.AppImage
+            app/dist.noindex/*.deb
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: starter-vault-review
+          path: app/starter-vault-review.md
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: installers-*
+          path: installers
+          merge-multiple: true
+      - run: |
+          gh release create "$GITHUB_REF_NAME" installers/* --repo "$GITHUB_REPOSITORY" --draft \
+            --title "Obsidian Learning ${GITHUB_REF_NAME#v}" \
+            --notes-file app/INSTALL.md
+        env:
+          GH_TOKEN: ${{ github.token }}

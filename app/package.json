@@ -42,6 +42,7 @@
   "build": {
     "appId": "com.edisonshui.obsidian-learning",
     "productName": "Obsidian Learning",
+    "artifactName": "Obsidian-Learning-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "dist.noindex",
       "buildResources": "build"
