@@ -51,17 +51,23 @@ function make({ BrowserWindow, userData, onStatus }) {
       if (!movs.length) return null;
       const pick = (night) => movs.find((f) => (night ? /Dark/ : /Light/).test(f)) || movs[0];
       const thumb = files.find((f) => /Thumbnail\.png$/.test(f));
-      return { id: name, name, day: path.join(MAC_DIR, name, pick(false)), night: path.join(MAC_DIR, name, pick(true)), thumb: thumb ? path.join(MAC_DIR, name, thumb) : macThumb(name) };
+      return { id: name, name, day: path.join(MAC_DIR, name, pick(false)), night: path.join(MAC_DIR, name, pick(true)), thumb: thumb ? path.join(MAC_DIR, name, thumb) : macThumb(name, path.join(MAC_DIR, name, pick(false))) };
     }).filter(Boolean);
   }
 
-  // a Mac wallpaper's thumbnail, made once from the HEIC macOS keeps for System Settings
-  function macThumb(name) {
+  // a Mac wallpaper's thumbnail, made once from the HEIC macOS keeps for System Settings, or from its video
+  function macThumb(name, mov) {
     const out = path.join(CACHE, `thumb-mac-${name.replace(/\W+/g, "-")}.png`);
     if (exists(out)) return out;
     const src = [`${name}.heic`, `${name} Dark.heic`].map((f) => path.join("/System/Library/Desktop Pictures/.thumbnails", f)).find(exists);
-    if (!src) return null;
-    try { require("child_process").execFileSync("/usr/bin/sips", ["-s", "format", "png", "-Z", "320", src, "--out", out], { stdio: "ignore", timeout: 5000 }); } catch { return null; }
+    const sync = require("child_process").execFileSync;
+    try {
+      if (src) sync("/usr/bin/sips", ["-s", "format", "png", "-Z", "320", src, "--out", out], { stdio: "ignore", timeout: 5000 });
+      else if (mov) {   // macOS keeps no still for this one (Tahoe Day): Quick Look draws a frame of its video
+        sync("/usr/bin/qlmanage", ["-t", "-s", "320", "-o", CACHE, mov], { stdio: "ignore", timeout: 10000 });
+        fs.renameSync(path.join(CACHE, path.basename(mov) + ".png"), out);
+      }
+    } catch { return null; }
     return exists(out) ? out : null;
   }
 
