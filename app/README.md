@@ -34,7 +34,7 @@ compiles it, which needs `make`, a C++ compiler, and Python.
 
 | Platform | Command | Output in `dist/` |
 | --- | --- | --- |
-| macOS | `npm run dist:mac` | `Flash-<version>-arm64.dmg` and a `.zip` |
+| macOS | `npm run dist:mac` | `Obsidian Learning-<version>-arm64.dmg` and a `.zip` (in `dist.noindex/`) |
 | Windows | `npm run dist:win` | `Flash Setup <version>.exe` |
 | Linux | `npm run dist:linux` | `.AppImage` and `.deb` |
 
@@ -46,12 +46,30 @@ signed). The first time a friend opens Flash:
 - Windows: SmartScreen says it protected the PC. Choose More info > Run anyway.
 - Linux: `chmod +x Flash-*.AppImage` and run it, or `sudo apt install ./flash_*.deb`.
 
-The Mac build is for Apple Silicon only.
+`dist:mac` builds for Apple chips only. `dist:friends` builds one universal app that
+runs on Apple chips and Intel (about 250 MB). node-pty ships both chips' builds side
+by side, so `x64ArchFiles` tells the merge to keep them as they are. The Intel half
+built on 9 Nov but hasn't been opened: this Mac has no Rosetta.
+
+### A build for friends
+
+A friend has no learning vault, so their build carries a starter vault and setup
+offers **Make a new vault**. The starter is made from your own vault's tracked files,
+with your name changed to "the learner", and a review file lists every line that
+still names you, your school, your courses or your subjects:
+
+```sh
+node scripts/make-starter-vault.js ~/Desktop/vault   # writes starter-vault/ and starter-vault-review.md (both git-ignored)
+npm run dist:friends                                  # refuses without them; a universal .dmg in dist.friends.noindex/
+```
+
+Read the review before sending the build. `npm run dist:mac` never carries a starter.
+`INSTALL.md` is the guide to send with it.
 
 ## Tests
 
 ```sh
-npm test                                  # the log reader
+npm test                                  # the log reader, Questions (against a stand-in tutor), the no-dot rule
 python3 ../.claude/hooks/test_hooks.py    # learn-status.py --json, with the rest of the hooks
 ```
 

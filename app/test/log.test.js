@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert");
 const fs = require("fs");
 const path = require("path");
-const { parseLog, readLog } = require("../lib/log");
+const { parseLog, readLog, answersByGroup } = require("../lib/log");
 
 const SAMPLE = `---
 type: learning-chat-log
@@ -88,6 +88,17 @@ test("a question carries its options and the learner's pick", () => {
   assert.equal(q.answered, true);
 });
 
+test("an answered question folds its answers onto the card, so the bubble isn't shown twice", () => {
+  const items = readLog(SAMPLE)[0].items, i = items.findIndex((x) => x.kind === "question");
+  assert.deepEqual(items[i].answers, { per: [["About 2 hours"]], extra: [] });
+  assert.equal(items.slice(i + 1).find((x) => x.kind === "answer").onCard, true);
+});
+
+test("typed answers go to the questions left with no option picked, and none are lost", () => {
+  const groups = [{ options: [{ label: "A" }, { label: "B" }] }, { options: [{ label: "C" }] }, { options: [{ label: "D" }] }];
+  assert.deepEqual(answersByGroup(groups, ["B", "my own words", "D", "one more"]), { per: [["B"], ["my own words"], ["D"]], extra: ["one more"] });
+});
+
 test("a hook error is never shown as the learner's answer", () => {
   const items = readLog(SAMPLE)[0].items;
   assert.ok(!items.some((x) => x.kind === "answer" && /hook error/.test(x.text)));
@@ -115,4 +126,9 @@ test("every real subject log in the vault parses without throwing", () => {
     const file = path.join(root, slug, "log.md");
     if (fs.existsSync(file)) assert.ok(Array.isArray(readLog(fs.readFileSync(file, "utf8"))), slug);
   }
+});
+
+test("a Drawing callout from the hook parses as a drawing item", () => {
+  const [c] = parseLog("## Conversation — 2026-11-10\n\nDrawing the two sign-in screens.\n\n> [!drawing] Drawing · 12:03\n> Drawing the picture. This usually takes one to three minutes.\n");
+  assert.equal(c.items[c.items.length - 1].kind, "drawing");
 });

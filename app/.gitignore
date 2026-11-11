@@ -1,2 +1,8 @@
 node_modules/
 dist/
+dist.noindex/
+starter-vault/
+starter-vault-review.md
+dist.friends.noindex/
+smoke-out/
+scripts/owner-words.txt

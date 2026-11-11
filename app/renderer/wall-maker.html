@@ -1,0 +1,29 @@
+<!doctype html>
+<!-- Makes a wallpaper's small copy (lib/wallpaper.js): plays the source once, draws each frame into a 640x360 canvas
+     through a 3 px blur, and records the canvas. Runs in a hidden window; never shown. -->
+<meta charset="utf-8">
+<video id="v" muted playsinline></video>
+<canvas id="c" width="640" height="360"></canvas>
+<script>
+  const q = new URLSearchParams(location.search), v = document.getElementById("v"), c = document.getElementById("c"), x = c.getContext("2d");
+  const secs = +q.get("secs") || 90;
+  v.src = q.get("src");
+  v.onerror = () => { console.log("video error", v.error && v.error.message); maker.fail(); };
+  v.addEventListener("loadeddata", async () => {
+    const end = Math.min(secs, v.duration || secs);
+    const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8"].find((m) => MediaRecorder.isTypeSupported(m));
+    const rec = new MediaRecorder(c.captureStream(24), { mimeType: mime, videoBitsPerSecond: 700000 });
+    const parts = []; rec.ondataavailable = (e) => parts.push(e.data);
+    rec.onstop = async () => maker.done(await new Blob(parts, { type: mime }).arrayBuffer());
+    x.filter = "blur(3px)";
+    let lastP = -1;
+    const draw = () => {
+      x.drawImage(v, -8, -8, 656, 376);   // a little past each edge, so the blur has no dark rim
+      const p = Math.floor((v.currentTime / end) * 100); if (p !== lastP) { lastP = p; maker.progress(p); }
+      if (v.currentTime < end && !v.ended) v.requestVideoFrameCallback(draw); else { v.pause(); rec.stop(); }
+    };
+    rec.start(1000);
+    try { await v.play(); } catch { maker.fail(); return; }
+    v.requestVideoFrameCallback(draw);
+  });
+</script>

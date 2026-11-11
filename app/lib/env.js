@@ -52,8 +52,8 @@ function checkTools(PATH, host) {
     problems.push({
       what: "Python 3 is not installed",
       fix: process.platform === "darwin"
-        ? "Install it from python.org, or run brew install python in Terminal, then reopen Flash."
-        : "Install Python 3 from python.org, then reopen Flash.",
+        ? "Install it from python.org, or run brew install python in Terminal, then click Check again."
+        : "Install Python 3 from python.org, then click Check again.",
     });
   }
   const tutor = which(host, PATH);
@@ -61,8 +61,8 @@ function checkTools(PATH, host) {
     problems.push({
       what: host === "codex" ? "The codex command is not installed" : "The claude command is not installed",
       fix: host === "codex"
-        ? "Install Codex with npm install -g @openai/codex, sign in once in Terminal, then reopen Flash."
-        : "Install Claude Code from claude.com/claude-code, sign in once in Terminal, then reopen Flash.",
+        ? "Install Codex with npm install -g @openai/codex, sign in once in Terminal, then click Check again."
+        : "Install Claude Code from claude.com/claude-code, sign in once in Terminal, then click Check again.",
     });
   }
   return { python, tutor, problems };

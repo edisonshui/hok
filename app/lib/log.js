@@ -56,7 +56,8 @@ function parseLog(text) {
       if (kind === "quote") kind = label.startsWith("Your answer") ? "answer" : "you";
       const text = block.join("\n").trim();
       if (kind === "answer" && HOOK_NOISE.test(text)) continue;
-      convo.items.push({ kind, label, time, text });
+      // The whole title too: a check's ("Warm-up 1 of 2 · HW23") is not a label and a time.
+      convo.items.push({ kind, label, time, title: title.trim(), text });
     }
     flush();
     return convo;
@@ -104,6 +105,17 @@ function answerParts(question, answer) {
   return paragraphs(answer || "").map((p) => p.trim()).filter((p) => !asked.has(p) && !/^\*\*.*\*\*$/.test(p));
 }
 
+// Which answer went with which question, for a card folded down once it's answered: an option picked in a group goes
+// with that group, and words typed in place of an option go, in order, to the groups left with none. Anything still
+// over is kept as extra, so no answer is lost from the folded card.
+function answersByGroup(groups, picked) {
+  const labels = new Set(groups.flatMap((g) => g.options.map((o) => o.label)));
+  const typed = (picked || []).filter((p) => !labels.has(p));
+  const per = groups.map((g) => g.options.filter((o) => (picked || []).includes(o.label)).map((o) => o.label));
+  per.forEach((a) => { if (!a.length && typed.length) a.push(typed.shift()); });
+  return { per, extra: typed };
+}
+
 // The renderer has no require(), so the main process does the reading: each
 // question gets its groups and the learner's picks, each answer its own words.
 function readLog(text) {
@@ -119,13 +131,16 @@ function readLog(text) {
         item.withdrawn = !!(next && next.kind === "question");
         item.picked = next && next.kind === "answer" ? answerParts(item.text, next.text) : [];
         item.answered = !!(next && next.kind === "answer");
+        if (item.answered && item.groups.some((g) => g.options.length)) item.answers = answersByGroup(item.groups, item.picked);
       } else if (item.kind === "answer") {
         item.parts = answerParts(lastQuestion ? lastQuestion.text : "", item.text);
         item.skipped = /doesn't want to proceed/.test(item.text);
+        // Its question's card shows these answers once folded, so the bubble would say them twice.
+        item.onCard = !item.skipped && !!(lastQuestion && lastQuestion.answers && convo.items.slice(0, index).reverse().find((x) => x.kind !== "warning") === lastQuestion);
       }
     });
   }
   return conversations;
 }
 
-module.exports = { parseLog, readLog, parseQuestion, paragraphs, answerParts, stripFrontmatter };
+module.exports = { parseLog, readLog, parseQuestion, paragraphs, answerParts, answersByGroup, stripFrontmatter };
