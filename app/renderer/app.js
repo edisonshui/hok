@@ -4028,7 +4028,10 @@ async function bootAndShow() {
   // The likely next session is drawn now too, while the window is still hidden (warmSession), with KaTeX and Mermaid
   // loaded first, and given two frames to lay out: drawn at idle on Home instead, it held one frame for 117 ms right when
   // you start using the app, and Mermaid's start-up another 100 ms (measured 5 Nov).
-  try { await MD.preload(); await warmSession(defaultSlug()); } catch (e) { console.error(e); }   // KaTeX and Mermaid first: the warm thread typesets with them
+  try { await MD.preload(); await MD.warm(); await warmSession(defaultSlug()); } catch (e) { console.error(e); }
+  // The tutor's terminal is made now too, unseen: made on the first open of a session it took about 20 ms of the
+  // glide's frame (xterm setting its theme and measuring its font, measured 11 Nov).
+  try { await ensureTerm(); } catch (e) { console.error(e); }   // KaTeX and Mermaid first: the warm thread typesets with them
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   requestAnimationFrame(() => requestAnimationFrame(() => F.windowReady()));
 }

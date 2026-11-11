@@ -111,6 +111,18 @@ function loadLibs() {
 const needsLibs = (el) => /\$|\\\(/.test(el.textContent) || el.querySelector(".mermaid");
 let mermaidTheme = "";
 let mermaidSeq = 0;
+// Each drawn diagram is kept, by its source and theme, in memory and across launches (the newest 200), so a session
+// opened again never redraws them; drawing a session's diagrams was most of the first open's long frame (11 Nov).
+// Ids carry this launch's mark so a kept diagram never shares one with a new drawing.
+const RUN = Date.now().toString(36), SVG_KEY = "ol.diagrams";
+const SVGS = (() => { try { return new Map(JSON.parse(localStorage.getItem(SVG_KEY) || "[]")); } catch { return new Map(); } })();
+let svgSave = 0;
+function keepSvg(key, svg) {
+  SVGS.delete(key); SVGS.set(key, svg);
+  while (SVGS.size > 200) SVGS.delete(SVGS.keys().next().value);
+  clearTimeout(svgSave);
+  svgSave = setTimeout(() => { try { localStorage.setItem(SVG_KEY, JSON.stringify([...SVGS])); } catch { /* storage full or off: memory only */ } }, 2000);
+}
 // onMath runs the moment the math is drawn, before any diagram, so a reply's words
 // can be taken apart for their arrival in the same task as the markup changed.
 async function typeset(el, onMath) {
@@ -150,9 +162,12 @@ async function typeset(el, onMath) {
     }
     for (const d of diagrams) {
       d.dataset.done = "1";
+      const key = `${theme}|${d.dataset.src}`, kept = SVGS.get(key);
+      if (kept) { d.innerHTML = kept; continue; }
       try {
-        const { svg } = await window.mermaid.render(`mm${++mermaidSeq}`, d.dataset.src);
+        const { svg } = await window.mermaid.render(`mm${RUN}${++mermaidSeq}`, d.dataset.src);
         d.innerHTML = svg;
+        keepSvg(key, svg);
       } catch {
         // A diagram still streaming in, or one the tutor wrote wrong: show its source.
         d.outerHTML = `<pre>${esc(d.dataset.src)}</pre>`;
@@ -161,5 +176,20 @@ async function typeset(el, onMath) {
   }
 }
 
-window.MD = { esc, inline, renderMd, typeset, preload: loadLibs };
+// Loading the libraries is not enough: Mermaid sets itself up on its first diagram, which then held the glide into a
+// session for one 132 ms frame on the first open of any subject not drawn at launch (measured 11 Nov; 37 ms the second
+// time). So at launch, while the window is still hidden, one small diagram and one formula are drawn off-screen.
+let warmed = null;
+function warm() {
+  if (warmed) return warmed;
+  const box = document.createElement("div");
+  box.setAttribute("aria-hidden", "true");
+  box.style.cssText = "position:fixed;left:-10000px;top:0;width:600px;visibility:hidden;pointer-events:none";
+  box.innerHTML = `<p>$x^2 + \\frac{a}{b}$</p><div class="mermaid" data-src="flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Done]\n  B -->|no| A">x</div>`;
+  document.body.append(box);
+  warmed = typeset(box).catch(() => {}).finally(() => box.remove());
+  return warmed;
+}
+
+window.MD = { esc, inline, renderMd, typeset, preload: loadLibs, warm };
 })();

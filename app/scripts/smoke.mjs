@@ -11,7 +11,11 @@ const app_dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.resolve(process.argv[2] || "smoke-out"); fs.mkdirSync(out, { recursive: true });
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ol-smoke-")), profile = path.join(tmp, "profile"), parent = path.join(tmp, "docs");
 fs.mkdirSync(profile); fs.mkdirSync(parent); fs.writeFileSync(path.join(profile, "config.json"), JSON.stringify({ vault: null, theme: process.env.SMOKE_THEME || "light" }));
-const env = { ...process.env, SMOKE_PARENT: parent }; delete env.ELECTRON_RUN_AS_NODE;
+// The stand-in tutor (smoke-main.cjs): answers "auth status" as signed in, and nothing else.
+const bin = path.join(tmp, "bin"); fs.mkdirSync(bin);
+fs.writeFileSync(path.join(bin, "claude"), "#!/bin/sh\ncase \"$1\" in auth) echo '{\"loggedIn\":true}';; *) echo '0.0.0 (smoke stand-in)';; esac\n", { mode: 0o755 });
+fs.writeFileSync(path.join(bin, "claude.cmd"), "@echo off\r\nif \"%1\"==\"auth\" (echo {\"loggedIn\":true}) else (echo 0.0.0)\r\n");
+const env = { ...process.env, SMOKE_PARENT: parent, SMOKE_BIN: process.env.SMOKE_REAL_TUTOR ? "" : bin }; delete env.ELECTRON_RUN_AS_NODE;
 const pre = [process.env.SMOKE_PRE, path.join(app_dir, "scripts", "smoke-main.cjs")].filter(Boolean).flatMap((f) => ["-r", f]);
 const app = await electron.launch({ args: [...pre, app_dir, `--user-data-dir=${profile}`, ...(process.platform === "linux" ? ["--no-sandbox"] : [])], env });
 const fail = []; const check = (ok, what) => { console.log(ok ? "ok  " : "FAIL", what); if (!ok) fail.push(what); };
