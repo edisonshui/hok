@@ -126,7 +126,15 @@ async function typeset(el, onMath) {
   if (onMath) onMath();
   const diagrams = [...el.querySelectorAll(".mermaid:not([data-done])")];
   if (window.mermaid && diagrams.length) {
-    const css = getComputedStyle(document.documentElement), v = (n) => css.getPropertyValue(n).trim();
+    // Mermaid's colour parser reads hex and rgb() only, and the stone tint defines the ink tokens with color-mix()
+    // (11 Nov: initialize threw "Unsupported color format" and the first diagrams of a session never drew). So each
+    // token is resolved by the browser on a probe element and handed over as plain rgb.
+    const v = (n) => {
+      const p = document.createElement("i"); p.style.color = `var(${n})`; document.documentElement.append(p);
+      const c = getComputedStyle(p).color; p.remove();
+      const k = c.startsWith("color(") ? 255 : 1, [r, g, b, a = 1] = (c.match(/[\d.]+(?:e-?\d+)?/g) || []).map(Number);
+      return Number.isFinite(b) ? `rgba(${Math.round(r * k)}, ${Math.round(g * k)}, ${Math.round(b * k)}, ${a})` : "#888888";
+    };
     const theme = document.documentElement.dataset.theme || "light";
     if (mermaidTheme !== theme) {
       mermaidTheme = theme;
