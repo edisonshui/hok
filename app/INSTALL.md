@@ -54,6 +54,8 @@ Download the file for your computer from the [latest release](https://github.com
 - The tutor runs on your own subscription, the same way it does in a terminal. Questions from Home run as short one-off requests on that account.
 - Your subjects, plans and progress are plain files in your vault folder. Nothing is sent anywhere except to Claude or ChatGPT, as with any chat you have with them.
 - On a Mac, an Aerial wallpaper you pick that isn't on your Mac yet downloads once from Apple.
+- Dictation (the microphone beside each text box) turns your voice into text on your computer with Whisper, an open-source speech model. The model downloads once from Hugging Face the first time you use it, 80 to 140 MB. Your voice is never sent anywhere. Settings > Dictation removes it.
+- The first time you dictate, your computer asks whether the app may use the microphone.
 
 ## If something goes wrong
 

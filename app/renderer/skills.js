@@ -179,7 +179,7 @@
       /* the hover label lives at the page level so its glass can blur what is under it */
       .sk-float { position: fixed; inset: 0; pointer-events: none; z-index: 60; color: ${INK}; font-family: var(--font-sans), system-ui, sans-serif; }
       .sk-float .tip { position: absolute; width: max-content; max-width: 340px; padding: 10px 14px 12px; border-radius: 10px; opacity: 0; transform: scale(.97); transition: opacity 90ms ease, transform 90ms var(--eo);
-        ${night ? "background: #262727; box-shadow: inset 0 1px 0 rgba(255,255,255,.10), inset 0 0 0 0.5px rgba(255,255,255,.14), 0 10px 30px rgba(0,0,0,.35);"
+        ${night ? "background: color-mix(in srgb, color-mix(in srgb, #202122 60%, var(--stone-tone, #21807B)) 84%, transparent); -webkit-backdrop-filter: blur(22px) saturate(1.4); backdrop-filter: blur(22px) saturate(1.4); box-shadow: inset 0 1px 0 rgba(255,255,255,.10), inset 0 0 0 0.5px rgba(255,255,255,.14), 0 10px 30px rgba(0,0,0,.35);"
           : "background: linear-gradient(180deg, rgba(255,255,255,.84), rgba(255,255,255,.68)); -webkit-backdrop-filter: blur(22px) saturate(1.7) brightness(1.06); backdrop-filter: blur(22px) saturate(1.7) brightness(1.06); box-shadow: inset 0 1px 0 #fff, inset 0 0 0 0.5px rgba(255,255,255,.95), inset 0 -1px 0 rgba(25,26,27,.05), 0 0 0 0.5px rgba(25,26,27,.06), 0 14px 34px rgba(30,34,42,.15), 0 2px 6px rgba(30,34,42,.06);"} }
       ${night ? "" : `.sk-float .tip::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(120% 70% at 18% -10%, rgba(255,255,255,.7), rgba(255,255,255,0) 60%); } .sk-float .tip > * { position: relative; }`}
       .sk-float .tip.on { opacity: 1; transform: none; transition-duration: 125ms; } .sk-float .tip.instant { transition-duration: 0ms; }
@@ -282,18 +282,24 @@
     const fl = document.createElement("div"); fl.className = "sk-float"; document.body.append(fl); const tip = document.createElement("div"); tip.className = "tip"; fl.append(tip);
     let wait = 0, hideT = 0, lastHide = -1e9, hotK = null;
     const mark = (i, on) => ls.querySelectorAll(`[data-k="${i}"]`).forEach((e) => e.classList.toggle("hot", on));
-    const show = (u) => { const i = +u.dataset.k, k = SK[i];
-      tip.innerHTML = `<div class="t0">${esc(WH[i])}</div><div class="t1">${inl(k.name)}</div>${k.cando ? `<div class="t2">${inl(cap(k.cando))}</div>` : ""}<div class="t3">${mini(kind(k))}${tipLine(k)}</div><div class="t4">${k.days != null ? `Checked ${ago(k.days)}` : "No checks yet"}</div>`;
+    // a row in the list shows the same label as its brick on the map, under the skill's name (11 Nov, Edison: hover
+    // descriptions in the list view too)
+    const show = (u) => { const i = +u.dataset.k, k = SK[i], row = u.matches(".ll"); if (row) u = u.querySelector(".nm b") || u;
+      const passed = k.st === "passed" || k.st === "solid";
+      tip.innerHTML = `<div class="t0">${esc(WH[i])}</div><div class="t1">${inl(k.name)}</div>${k.cando ? `<div class="t2">${inl(cap(k.cando))}</div>` : ""}<div class="t3">${mini(kind(k))}${tipLine(k)}</div>${k.days != null ? `<div class="t4">Checked ${ago(k.days)}</div>` : passed ? "" : `<div class="t4">No checks yet</div>`}`;
       const b = u.getBoundingClientRect(), R = root.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight, cx = b.left + b.width / 2;
-      let Y = b.top - th - 12, up = true; if (Y < R.top + (ls.scrollTop > 30 ? 96 : 12)) { Y = b.bottom + 12; up = false; }
+      // a list row's label opens below it, clear of the rows and header above; a brick's above it, as on the map
+      let Y = row ? b.bottom + 10 : b.top - th - 12, up = !row;
+      if (row && Y + th > R.bottom - 12) { Y = b.top - th - 10; up = true; }
+      else if (!row && Y < R.top + (ls.scrollTop > 30 ? 96 : 12)) { Y = b.bottom + 12; up = false; }
       const X = Math.max(R.left + 12, Math.min(R.right - tw - 12, cx - tw / 2));
       tip.style.left = X + "px"; tip.style.top = Y + "px"; tip.style.transformOrigin = `${cx - X}px ${up ? "100%" : "0"}`; tip.classList.add("on"); };
     const hide = () => { clearTimeout(wait); clearTimeout(hideT); hideT = setTimeout(() => { if (!tip.classList.contains("on")) return; tip.classList.remove("instant", "on"); lastHide = performance.now(); }, 60); };
     ls.addEventListener("pointerover", (ev) => { const u = ev.target.closest(".mk:not(.mini) u, .ll"); if (!u) return; const i = +u.dataset.k;
-      if (hotK != null && hotK !== i) mark(hotK, false); hotK = i; mark(i, true); if (!u.matches(".mk u")) return;
+      if (hotK != null && hotK !== i) mark(hotK, false); hotK = i; mark(i, true); if (u.matches(".ll") && !u.closest(".grp.open")) return;
       clearTimeout(wait); clearTimeout(hideT);
       if (tip.classList.contains("on") || performance.now() - lastHide < 300) { tip.classList.add("instant"); show(u); } else { tip.classList.remove("instant"); wait = setTimeout(() => show(u), 250); } });
-    ls.addEventListener("pointerout", (ev) => { const to = ev.relatedTarget?.closest?.(".mk:not(.mini) u, .ll"); if (!to) { if (hotK != null) mark(hotK, false); hotK = null; } if (ev.target.closest(".mk u") && !to?.matches?.(".mk u")) hide(); });
+    ls.addEventListener("pointerout", (ev) => { const to = ev.relatedTarget?.closest?.(".mk:not(.mini) u, .ll"); if (!to) { if (hotK != null) mark(hotK, false); hotK = null; } if (ev.target.closest(".mk:not(.mini) u, .ll") && !to) hide(); else if (to && ev.target.closest(".mk:not(.mini) u, .ll") !== to && to.matches(".ll") && to.closest(".grp.open") === null) hide(); });
 
     // the hills: three layers of clear glass that roll left to right, low on the left so the title sits in the sky
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches, DPR = devicePixelRatio || 1, CH = GROUND + 130;

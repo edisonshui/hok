@@ -13,9 +13,9 @@
   document.body.prepend(wall);
   const box = wall.querySelector(".wall-media");
   let media = null, kind = "none", stoneDraw = null, waiting = null;
-  let routeName = "home", battery = false, z = 1, place = null;
+  let routeName = "home", battery = false, onBattery = false, z = 1, place = null;   // onBattery: Settings' "Keep moving on battery"
   const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const shouldPlay = () => routeName === "home" && !battery && !calm() && document.visibilityState === "visible";
+  const shouldPlay = () => routeName === "home" && (!battery || onBattery) && !calm() && document.visibilityState === "visible";
 
   // the window's spot on its display: the picture spans the display, shifted so the window shows its own part
   function fit() {
@@ -131,6 +131,7 @@
   window.Wall = {
     // the screen you are on: Home moves, everything else holds still; a session also thickens the glass
     route(name) { routeName = name; root.dataset.wroute = name; sync(); },
+    moveOnBattery(on) { onBattery = !!on; sync(); },
     reload,
     stone() { if (kind === "stone" && stoneDraw) stoneDraw((performance.now() - t0) / 1000); },
   };

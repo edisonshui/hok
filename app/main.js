@@ -2,7 +2,7 @@
 // learner's own `claude` or `codex`, run in their vault), and every read of the
 // vault. It writes no learning record: records change only through the tutor.
 
-const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, nativeImage, protocol, shell, net, screen, powerMonitor } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, nativeImage, protocol, shell, net, screen, powerMonitor, systemPreferences } = require("electron");
 const { execFile } = require("child_process");
 const fs = require("fs");
 const path = require("path");
@@ -11,13 +11,14 @@ const env = require("./lib/env");
 const { readLog, stripFrontmatter } = require("./lib/log");
 const { questions } = require("./lib/questions");
 const wallpaper = require("./lib/wallpaper");
+const dictation = require("./lib/dictation");
 
 const APP_NAME = "Obsidian Learning";   // a working name (Edison, 5 Nov); the real one is still to come
 app.setName(APP_NAME);
 // Never hand this to the tutor: it would make any Electron tool it starts run as plain Node.
 delete process.env.ELECTRON_RUN_AS_NODE;
 
-protocol.registerSchemesAsPrivileged([{ scheme: "vault-file", privileges: { standard: false, supportFetchAPI: true } }, { scheme: "q-file", privileges: { standard: false, supportFetchAPI: true } }, { scheme: "wall-file", privileges: { standard: false, supportFetchAPI: true, stream: true } }]);
+protocol.registerSchemesAsPrivileged([{ scheme: "vault-file", privileges: { standard: false, supportFetchAPI: true } }, { scheme: "q-file", privileges: { standard: false, supportFetchAPI: true } }, { scheme: "wall-file", privileges: { standard: false, supportFetchAPI: true, stream: true } }, { scheme: "dict-file", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 
 // ---------- settings ----------
 const CONFIG = path.join(app.getPath("userData"), "config.json");
@@ -322,6 +323,17 @@ ipcMain.handle("tutor:close", (_e, slug) => {
   });
   return closing;
 });
+// Dictation: whether the model is here, getting it, removing it, and the Mac's microphone question.
+let DICT = null;
+ipcMain.handle("dictation:status", (_e, kind) => (DICT ? DICT.status(kind) : { ready: false, need: 0, total: 0, onDisk: 0 }));
+ipcMain.handle("dictation:download", async (_e, kind) => { try { return await DICT.download(kind); } catch (e) { return { error: e.message === "stopped" ? "stopped" : `Couldn't download the speech model: ${e.message}` }; } });
+ipcMain.handle("dictation:stop", () => DICT && DICT.stop());
+ipcMain.handle("dictation:remove", (_e, kind) => { if (DICT) DICT.remove(); return DICT ? DICT.status(kind) : null; });
+ipcMain.handle("dictation:mic", async () => {
+  if (process.platform !== "darwin") return true;
+  if (systemPreferences.getMediaAccessStatus("microphone") === "granted") return true;
+  try { return await systemPreferences.askForMediaAccess("microphone"); } catch { return false; }
+});
 // Questions from Home: their own chats, one short Claude Code turn per message (lib/questions.js).
 const QPROMPT = `You are the learner's tutor in Obsidian Learning, answering a question they asked from Home. This chat belongs to no subject, and nothing in it is recorded as learning, so never say you saved progress or updated a record. You have no tools: answer from what you know, and say so plainly when you are not sure of a fact.
 
@@ -345,7 +357,8 @@ function questionPrompt() {
   // The subjects they already have, so a question that fits one can be offered back to it.
   let subjects = "";
   try {
-    const open = (JSON.parse(lastState || "{}").subjects || []).filter((x) => x.status !== "done").map((x) => `- ${x.slug}: ${x.title}`);
+    const all = JSON.parse(lastState || "{}").subjects || [], open = all.filter((x) => x.status !== "done").map((x) => `- ${x.slug}: ${x.title}`);
+    if (lastState && !all.length) subjects = "The learner has no subjects yet; this is how they start. If the question is a topic worth learning rather than a one-off fact, end your first answer with the <lesson> line, so they can choose a full lesson or keep it a short conversation.\n";
     if (open.length) subjects = `The learner already has these subjects (slug: title):\n${open.join("\n")}\nIf the question belongs to one of them, answer it briefly as usual, then end your reply with one line in exactly this form, using a slug from the list, and the app offers to continue there: <subject>the-slug</subject>\nUse it instead of <lesson> when a subject fits, and at most once unless they ask.\n`;
   } catch { /* no state read yet */ }
   return QPROMPT.replace("{prefs}", prefs || "- One step at a time, with a concrete example before the rule.").replace("{subjects}", subjects);
@@ -405,7 +418,7 @@ function buildMenu() {
       { role: "undo" }, { role: "redo" }, { type: "separator" },
       { role: "cut" }, { role: "copy", ...(isMac ? {} : { accelerator: "Ctrl+Shift+C" }) },
       { role: "paste", ...(isMac ? {} : { accelerator: "Ctrl+Shift+V" }) }, { role: "selectAll" },
-      { type: "separator" }, { label: "Insert Math", accelerator: a("E"), click: cmd("math") },
+      { type: "separator" }, { label: "Insert Math", accelerator: a("E"), click: cmd("math") }, { label: "Dictate", accelerator: a("D"), click: cmd("dictate") },
     ] },
     { label: "Go", submenu: [
       { label: "Home", accelerator: a("1"), click: cmd("go:home") },
@@ -483,7 +496,7 @@ function createWindow() {
     trafficLightPosition: { x: 14, y: 17 },   // 4 px lower than it was (13), on one line with the title-strip button and clear of the window's top edge (Edison, 5 Nov)
     ...(process.platform === "darwin" ? {} : { titleBarOverlay: { color: process.platform === "win32" ? "#00000000" : night ? "#1E1F22" : "#F4F6F8", symbolColor: night ? "#AEB2B9" : "#4B525C", height: 38 } }   /* Windows: clear, so the window buttons sit on the glass (untested on a PC) */),
     show: false,
-    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, autoplayPolicy: "no-user-gesture-required" },   // dictation listens after a download, past the click's few seconds
   });
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
   if (LIQUID) {
@@ -603,6 +616,9 @@ app.whenReady().then(async () => {
   // Images the log embeds: screenshots the learner pasted, from the vault's
   // attachments folder, and the tutor's SVG figures, found by file name in any
   // subject's figures folder the way Obsidian finds them. Nothing else.
+  // Dictation (lib/dictation.js): the speech model's files, downloaded once, served to the speech worker.
+  DICT = dictation.make({ net, userData: app.getPath("userData"), onProgress: (p) => send("dictation:progress", p) });
+  protocol.handle("dict-file", (request) => DICT.serve(request));
   protocol.handle("vault-file", (request) => {
     const name = path.basename(decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, "")));
     const vault = config.vault || "/nonexistent";
