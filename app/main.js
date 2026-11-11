@@ -170,7 +170,10 @@ ipcMain.handle("config:get", () => config);
 // The wallpaper behind the window (lib/wallpaper.js). Paths reach the page as wall-file: URLs, nothing else.
 let WALL = null;
 const wallUrl = (f) => (f ? "wall-file:///" + encodeURIComponent(f) : null);
-ipcMain.handle("wall:resolve", async (_e, night, force) => { if (!WALL) return { type: "none" }; const r = await WALL.resolve(config.wallpaper, !!night, !!force); return { ...r, url: wallUrl(r.file), file: undefined, stillUrl: wallUrl(r.still), still: undefined }; });
+// The moving copy goes to the page as a plain file URL: Chromium's player rejected the H.264 copies over wall-file:
+// (MediaRecorder writes fragmented MP4, and over a custom scheme the player read its start and end, then gave up with
+// "not supported"; the same file plays from file:, measured 11 Nov). Stills and thumbnails stay on wall-file:.
+ipcMain.handle("wall:resolve", async (_e, night, force) => { if (!WALL) return { type: "none" }; const r = await WALL.resolve(config.wallpaper, !!night, !!force); return { ...r, url: r.type === "video" && r.file ? pathToFileURL(r.file).href : wallUrl(r.file), file: undefined, stillUrl: wallUrl(r.still), still: undefined }; });
 ipcMain.handle("wall:clear", async (_e, night) => (WALL ? WALL.clear(config.wallpaper, !!night) : { count: 0, bytes: 0 }));
 // Apple's Aerial server, for the wallpaper's copy-maker only: macOS decides (lib/wallpaper.js trustApple)
 app.on("certificate-error", (event, wc, url, _error, cert, callback) => {
