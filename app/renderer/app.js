@@ -3567,7 +3567,7 @@ async function wallSettings() {
   const mac = cat.mac.length || macAerials.length ? `<div class="wall-group">Mac</div><div class="walls" role="radiogroup" aria-label="Mac">${cat.mac.map((m) => opt(`mac:${m.id}`, m.name, img(m.thumb), "set-wall", m)).join("")}${macAerials.map(air).join("")}</div>` : "";
   return `<div class="sec"><div class="t-sec">Wallpaper</div>
       <div class="cap" style="margin-top:2px">Moves on Home. Wallpapers marked with an arrow download the first time you pick one.</div>
-      <div class="wall-batt"><span class="where-l">On battery</span><div class="seg" role="radiogroup" aria-label="On battery">${[[false, "Hold still"], [true, "Keep moving"]].map(([v, l]) => `<button class="${!!cfg.wallBattery === v ? "on" : ""}" role="radio" aria-checked="${!!cfg.wallBattery === v}" data-act="wall-battery" data-arg="${v}">${l}</button>`).join("")}</div></div>
+      <div class="set-row"><span>Keep moving on battery</span><button class="glass-switch${cfg.wallBattery ? " on" : ""}" role="switch" aria-checked="${!!cfg.wallBattery}" aria-label="Keep moving on battery" data-act="wall-battery"><i></i></button></div>
 
       <div class="walls" role="radiogroup" aria-label="Wallpaper">${opt("desktop", "Your desktop", img(cat.desktopThumb))}${opt("stone", "Stone glass", '<i class="wt-stone"></i>')}${opt("", "A photo…", cat.photoThumb ? img(cat.photoThumb) : `<i class="wt-add">${icon("plus")}</i>`, "wall-photo")}</div>
       ${mac}${groups}
@@ -3623,9 +3623,9 @@ async function paintDictSettings() {
 ACTIONS["dict-remove"] = async () => { await Dictate.remove(); paintDictSettings(); };
 ACTIONS["dict-lang"] = async (v) => { await setCfg({ dictLang: v }); Dictate.lang = v; document.querySelectorAll('#scrim [data-act="dict-lang"]').forEach((b) => { const on = b.dataset.arg === v; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); }); };
 // Settings > Wallpaper, On battery: Hold still or Keep moving (11 Nov, Edison: the checkbox's style, and less to read)
-ACTIONS["wall-battery"] = async (arg) => {
-  const on = arg === "true"; await setCfg({ wallBattery: on }); if (window.Wall && Wall.moveOnBattery) Wall.moveOnBattery(on);
-  document.querySelectorAll('#scrim [data-act="wall-battery"]').forEach((b) => { const v = b.dataset.arg === String(on); b.classList.toggle("on", v); b.setAttribute("aria-checked", v); });
+ACTIONS["wall-battery"] = async (_a, el) => {
+  const on = !el.classList.contains("on"); el.classList.toggle("on", on); el.setAttribute("aria-checked", on);
+  await setCfg({ wallBattery: on }); if (window.Wall && Wall.moveOnBattery) Wall.moveOnBattery(on);
 };
 ACTIONS["wall-photo"] = async () => {
   const file = await F.wall.choosePhoto(); if (!file) return;
