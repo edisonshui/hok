@@ -1360,3 +1360,11 @@ html[data-theme="night"][data-wroute="session"] #wall .wall-shade{background:rgb
 .wall-opt.on .wt{box-shadow:0 0 0 2px var(--color-ink)}
 .wall-opt .wl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wall-group{margin-top:12px;font:var(--type-caption);color:var(--color-ink-3)}
+
+/* Setup on glass (11 Nov): a friend's first screen. Its cards and the tutor switch are sheets of the same glass as
+   Home's field; they were solid slabs left from the flat design, near-black at night. */
+html.glass .setup .stepc{background:var(--glass-field);border:0;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim)}
+html.glass .setup .num:not(.ok){background:color-mix(in srgb,var(--color-ink) 10%,transparent)}
+html.glass .setup .btn.neutral{background:transparent;border-color:color-mix(in srgb,var(--color-ink) 22%,transparent)}
+html.glass .setup .seg{background:color-mix(in srgb,var(--color-ink) 7%,transparent)}
+html.glass .setup .seg button.on{background:var(--glass-field);box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim)}
