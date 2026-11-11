@@ -7,7 +7,10 @@ The log uses the transcript when available and falls back to final messages.
 """
 
 import argparse
-import fcntl
+try:
+    import fcntl
+except ImportError:  # Windows has no fcntl: turns are not locked against each other there
+    fcntl = None
 import importlib.util
 import json
 import re
@@ -154,7 +157,8 @@ def hook(vault, payload):
         return ""
     rt = runtime(vault)
     with (rt / (sid + ".lock")).open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        if fcntl:
+            fcntl.flock(lock, fcntl.LOCK_EX)
         path = rt / (sid + ".json")
         state = load_state(path, sid)
         if payload.get("model"):
@@ -199,7 +203,8 @@ def select(vault, subject):
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", sid):
         return "No valid active Codex hook session."
     with (rt / (sid + ".lock")).open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        if fcntl:
+            fcntl.flock(lock, fcntl.LOCK_EX)
         path = rt / (sid + ".json")
         state = load_state(path, sid)
         state["subject"] = subject

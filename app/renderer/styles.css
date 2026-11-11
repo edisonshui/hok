@@ -1,8 +1,12 @@
 /* Flash, built from the flash-design skill ("Calm tool", guideline v1, 26 Oct 2026).
    Every color, size, radius, shadow, and duration comes from tokens.css. */
 
-@font-face{font-family:"Figtree";src:url(fonts/figtree.woff2) format("woff2");font-weight:300 900;font-display:block}
-@font-face{font-family:"Geist Mono";src:url(fonts/geist-mono.woff2) format("woff2");font-weight:100 900;font-display:block}
+/* The type: IBM Plex Sans for every word, IBM Plex Mono for code and keys (Edison, 28 Oct: "just use one typeface that
+   we know will be consistent"; 5 Nov, live: two voices in two faces and sizes looked like a bunch of fonts). Both ship
+   in the app, so it looks the same on every machine. Math is KaTeX's own face. */
+@font-face{font-family:"IBM Plex Sans";src:url(fonts/ibm-plex-sans.ttf) format("truetype");font-weight:100 700;font-stretch:85% 100%;font-display:block}
+@font-face{font-family:"IBM Plex Mono";src:url(fonts/ibm-plex-mono-regular.ttf) format("truetype");font-weight:400;font-display:block}
+@font-face{font-family:"IBM Plex Mono";src:url(fonts/ibm-plex-mono-medium.ttf) format("truetype");font-weight:500;font-display:block}
 
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -43,14 +47,18 @@ svg.i.dn{width:13px;height:13px;color:var(--color-ink-3)}
 .panel{position:relative;overflow:hidden;min-width:0;background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius-card);margin:8px 8px 8px 0;display:flex;transition:margin var(--duration-base) var(--ease-out)}
 .window.bare .panel{margin-left:8px}
 .win .panel{margin-top:38px}
+.win .window.bare .panel,.win .window.to-bare .panel{margin-top:44px}   /* hidden sidebar: the title-strip button's hover keeps 10 px off the panel's glass (Edison, 5 Nov) */
 .win .window.planned .plan{margin-top:38px}
 .dragbar{position:absolute;left:0;right:0;top:0;height:30px;-webkit-app-region:drag;z-index:1}
 .screen{flex:1;min-width:0;overflow:auto;position:relative;z-index:2}
 .screen:has(.mapwrap){z-index:0}
 .session{flex:1;min-width:0;position:relative;display:flex;flex-direction:column}
+/* Hidden, the session stays laid out (out of sight and out of reach) instead of display:none, which threw its layout
+   away; with warmSession it is ready before the first glide. */
+#session.hidden{display:flex!important;position:absolute;inset:0;visibility:hidden;pointer-events:none}
 
 /* ---------- sidebar ---------- */
-.sidebar{background:var(--color-side);display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;padding:0 10px 10px;transition:opacity var(--duration-fast) var(--ease-out),padding var(--duration-base) var(--ease-out)}
+.sidebar{background:var(--color-side);display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;padding:0 20px 10px;transition:opacity var(--duration-fast) var(--ease-out),padding var(--duration-base) var(--ease-out)}
 .side-top{height:38px;flex:none;-webkit-app-region:drag}
 .win .side-top{height:8px}
 .brand{display:flex;align-items:center;gap:9px;padding:2px 6px 12px}
@@ -59,7 +67,7 @@ svg.i.dn{width:13px;height:13px;color:var(--color-ink-3)}
 .mark{width:24px;height:24px;border-radius:7px;background:var(--color-ink);color:var(--color-gold);display:grid;place-items:center;flex:none}
 .mark svg.i{width:15px;height:15px;stroke-width:2.2}
 .side-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;margin:0 -4px;padding:0 4px}
-.nav-row{display:flex;align-items:center;gap:10px;height:32px;padding:0 9px;border-radius:var(--radius-option);color:var(--color-ink-2);font:var(--type-ui);font-size:13.5px;width:100%;text-align:left;flex:none;transition:background var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
+.nav-row{display:flex;align-items:center;gap:10px;height:32px;padding:0 15px;border-radius:var(--radius-option);color:var(--color-ink-2);font:var(--type-ui);font-size:13.5px;width:100%;text-align:left;flex:none;transition:background var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
 .nav-row>svg.i{color:var(--color-ink-3)}
 .nav-row:hover:not(:disabled){background:var(--color-selected);color:var(--color-ink)}
 .nav-row.on{background:var(--color-row-selected);box-shadow:0 0 0 1px var(--color-line-strong);color:var(--color-ink);font-weight:500}
@@ -69,13 +77,12 @@ svg.i.dn{width:13px;height:13px;color:var(--color-ink-3)}
 .nav-row.add{color:var(--color-ink-3)}
 .nav-row .lbl{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nav-row .n{margin-left:auto;font:var(--type-caption);color:var(--color-ink-3);padding-left:6px;white-space:nowrap}
-.side-label{font:600 11.5px/16px var(--font-sans);color:var(--color-ink-3);margin:16px 9px 6px;flex:none}
+.side-label{font:600 11.5px/16px var(--font-sans);color:var(--color-ink-3);margin:16px 15px 6px;flex:none}
 .grow{flex:1;min-height:12px}
 .tile-add{width:20px;height:20px;border-radius:var(--radius-icon);border:1px dashed var(--color-untaught);display:grid;place-items:center;color:var(--color-ink-3);flex:none}
 .tile-add svg.i{width:12px;height:12px}
 .status-icon{display:grid;place-items:center;color:var(--color-ink-3);flex:none}
 .status-icon.amber{color:var(--color-amber)}.status-icon.coral{color:var(--color-coral)}.status-icon.green{color:var(--color-green)}
-.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--color-ink);box-shadow:0 0 0 3px var(--color-selected)}
 .streak-card{margin-top:10px;display:flex;align-items:center;gap:10px;background:var(--color-surface);border:1px solid var(--color-line-strong);border-radius:var(--radius-card);padding:9px 10px;color:var(--color-ink);width:100%;text-align:left;flex:none;transition:background var(--duration-fast) var(--ease-out)}
 .streak-card:hover{background:var(--color-selected)}
 .streak-card .lbl b{display:block;font:var(--type-ui-strong)}.streak-card .lbl>span{font:var(--type-caption);color:var(--color-ink-3)}
@@ -83,8 +90,11 @@ svg.i.dn{width:13px;height:13px;color:var(--color-ink-3)}
 /* Folded to icons. Every icon keeps the x position it has in the full sidebar,
    so the fold only narrows the column and nothing jumps sideways. */
 .window.icons .sidebar .lbl,.window.icons .nav-row .n,.window.icons .brand b,.window.icons .brand .icon-btn{display:none}
-.window.icons .side-label{width:18px;height:1px;background:var(--color-line-strong);margin:12px 9px;font-size:0}
-.window.icons .nav-row{width:36px}
+.window.icons .side-label{width:18px;height:1px;background:var(--color-line-strong);margin:12px 15px;font-size:0}
+/* One place for every icon (Edison, 5 Nov: "the icons still move around"): the full sidebar and the folded rail share
+   the same 20 px inset and 15 px row padding, so each icon sits 35 px in, centred on the 88 px rail, and a fold only
+   narrows the column around it. The rail's pill is the row itself, 48 px. */
+.window.icons .nav-row{width:48px}
 .window.icons .nav-row.child{display:none}
 .window.icons .nav-row.subject.on,.window.icons .nav-row.course{background:none;box-shadow:none}
 .window.icons .nav-row.subject.on .tile-icon,.window.icons .nav-row.course.has-on .tile-icon{box-shadow:0 0 0 2px var(--color-side),0 0 0 3.5px var(--c)}
@@ -107,7 +117,7 @@ svg.i.dn{width:13px;height:13px;color:var(--color-ink-3)}
 .hr{height:1px;background:var(--color-line)}
 
 /* ---------- buttons ---------- */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:var(--button-height);padding:0 18px;border-radius:var(--radius-pill);font:var(--type-ui-strong);background:var(--color-action);color:var(--color-action-ink);white-space:nowrap;transition:background var(--duration-fast) var(--ease-out),transform var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:var(--button-height);padding:0 16px;border-radius:var(--radius-button);font:var(--type-ui-strong);background:var(--color-action);color:var(--color-action-ink);white-space:nowrap;transition:background var(--duration-fast) var(--ease-out),transform var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out)}
 .btn:hover:not(:disabled){background:color-mix(in srgb,var(--color-action) 86%,var(--color-surface))}
 .btn:active:not(:disabled){background:color-mix(in srgb,var(--color-action) 76%,var(--color-surface));transform:scale(.98)}
 .btn:disabled{background:var(--color-selected);color:var(--color-ink-3)}
@@ -274,7 +284,7 @@ svg.i.dn{width:13px;height:13px;color:var(--color-ink-3)}
 .islands{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;z-index:6;pointer-events:none}
 .islands>*{pointer-events:auto;-webkit-app-region:no-drag}
 .mapctl,.brand .icon-btn{-webkit-app-region:no-drag}
-.mac .window.bare .islands{left:84px}
+.mac .window.bare .islands{left:calc(84px / var(--z, 1))}
 .session::before{content:"";position:absolute;left:0;right:0;top:0;height:84px;background:linear-gradient(var(--color-surface) 56px,transparent 84px);z-index:3;pointer-events:none}
 .island{display:inline-flex;align-items:center;gap:4px;height:var(--island-height);padding:0 4px;background:var(--color-surface);border:1px solid var(--color-line-strong);border-radius:var(--radius-input);box-shadow:0 1px 3px rgba(17,24,39,.05);min-width:0}
 .island .divider{width:1px;height:20px;background:var(--color-line);margin:0 4px;flex:none}
@@ -293,7 +303,7 @@ svg.i.dn{width:13px;height:13px;color:var(--color-ink-3)}
 
 /* ---------- session: thread ---------- */
 .thread-scroll{flex:1;min-height:0;overflow-y:auto;position:relative;z-index:2;overflow-anchor:auto}
-.thread{max-width:var(--reading-max);margin:0 auto;padding:74px 24px 200px;font:var(--type-reading);color:var(--color-read)}
+.thread{max-width:var(--reading-max);margin:0 auto;padding:74px 24px max(200px,calc(var(--dock-h,0px) + 40px));font:var(--type-reading);color:var(--color-read)}
 .thread .item.enter{animation:enter var(--duration-message) var(--ease-out)}
 @keyframes enter{from{opacity:0;transform:translateY(4px)}}
 .tutor{margin:10px 0}
@@ -311,12 +321,14 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .codeblock:hover .copy,.codeblock .copy:focus-visible{opacity:1}
 .codeblock .mermaid{background:var(--color-surface);text-align:center;padding:10px;overflow:auto}
 .codeblock .mermaid svg{max-width:100%;height:auto}
-.mdtable{border-collapse:collapse;margin:0 0 12px;font:var(--type-ui);display:block;overflow:auto}
+.mdtable{border-collapse:collapse;margin:0 0 12px;font:var(--type-ui);font-size:14px;line-height:20px;display:block;overflow:auto}
+/* math in a table sits in 14 px sans, so KaTeX's 1.21 em came out small beside it (Edison, 5 Nov): a step up */
+.mdtable .katex{font-size:1.3em}
 .mdtable td,.mdtable th{border-bottom:1px solid var(--color-line);padding:5px 12px 5px 0;text-align:left;vertical-align:top}
 .mdtable th{font-weight:700;color:var(--color-ink-2);border-bottom-color:var(--color-line-strong)}
 .quote{border-left:2px solid var(--color-line-strong);padding-left:12px;color:var(--color-ink-2)}
 .me{display:flex;justify-content:flex-end;margin:18px 0}
-.bubble{max-width:78%;background:var(--color-bubble);color:var(--color-ink);border-radius:16px 16px 5px 16px;padding:8px 14px;font:var(--type-reading);font-size:14px;line-height:21px;white-space:pre-wrap;word-break:break-word}
+.bubble{max-width:78%;background:var(--color-bubble);color:var(--color-ink);border-radius:16px 16px 5px 16px;padding:8px 14px;font:var(--type-reading);line-height:1.55;white-space:pre-wrap;word-break:break-word}
 .bubble.cmd{font-family:var(--font-mono);font-size:13px}
 .bubble .codeblock{white-space:normal;margin:6px 0 0;background:var(--color-surface)}
 .bubble .cap{display:block;margin-bottom:4px}
@@ -351,7 +363,7 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .empty-icon{width:40px;height:40px;border-radius:10px;border:1.5px dashed var(--color-untaught);display:grid;place-items:center;color:var(--color-ink-3);margin-bottom:6px}
 .thread-empty p{font:var(--type-ui);color:var(--color-ink-2);max-width:420px;margin-bottom:10px}
 .note{font:var(--type-reading);color:var(--color-read)}
-.newpill{position:absolute;left:50%;bottom:150px;transform:translateX(-50%);z-index:5;display:none;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:var(--radius-pill);border:1px solid var(--color-line-strong);background:var(--color-surface);box-shadow:var(--shadow-float);font:var(--type-caption);color:var(--color-ink)}
+.newpill{position:absolute;left:50%;bottom:max(150px,calc(var(--dock-h,0px) + 12px));transform:translateX(-50%);z-index:5;display:none;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:var(--radius-button);border:1px solid var(--color-line-strong);background:var(--color-surface);box-shadow:var(--shadow-float);font:var(--type-caption);color:var(--color-ink)}
 .newpill.on{display:inline-flex}
 
 /* ---------- session: composer and drawer ---------- */
@@ -360,7 +372,13 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .acts{display:flex;gap:2px;margin:0 0 6px}
 .composer{display:flex;flex-direction:column;gap:8px;background:var(--color-surface);border:1px solid var(--color-line-strong);border-radius:var(--radius-input);padding:12px 10px 8px 14px;transition:border-color var(--duration-fast) var(--ease-out),box-shadow var(--duration-fast) var(--ease-out)}
 .composer:focus-within{border-color:var(--color-action);box-shadow:0 0 0 3px var(--color-action-soft)}
-.composer .msg{border:0;outline:0;background:none;font:var(--type-ui);font-size:14px;line-height:22px;color:var(--color-ink);min-height:22px;max-height:180px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;cursor:text}
+.composer .msg{border:0;outline:0;background:none;font:var(--type-ui);font-size:14px;line-height:22px;color:var(--color-ink);min-height:22px;flex:0 1 auto;overflow-y:auto;white-space:pre-wrap;word-break:break-word;cursor:text}
+/* The box grows to a third of the window, then scrolls inside with its top line fading. */
+#composer{max-height:calc(100vh / 3)}
+#composer>.attach,#composer>.composer-row{flex:none}
+.composer .msg.fade-top{-webkit-mask-image:linear-gradient(transparent,var(--color-ink) 22px);mask-image:linear-gradient(transparent,var(--color-ink) 22px)}
+/* Edit: the words are on their way back into the box, so they show when they land. */
+.composer .msg.landing{color:transparent;caret-color:transparent}
 .composer .msg:empty::before{content:attr(data-placeholder);color:var(--color-ink-3);pointer-events:none}
 /* Math chips in the message box: MathLive fields drawn like inline code, without its menu or keyboard toggles. */
 .composer .chip-wrap{display:inline-block;vertical-align:middle}
@@ -375,7 +393,14 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .model:hover{background:var(--color-selected)}
 .send{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--color-action);color:var(--color-action-ink);flex:none;transition:background var(--duration-fast) var(--ease-out)}
 .send:disabled{background:var(--color-selected);color:var(--color-ink-3)}
+/* Stop, while the tutor writes and the box is empty: not filled, since ink fills only send with text. */
+.send[data-act="interrupt"]{background:var(--color-surface);color:var(--color-ink);box-shadow:inset 0 0 0 1px var(--color-line-strong)}
+.send[data-act="interrupt"]:hover{background:var(--color-selected)}
 .send svg.i{width:15px;height:15px}
+.send.resume{animation:resume-in var(--duration-fast) var(--ease-out)}
+.send.resume svg.i{width:13px;height:13px;margin-left:1px}   /* the play mark sits optically centred */
+@keyframes resume-in{from{opacity:.4}}
+.acts:empty{display:none}
 .drawer{position:absolute;left:0;right:0;bottom:0;height:52%;min-height:220px;background:var(--color-surface);border-top:1px solid var(--color-line-strong);box-shadow:0 -8px 24px rgba(17,24,39,.08);z-index:7;display:flex;flex-direction:column;transform:translateY(102%);visibility:hidden;transition:transform var(--duration-base) var(--ease-out),visibility 0s var(--duration-base)}
 .drawer.on{transform:none;visibility:visible;transition:transform var(--duration-base) var(--ease-out),visibility 0s}
 .drawer-head{display:flex;align-items:center;gap:8px;height:40px;padding:0 8px 0 14px;font:var(--type-ui-strong);border-bottom:1px solid var(--color-line);flex:none}
@@ -407,17 +432,17 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .scrim{position:fixed;inset:0;background:var(--scrim);display:none;z-index:30}
 .scrim.on{display:block}
 .scrim.clear{background:transparent}
-.palette{position:absolute;left:50%;top:84px;transform:translateX(-50%);width:580px;max-width:calc(100vw - 40px);border-radius:var(--radius-input);overflow:hidden;animation:pop var(--duration-fast) var(--ease-out)}
-.palette .head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--color-line);color:var(--color-ink-3)}
+.palette{position:absolute;left:50%;top:84px;transform:translateX(-50%);width:640px;max-width:calc(100vw - 40px);border-radius:var(--radius-input);overflow:hidden;animation:pop var(--duration-fast) var(--ease-out)}
+.palette .head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--color-line);color:var(--color-ink-3)}
 .palette input:focus-visible{box-shadow:none}
-.palette input{flex:1;border:0;outline:0;background:transparent;font:400 15px var(--font-sans);color:var(--color-ink)}
+.palette input{flex:1;border:0;outline:0;background:transparent;font:400 16px var(--font-sans);color:var(--color-ink)}
 .palette input::placeholder{color:var(--color-ink-3)}
 .palette .list{max-height:52vh;overflow:auto;padding-bottom:6px}
 .palette .grp{padding:12px 16px 4px}
-.palette .item{display:flex;align-items:center;gap:10px;min-height:34px;padding:6px 10px;margin:0 8px;border-radius:6px;width:calc(100% - 16px);text-align:left}
+.palette .item{display:flex;align-items:center;gap:10px;min-height:38px;padding:7px 10px;font:400 14px/20px var(--font-sans);margin:0 8px;border-radius:6px;width:calc(100% - 16px);text-align:left}
 .palette .item>svg.i{color:var(--color-ink-3)}
 .palette .item.sel{background:var(--color-selected)}
-.palette .item .why{color:var(--color-ink-3);margin-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.palette .item .why{color:var(--color-ink-3);font-size:13px;margin-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .palette .foot{display:flex;gap:6px;align-items:center;padding:10px 16px;border-top:1px solid var(--color-line)}
 @keyframes pop{from{opacity:0;transform:translateX(-50%) scale(.98)}}
 .menu{position:absolute;width:280px;background:var(--color-surface);border:1px solid var(--color-line-strong);border-radius:var(--radius-card);box-shadow:var(--shadow-float);padding:6px;animation:fade var(--duration-fast) var(--ease-out);max-height:70vh;overflow:auto}
@@ -437,9 +462,25 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
 .thumb{text-align:center;border-radius:12px}
 .thumb .pv{height:70px;border-radius:10px;border:1px solid var(--color-line-strong);overflow:hidden;display:flex}
-.thumb .pv span{flex:1;display:flex;flex-direction:column;gap:5px;padding:12px;background:var(--color-bg)}
-.thumb .pv i{height:6px;border-radius:3px;background:var(--color-ink)}
-.thumb .pv i+i{width:40%;opacity:.5}
+/* Appearance: each preview is the app in small, its stone glass by day or at night (11 Nov) */
+.thumb .pv{height:76px;border-radius:9px;border:0;box-shadow:inset 0 0 0 .5px var(--color-line-strong)}
+.thumb .pv span{flex:1;position:relative;display:flex;gap:4px;padding:6px;overflow:hidden}
+.thumb .pv .pv-light{background:radial-gradient(120% 90% at 15% 110%,color-mix(in srgb,var(--pv-tone) 55%,white),transparent 65%),linear-gradient(160deg,color-mix(in srgb,var(--pv-tone) 30%,white),color-mix(in srgb,var(--pv-tone) 75%,#cfd6d4))}
+.thumb .pv .pv-night{background:radial-gradient(120% 90% at 15% 110%,color-mix(in srgb,var(--pv-tone) 80%,#6b7a80),transparent 65%),linear-gradient(160deg,color-mix(in srgb,var(--pv-tone) 45%,#06080c),var(--pv-tone))}
+.thumb .pv b{display:block;border-radius:4px}
+.thumb .pv .pv-side{width:18%;flex:none;--ln:rgba(20,22,24,.32);background:linear-gradient(var(--ln) 0 0) 2px 6px/70% 3px no-repeat,linear-gradient(var(--ln) 0 0) 2px 13px/50% 3px no-repeat,linear-gradient(var(--ln) 0 0) 2px 20px/60% 3px no-repeat}
+.thumb .pv-night .pv-side{--ln:rgba(236,235,232,.3)}
+.thumb .pv .pv-sheet{flex:1;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 9%}
+.thumb .pv-light .pv-sheet{background:rgba(255,255,255,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.8),inset 0 0 0 .5px rgba(255,255,255,.5)}
+.thumb .pv-night .pv-sheet{background:rgba(12,12,16,.34);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 0 0 .5px rgba(255,255,255,.07)}
+.thumb .pv i{display:block;height:4px;border-radius:2px;width:62%}
+.thumb .pv i+i{width:84%;height:3px;opacity:.55}
+.thumb .pv u{display:block;height:9px;border-radius:3px;margin-top:3px}
+.thumb .pv-light i{background:#1b1d1f}
+.thumb .pv-night i{background:#ecebe8}
+.thumb .pv-light u{background:rgba(255,255,255,.65);box-shadow:inset 0 0 0 .5px rgba(0,0,0,.06)}
+.thumb .pv-night u{background:rgba(8,8,12,.32);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.08)}
+.thumb .pv span+span{border-left:.5px solid rgba(0,0,0,.18)}
 .thumb.on .pv{box-shadow:0 0 0 2px var(--color-surface),0 0 0 4px var(--color-action)}
 .thumb .lab{margin-top:6px;font:var(--type-caption);color:var(--color-ink-2)}
 .thumb.on .lab{color:var(--color-ink);font-weight:700}
@@ -449,9 +490,14 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 
 /* ---------- setup ---------- */
 .setup{max-width:560px;margin:0 auto;padding:72px 0 60px}
-.setup .stepc{padding:16px 18px;margin-top:12px;display:flex;gap:14px;align-items:flex-start}
-.setup .num{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:700 12px/1 var(--font-sans);background:var(--color-selected);color:var(--color-ink-2);flex:none}
-.setup .num.ok{background:var(--color-green);color:var(--color-surface)}
+.setup .stepc{padding:16px 18px;margin-top:12px}
+.setup .stepc.row{padding:13px 18px}
+.setup .sc-top{display:flex;align-items:baseline;gap:12px}
+.setup .sc-state{margin-left:auto;font:var(--type-caption);color:var(--color-ink-3)}
+.setup .sc-acts{margin-top:14px;display:flex;gap:8px}
+.setup .where{display:flex;align-items:center;gap:12px;margin-top:14px}
+.setup .where-l{font:var(--type-caption);color:var(--color-ink-2)}
+.setup .where + .path{margin-top:8px}
 .setup .fix{color:var(--color-ink-2);margin-top:4px;font:var(--type-ui)}
 .setup .path{font-family:var(--font-mono);font-size:12px;color:var(--color-ink-2);margin-top:4px;word-break:break-all}
 .seg{display:inline-flex;gap:2px;padding:2px;background:var(--color-side);border-radius:9px}
@@ -471,19 +517,88 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 
 
 /* ---------- motion (flash-design Motion; impeccable animate, 27 Oct 2026) ---------- */
-/* Labels fade before the sidebar folds, so text never squeezes. */
-.sidebar .lbl,.sidebar .nav-row .n,.sidebar .side-label,.brand b,.streak-card>svg.i{transition:opacity 80ms var(--ease-out)}
-.window.folding .sidebar .lbl,.window.folding .sidebar .nav-row .n,.window.folding .sidebar .side-label,.window.folding .brand b{opacity:0}
+/* The fold is one motion (setSide in app.js). While it runs the window wears fold-open or fold-close, which give the
+   columns, the panel's margin and the sidebar the fold's spring; the plan panel keeps --duration-base. Closing, the
+   columns head for their new size at once (to-icons, to-bare) while the labels fade, and the folded layout takes over
+   only when the width has arrived, so the selected pill shrinks with the edge to exactly the rail's 36px and nothing
+   snaps. The edge covers the text instead of re-ellipsizing it. Opening, the list is laid out once at its final width
+   and the edge uncovers it, like a drawer pulled open, while the labels fade in once there is room. */
+.window.fold-open,.window.fold-open .panel{transition-duration:var(--duration-fold-open);transition-timing-function:var(--ease-fold)}
+.window.fold-close,.window.fold-close .panel{transition-duration:var(--duration-fold-close);transition-timing-function:var(--ease-fold)}
+.window.fold-open .sidebar{transition:opacity var(--duration-fold-label-in) var(--ease-out),padding var(--duration-fold-open) var(--ease-fold)}
+.window.fold-close .sidebar{transition:opacity var(--duration-fold-close) var(--ease-out),padding var(--duration-fold-close) var(--ease-fold)}
+/* The islands clear the traffic lights when the sidebar is hidden; they slide there with the panel instead of jumping. */
+.window.fold-open .islands{transition:left var(--duration-fold-open) var(--ease-fold),top var(--duration-fold-open) var(--ease-fold)}
+.window.fold-close .islands{transition:left var(--duration-fold-close) var(--ease-fold),top var(--duration-fold-close) var(--ease-fold)}
+.mac .window.to-bare .islands{left:calc(84px / var(--z, 1))}
+/* Hidden sidebar on a subject (6 Nov, Edison: the header sat 15 px under the lights): the header rises onto the traffic
+   lights' line (centre 24 px, the same line as the strip button on Home and Skills), its Show-sidebar button where the
+   strip's is, and its controls shrink to the strip's 20-22 px so their hover keeps 5-6 px off the panel's top edge. */
+.mac .window:is(.bare,.to-bare) .islands:not(.only-bare){top:calc(24px / var(--z, 1) - 29px);left:calc(85px / var(--z, 1) - 12px)}
+.mac .window:is(.bare,.to-bare) .islands:not(.only-bare) .icon-btn{width:28px;height:20px;border-radius:6px}
+.mac .window:is(.bare,.to-bare) .islands:not(.only-bare) .s-title{height:22px;line-height:22px}
+.window:is(.fold-open,.fold-close) .islands:not(.only-bare) :is(.icon-btn,.s-title){transition:height var(--duration-fold-close) var(--ease-fold),width var(--duration-fold-close) var(--ease-fold),background var(--duration-fast) var(--ease-out)}
+.island.s-head-l{--bare-only-w:28px}
+.window.to-bare .sidebar,.window.bare .sidebar{padding-left:0;padding-right:0}
+/* bare-only: the island's Show-sidebar button, there only while the sidebar is hidden. They unfold as it
+   leaves and fold as it returns (a new island starts unfolded via @starting-style, since opening repaints the islands). */
+.island .bare-only{display:inline-flex;align-items:center;gap:4px;flex:none;overflow:hidden;max-width:0;margin-right:-4px;opacity:0;visibility:hidden}
+.window.bare .island .bare-only,.window.to-bare .island .bare-only{max-width:var(--bare-only-w,80px);margin-right:0;opacity:1;visibility:visible}
+.window.fold-close .island .bare-only{transition:max-width var(--duration-fold-close) var(--ease-fold),margin-right var(--duration-fold-close) var(--ease-fold),opacity var(--duration-fold-close) var(--ease-out)}
+.window.fold-open .island .bare-only{transition:max-width var(--duration-fold-open) var(--ease-fold),margin-right var(--duration-fold-open) var(--ease-fold),opacity var(--duration-fold-fade) var(--ease-out),visibility 0s var(--duration-fold-open)}
+@starting-style{.window.fold-open .island .bare-only{max-width:var(--bare-only-w,80px);margin-right:0;opacity:1;visibility:visible}}
+.window.bare:not(.fold-open):not(.fold-close) .island .bare-only{overflow:visible}   /* settled, its tooltips and focus rings are not clipped */
+/* only-bare: on screens without islands (Home, Skills) the island is just Show sidebar and Home, seen only while hidden. */
+.islands.only-bare{opacity:0;visibility:hidden;pointer-events:none}   /* hidden, so it holds no window-drag hole either */
+/* It sits in the title strip beside the traffic lights, the way Finder and Notes place their sidebar button, so it never
+   lands on a page's title. Bare buttons, no island glass: the strip is the window's own. */
+.islands.only-bare{position:fixed;top:calc(24px / var(--z, 1) - 10px);left:12px;right:auto}   /* centred on the lights' line, 24 px down in screen points at any zoom */
+/* a 28 by 20 button centred on the traffic lights' line, 24 px down (the lights moved 2 px with it): at 24 px tall its
+   hover pill touched the window's top edge (Edison's screenshots, 5 Nov) */
+.islands.only-bare .island{height:20px}
+.islands.only-bare .icon-btn{width:28px;height:20px;border-radius:6px}
+.mac .islands.only-bare{left:calc(84px / var(--z, 1))}   /* clear of the traffic lights */
+.islands.only-bare .island{background:none;box-shadow:none;border-color:transparent;padding:0}
+.islands.only-bare .bare-only{gap:4px}
+.window.bare .islands.only-bare,.window.to-bare .islands.only-bare{opacity:1;visibility:visible}
+.window.bare .islands.only-bare>*,.window.to-bare .islands.only-bare>*{pointer-events:auto}
+.islands.only-bare>*{pointer-events:none}
+.window.fold-close .islands.only-bare{transition:opacity var(--duration-fold-close) var(--ease-out),left var(--duration-fold-close) var(--ease-fold)}
+.window.fold-open .islands.only-bare{transition:opacity var(--duration-fold-fade) var(--ease-out),left var(--duration-fold-open) var(--ease-fold),visibility 0s var(--duration-fold-fade)}
+@starting-style{.window.fold-open .islands.only-bare{opacity:1;visibility:visible}}
+.window.to-icons{grid-template-columns:var(--sidebar-icons) minmax(0,1fr) 0px}
+.window.to-icons.planned{grid-template-columns:var(--sidebar-icons) minmax(0,1fr) var(--plan-panel)}
+.window.to-bare{grid-template-columns:0px minmax(0,1fr) 0px}
+.window.to-bare.planned{grid-template-columns:0px minmax(0,1fr) var(--plan-panel)}
+.window.to-bare .sidebar{opacity:0}
+.window.to-bare .panel{margin-left:8px}
+.sidebar .lbl,.sidebar .nav-row .n,.sidebar .side-label{transition:opacity var(--duration-fold-fade) var(--ease-out)}
+.window.folding .sidebar .lbl,.window.folding .sidebar .nav-row .n,.window.folding .sidebar .side-label,.window.folding .sidebar .nav-row.ix{opacity:0}
+.window.folding .sidebar .nav-row.ix{transition:opacity var(--duration-fold-fade) var(--ease-out)}
+.window.opening .sidebar .lbl,.window.opening .sidebar .nav-row .n,.window.opening .sidebar .side-label,.window.opening .sidebar .nav-row.ix{transition:opacity var(--duration-fold-label-in) var(--ease-out) var(--delay-fold-label-in)}
+.window.folding .sidebar .lbl{text-overflow:clip}
+/* Turned around mid-close, the width comes back in a fraction of the open, so the labels return at once. */
+.window.opening.turning .sidebar :is(.lbl,.nav-row .n,.side-label,.nav-row.ix){transition-delay:0ms;transition-duration:var(--duration-fold-fade)}
+.window.opening .side-scroll{width:calc(var(--sidebar) - 32px)}
 /* Screen changes cross-fade the panel only; the sidebar and plan never move. */
 .sidebar{view-transition-name:sidebar}
 .panel{view-transition-name:panel}
 .plan{view-transition-name:plan}
 ::view-transition-group(*){animation-duration:var(--duration-base);animation-timing-function:var(--ease-out)}
-::view-transition-old(panel){animation:none}
+::view-transition-old(panel){animation:vt-out 180ms ease both}
 .islands{view-transition-name:islands}
 ::view-transition-old(islands){display:none}
-::view-transition-new(islands){animation:none}
-::view-transition-new(panel){animation:vt-in var(--duration-base) var(--ease-out) both}
+::view-transition-new(islands){animation:vt-in 220ms ease 140ms both}
+::view-transition-new(panel){animation:vt-in 180ms ease both}
+/* The glide, in order (5 Nov, Edison: "it just gets darker", and Home's rows showed beside the session's words). The
+   two glass sheets crossfade evenly (the browser adds them), so the tint never doubles; Home's words lift out first;
+   the thread and the header arrive once they are gone. Only the glide uses a view transition. */
+#threadScroll{view-transition-name:thread}
+#acts{view-transition-name:acts}
+::view-transition-new(thread){animation:vt-in 220ms ease 200ms both}   /* once the field is past most of the thread */
+::view-transition-old(thread){animation:vt-out 160ms ease both}
+::view-transition-new(acts){animation:vt-in 180ms ease 290ms both}     /* after the field has gone by them */
+::view-transition-old(acts){animation:vt-out 120ms ease both}
 @keyframes vt-out{to{opacity:0}}
 @keyframes vt-in{from{opacity:0}}
 /* The selected tab is a pill that slides. */
@@ -501,9 +616,6 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .newpill{display:inline-flex;opacity:0;pointer-events:none;transform:translate(-50%,6px);transition:opacity var(--duration-fast) var(--ease-out),transform var(--duration-base) var(--ease-out)}
 .newpill.on{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
 /* Home's first paint of a launch eases in, in reading order; later visits are instant. */
-.content.intro>*{animation:enter 320ms var(--ease-out) both}
-.content.intro>:nth-child(2){animation-delay:30ms}.content.intro>:nth-child(3){animation-delay:60ms}
-.content.intro>:nth-child(4){animation-delay:100ms}.content.intro>:nth-child(5){animation-delay:140ms}
 .count-tile{transition-duration:var(--duration-fast)}
 
 /* ---------- the constellation (All skills) and the dark map room ---------- */
@@ -561,7 +673,7 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .week-foot:hover{color:var(--color-ink)}
 .drawer::before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;background:linear-gradient(transparent,var(--color-surface));pointer-events:none}
 .mini{display:none}
-.window.icons .nav-row:has(.mini){height:44px;flex-direction:column;justify-content:center;gap:2px;padding:0;width:36px;align-items:center;margin-left:-1px}
+.window.icons .nav-row:has(.mini){height:44px;flex-direction:column;justify-content:center;gap:2px;padding:0;width:48px;align-items:center}   /* centred on the same 44 px line as every rail icon */
 .window.icons .mini{display:block;font:600 8.5px/1 var(--font-sans);color:var(--color-ink-3);letter-spacing:.02em}
 .window.icons .nav-row.on .mini,.window.icons .nav-row.has-on .mini{color:var(--color-ink)}
 .window.icons .nav-row.child .mini{display:none}
@@ -577,12 +689,29 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 /* The row at the end of the thread while the tutor works, styled like a step. */
 .working{display:none;align-items:center;gap:8px;margin:6px 0 14px;padding-left:12px;border-left:1.5px solid var(--color-line-strong);font:var(--type-ui);color:var(--color-ink-3)}
 .working.on{display:flex;animation:enter var(--duration-message) var(--ease-out)}
+.working .wk-note{color:var(--color-ink-3);opacity:.75}
+.working .wk-note:empty{display:none}
+.working .wk-note::before{content:"·";margin-right:8px}
 .working .spin{width:10px;height:10px;border-radius:50%;border:1.6px solid currentColor;border-right-color:transparent;animation:spin .9s linear infinite}
 .question.trust .q-text p+p{font:var(--type-ui);color:var(--color-ink-2)}
-/* A message Flash holds until the tutor is ready: your bubble, dimmed, with a caption. */
-.me.pending{flex-direction:column;align-items:flex-end;gap:4px}
-.me.pending .bubble{opacity:.6}
-.me.pending .cap{font:var(--type-caption);color:var(--color-ink-3)}
+/* Messages sent while the tutor writes (spec C, 31 Oct). Unread is ink 2; read settles to ink. */
+.me-b{position:relative;display:flex;justify-content:flex-end;max-width:78%}
+.me-b .bubble{max-width:100%}
+.me.unread .bubble{color:var(--color-ink-2)}
+/* Edit and Delete sit to the bubble's left on hover, so they take no room. */
+.me-acts{position:absolute;right:100%;top:50%;transform:translateY(-50%);display:flex;gap:2px;padding-right:8px;opacity:0;transition:opacity var(--duration-fast) var(--ease-out)}
+.me-acts .btn.text{height:26px;padding:0 6px;font:var(--type-caption);color:var(--color-ink-3)}
+.me-acts .btn.text:hover{color:var(--color-ink)}
+.me-b:hover .me-acts,.me-acts:focus-within{opacity:1}
+.rising .me-acts{visibility:hidden}
+.me.unread .me-b:hover .bubble{background:color-mix(in srgb,var(--color-bubble),var(--color-ink) 4%)}
+.after-reply{display:flex;justify-content:flex-end;margin:-12px 0 18px;font:var(--type-caption);color:var(--color-ink-3)}
+/* A run of yours: gap 4px, tight corners where two meet; only the last keeps the tail. */
+.me+.me,.item:has(>.me)+.item:has(>.me)>.me:first-child{margin-top:4px}
+.item:has(>.me):has(+.item>.me)>.me:last-child,.me:has(+.me){margin-bottom:0}
+.me+.me .bubble,.item:has(>.me)+.item:has(>.me)>.me:first-child .bubble{border-top-right-radius:4px}
+.me:has(+.me) .bubble,.item:has(>.me):has(+.item>.me)>.me:last-child .bubble{border-bottom-right-radius:4px}
+.bubble.fly{position:fixed;z-index:60;pointer-events:none;margin:0;max-width:none;box-sizing:border-box}
 .trust-acts{display:flex;gap:8px;margin-top:12px}
 /* The sidebar's own fold button, beside search. Folded to icons, it stays as the one way back. */
 .brand .search{margin-left:auto}
@@ -593,7 +722,6 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .acts .btn.neutral{margin-left:6px}
 .empty-acts{display:flex;gap:8px}
 /* Armed: the second click closes the subject out. */
-.btn.neutral.armed{border-color:var(--color-ink);color:var(--color-ink)}
 .empty-acts .spin{width:10px;height:10px;border-radius:50%;border:1.6px solid currentColor;border-right-color:transparent;animation:spin .9s linear infinite}
 .acts .spin,#acts .spin{width:10px;height:10px;border-radius:50%;border:1.6px solid currentColor;border-right-color:transparent;animation:spin .9s linear infinite}
 
@@ -602,9 +730,705 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .attach.on{display:flex}
 .att{position:relative;width:64px;height:64px;border-radius:var(--radius-option);border:1px solid var(--color-line-strong);overflow:hidden;background:var(--color-selected)}
 .att img{width:100%;height:100%;object-fit:cover;display:block}
-.att button{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--color-ink);color:var(--color-action-ink);opacity:0;transition:opacity var(--duration-fast) var(--ease-out)}
+.att button{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;background:var(--color-ink);color:var(--color-action-ink);opacity:0;transition:opacity var(--duration-fast) var(--ease-out)}
 .att:hover button,.att button:focus-visible{opacity:1}
 .att button svg.i{width:12px;height:12px;transform:rotate(45deg)}
 .bubble .shots{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
 .bubble .shots img{max-width:220px;max-height:160px;border-radius:var(--radius-option);display:block}
 .shot-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;margin-right:4px;border-radius:var(--radius-chip);background:var(--color-surface);font:var(--type-caption);color:var(--color-ink-2)}
+
+/* ---------- Home on launch, and quitting (1 Nov 2026) ---------- */
+/* Continue's ↩: Return in the empty field presses it. It folds away while the field holds words. */
+.btn .rk{display:inline-flex;justify-content:flex-end;overflow:hidden;width:20px;flex:none;margin-left:-6px;color:color-mix(in srgb,var(--color-action-ink) 58%,transparent)}
+/* The quit card: front and center over the ⌘K veil. Question and three buttons. */
+.scrim.veil{display:grid;place-items:center}
+.quit-card{width:440px;max-width:calc(100vw - 40px);padding:22px 22px 18px 24px;margin-top:-8vh}
+.quit-card .qc-h{font:var(--type-section);color:var(--color-ink)}
+.quit-card .qc-b{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:20px}
+.quit-card .qc-b .btn.text{height:34px;padding:0 12px;color:var(--color-ink-2)}
+.quit-card .qc-b .btn:not(.text){margin-left:4px}
+.quit-card .qc-b .btn:active{transform:scale(.98)}
+
+/* ---------- scrolling a long thread (spec, 1 Nov 2026) ---------- */
+/* Native scrolling with the system bar hidden; the thumb below stands in for it. */
+#threadScroll{scrollbar-width:none}
+#threadScroll::-webkit-scrollbar{display:none}
+/* Edge fades only where there is more past the edge, as deep as the distance left. */
+.session::before{height:calc(56px + var(--ft,0px));background:linear-gradient(var(--color-surface) 56px,transparent calc(56px + var(--ft,0px)))}
+.dock{background:var(--color-surface);padding-top:12px}
+.dock::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:var(--fb,0px);background:linear-gradient(transparent,var(--color-surface) calc(var(--fb,0px) - var(--fs,0px)));pointer-events:none}
+/* The pill sits in the solid part of the fade, just above the dock. */
+.newpill{bottom:calc(var(--dock-h,0px) + 6px)}
+/* The pill: its opacity and rise follow the thread, so no CSS transition. Presses to 97%. */
+.newpill,.newpill.on{display:inline-flex;transform:none;transition:none;opacity:0;pointer-events:none;color:var(--color-ink-2);white-space:nowrap;overflow:hidden}
+.newpill.on{pointer-events:auto}
+.newpill:hover{color:var(--color-ink)}
+.newpill:active{scale:.97}
+.newpill .lab{display:inline-block}
+/* The scroll thumb: 5px, growing to 8px and darker when pointed at (0.2 s). */
+.sb-zone{position:absolute;right:0;width:16px;z-index:5}
+.sb-thumb{position:absolute;top:0;right:5px;width:5px;border-radius:3px;z-index:6;opacity:0;background:var(--scroll-thumb);box-shadow:inset 0 0 0 .5px var(--scroll-thumb-edge);transition:width .2s var(--ease-out),right .2s var(--ease-out),background-color .2s var(--ease-out)}
+.sb-thumb.hot{width:8px;right:4px;background:var(--scroll-thumb-hot)}
+/* A pointer resting where the window opens lights no hover until it moves. */
+body.still{pointer-events:none}
+
+/* ---------- the check card (spec: check card, warm-up, How sure; 1 Nov 2026) ---------- */
+/* Behaviour in the app's current look; the redesign's glass and type are not ported. */
+.check-card{--relax:0;background:var(--color-surface);border:1px solid var(--color-line-strong);border-radius:var(--radius-card);padding:14px 18px 16px;margin:14px 0}
+.check-card.cc-keyed{--relax:1}
+.cc-kicker{font:var(--type-caption);color:var(--color-ink-2);margin-bottom:6px}
+.cc-kicker b{font-weight:600;color:var(--color-ink)}
+.cc-kicker .sep{margin:0 6px;color:var(--color-ink-3)}
+.cc-q{font:var(--type-reading);color:var(--color-read)}
+.cc-q p{margin:0 0 6px}
+.cc-q ul,.cc-q ol{margin:0 0 6px;padding-left:22px}   /* the numbers sit inside the card, as in the thread */
+.cc-opts{margin-top:8px}
+.cc-opt{display:flex;width:100%;gap:12px;align-items:center;margin-top:8px;padding:9px 12px;border:1px solid var(--color-line-strong);border-radius:var(--radius-option);background:var(--color-surface);font:var(--type-reading);color:var(--color-ink);text-align:left;cursor:default;user-select:text}
+.check-card.cc-live .cc-opt{cursor:pointer;transition:background var(--duration-fast) var(--ease-out)}
+.check-card.cc-live .cc-opt:hover{background:var(--color-selected)}
+.cc-key{flex:none;display:grid;place-items:center;width:20px;height:20px;border-radius:5px;border:1px solid var(--color-line-strong);font:var(--type-key);color:var(--color-ink-3)}
+.cc-o{flex:1;min-width:0}
+.cc-mark{flex:none;margin-left:auto;display:inline-flex;color:var(--color-ink);opacity:0}
+/* Your pick: an ink outline and an ink key. Once the key comes back it relaxes to a
+   hairline and a grey key, so the right answer's mark is the loudest thing on the card. */
+.cc-opt.picked{border-color:color-mix(in srgb,var(--color-ink) calc(100% - 55% * var(--relax)),var(--color-line-strong));box-shadow:inset 0 0 0 calc(.5px * (1 - var(--relax))) var(--color-ink)}
+.cc-opt.picked .cc-key{border-color:transparent;background:color-mix(in srgb,var(--color-ink) calc(100% - 45% * var(--relax)),transparent);color:var(--color-surface)}
+.cc-opt.right .cc-mark{opacity:var(--relax)}
+.cc-opt.dim{opacity:calc(1 - .5 * var(--relax))}
+.cc-tail{position:relative}
+.cc-row{display:flex;align-items:center;gap:12px;margin-top:12px}
+.cc-lab{flex:none;width:76px;font:var(--type-ui);color:var(--color-ink-2)}
+.cc-sure button{padding:5px 11px}
+.cc-field{flex:1;min-width:0;box-sizing:border-box;resize:none;overflow:hidden;border:1px solid var(--color-line-strong);border-radius:var(--radius-option);background:var(--color-surface);padding:7px 10px;font:var(--type-ui);font-size:14px;line-height:20px;color:var(--color-ink);outline:none;transition:border-color var(--duration-fast) var(--ease-out)}
+.cc-field::placeholder{color:var(--color-ink-3)}
+.cc-field:focus{border-color:var(--color-ink)}
+.cc-foot{display:flex;justify-content:flex-end;margin-top:12px}
+/* Check is asleep until there is a pick and a confidence; it wakes on the snappy spring. */
+.cc-send{--w:var(--wake,1);transition:none;background:color-mix(in srgb,var(--color-action) calc(var(--w) * 100%),var(--color-selected));color:color-mix(in srgb,var(--color-action-ink) calc(var(--w) * 100%),var(--color-ink-3))}
+.cc-send:disabled{--w:var(--wake,0)}
+.cc-send:active:not(:disabled){transform:scale(.97)}
+/* Settled: the controls go and one quiet line keeps how sure you were, then your words. */
+.cc-said{display:none;margin-top:12px;font:var(--type-ui);font-size:14px;line-height:20px;color:var(--color-ink);white-space:pre-wrap;word-break:break-word}
+.cc-said .cc-ys{color:var(--color-ink-3)}
+.check-card.cc-sent .cc-said{display:block}
+.check-card.cc-sent:not(.cc-settling) .cc-fold,.check-card.cc-past .cc-fold{display:none}
+.check-card.cc-settling .cc-tail{overflow:hidden}
+.check-card.cc-settling .cc-fold,.check-card.cc-settling .cc-said{position:absolute;left:0;right:0;top:0}
+/* The header while you warm up: "Warm-up HW23". */
+.warm-label{display:none;align-items:center;padding:0 8px 0 10px;font:var(--type-ui);color:var(--color-ink-2);white-space:nowrap}
+.warm-label.on{display:inline-flex;gap:4px}
+.warm-label b{font-weight:600;color:var(--color-ink)}
+
+/* ---------- glass (5 Nov 2026, the new app's look) ----------
+   On macOS the window is vibrancy over the real desktop (main.js). The page paints only tints: the sidebar is the bare
+   glass, the panel a frosted sheet over it, lit along its top edge, as the v2 prototype drew it. */
+html.glass{--glass-panel:rgba(248,247,244,.6);--glass-edge:rgba(255,255,255,.85);--glass-rim:rgba(255,255,255,.5)}
+html.glass[data-theme="night"]{--glass-panel:rgba(12,12,16,.34);--glass-edge:rgba(255,255,255,.08);--glass-rim:rgba(255,255,255,.07)}
+html.glass,html.glass body,html.glass .window,html.glass .sidebar{background:transparent}
+html.glass .panel{background:var(--glass-panel);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 18px 40px -28px rgba(0,0,0,.25)}
+
+/* ---------- Home (5 Nov 2026, the locked front page) ----------
+   Five sizes: 32 head, 15 line and field, 13.5 names and button, 12.5 labels and captions. The field's middle is the
+   window's middle (centerHome); rows sit under it in four columns: label, name, what, when. */
+.home2{min-height:100%}
+.home2 .h-col{width:min(var(--reading-max),calc(100% - 96px));margin:0 auto;padding-bottom:56px}   /* the composer's width, so the glide between them is a move */
+.home2 .h-head{font:600 32px/1.15 var(--font-sans);letter-spacing:-.02em;color:var(--color-ink)}
+.home2 .h-sub{margin-top:8px;font:400 15px/22px var(--font-sans);color:var(--color-ink-2);text-wrap:pretty}
+.home2 .h-head{text-wrap:balance}
+.home2 .h-sub p{margin:0}
+.home2 .h-go{margin:22px 0 28px}
+.home2 .h-go .btn{height:40px;padding:0 20px;font-size:13.5px}
+.home2 .h-field{flex-direction:row;align-items:center;gap:10px;height:56px;padding:0 12px 0 20px;border-radius:14px}
+.home2 .h-field input{flex:1;min-width:0;border:0;outline:0;background:none;font:400 15px/22px var(--font-sans);color:var(--color-ink)}
+.home2 .h-field input::placeholder{color:var(--color-ink-3)}
+.home2 .h-field .send{width:32px;height:32px;border-radius:var(--radius-button)}
+.home2 .h-also{margin-top:36px;display:grid;grid-template-columns:76px max-content minmax(0,1fr) auto;column-gap:16px}   /* one grid, so every row's columns line up */
+.home2 .h-row{display:grid;grid-column:1/-1;grid-template-columns:subgrid;position:relative;align-items:center;width:calc(100% + 20px);margin:0 -10px;min-height:40px;padding:8px 10px;font:400 13.5px/18px var(--font-sans);color:var(--color-ink);text-align:left;border-radius:8px;transition:background var(--duration-fast) ease}
+.home2 .h-row.g::before{content:"";position:absolute;left:10px;right:10px;top:0;border-top:1px solid var(--color-line)}
+.home2 .h-l,.home2 .h-c{font-size:12.5px;color:var(--color-ink-3)}
+.home2 .h-n,.home2 .h-d{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home2 .h-d{color:var(--color-ink-2)}
+.home2 .h-c{text-align:right;white-space:nowrap}
+.home2 .h-c.now{color:var(--color-ink);font-weight:600}
+.home2 .pill{height:28px;padding:0 12px;border-radius:7px;box-shadow:inset 0 0 0 1px var(--color-line-strong);font-size:12.5px;color:var(--color-ink);transition:background var(--duration-fast) ease,transform 160ms cubic-bezier(.23,1,.32,1)}
+.home2 .pill:active{transform:scale(.97)}
+@media (hover:hover) and (pointer:fine){.home2 button.h-row:hover,.home2 .pill:hover{background:var(--color-selected)}}
+/* on glass the field is frosted like the panel, lighter by day and a dark well at night, with the lit top edge */
+html.glass .home2 .h-field{background:var(--glass-field);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 8px 24px -12px rgba(0,0,0,.18)}
+html.glass{--glass-field:rgba(255,255,255,.62)}
+html.glass[data-theme="night"]{--glass-field:rgba(8,8,12,.3)}   /* dark glass at night (the v2 prototype's night composer): a white tint left light text no floor on a bright wallpaper (3.3:1) */
+/* Focused is the field's resting state (the caret is there on arrival), so focus is a quiet ink outline, not a ring:
+   Edison, 5 Nov, "it has the white stuff around it". The caret says where you type. */
+html.glass .home2 .h-field:focus-within{box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 1px color-mix(in srgb,var(--color-ink) 22%,transparent),0 8px 24px -12px rgba(0,0,0,.18)}
+
+/* ---------- the session on glass (5 Nov 2026) ----------
+   The session is the same frosted sheet as Home. Nothing paints a band: the thread itself fades into the glass under
+   the header and above the composer, by a mask on the scroller (the v2 prototype's), clear where the islands and the
+   dock sit and as deep as the distance left past each edge (drawEdges). The depths are registered not to inherit, so
+   moving them restyles the scroller alone, not every line in the thread. The composer is Home's frosted field, and the
+   islands, the new-messages pill and the question and check cards are cut from the same glass. Text is the metal ink and its three strengths. */
+@property --mt{syntax:"<length>";inherits:false;initial-value:0px}
+@property --mb{syntax:"<length>";inherits:false;initial-value:0px}
+@property --ms{syntax:"<length>";inherits:false;initial-value:0px}
+html.glass #session,html.glass .islands,html.glass .mapwrap,html.glass .mapctl,html.glass :is(.palette,.menu,.sheet,.quit-card,.plan){--color-ink:#191A1B;--color-read:#191A1B;--color-ink-2:rgba(25,26,27,.9);--color-ink-3:rgba(25,26,27,.8)}
+/* hairlines and the action colour come from the same ink, so no cool gray from the solid theme sits on warm glass */
+html.glass #session,html.glass .islands,html.glass .mapwrap,html.glass .mapctl,html.glass :is(.palette,.menu,.sheet,.quit-card,.plan){--color-action:var(--color-ink);--color-line:color-mix(in srgb,var(--color-ink) 8%,transparent);--color-line-strong:color-mix(in srgb,var(--color-ink) 12%,transparent)}
+html.glass[data-theme="night"] #session,html.glass[data-theme="night"] .islands,html.glass[data-theme="night"] .mapwrap,html.glass[data-theme="night"] .mapctl,html.glass[data-theme="night"] :is(.palette,.menu,.sheet,.quit-card,.plan){--color-ink:#EAE9E6;--color-read:#EAE9E6;--color-ink-2:rgba(234,233,230,.72);--color-ink-3:rgba(234,233,230,.6)}
+html.glass .session::before,html.glass .dock::before{display:none}
+html.glass .dock{background:transparent}
+html.glass #threadScroll{-webkit-mask-image:linear-gradient(transparent 56px,#000 calc(56px + var(--mt)),#000 calc(100% - var(--dock-h,0px) - var(--mb)),transparent calc(100% - var(--dock-h,0px) - var(--ms)));mask-image:linear-gradient(transparent 56px,#000 calc(56px + var(--mt)),#000 calc(100% - var(--dock-h,0px) - var(--mb)),transparent calc(100% - var(--dock-h,0px) - var(--ms)))}
+html.glass #session .composer,html.glass .island,html.glass .newpill,html.glass #session .question,html.glass #session .check-card{background:var(--glass-field);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 8px 24px -12px rgba(0,0,0,.18)}
+html.glass .island{box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 4px 14px -8px rgba(0,0,0,.16)}
+html.glass #session .composer:focus-within{border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 1px color-mix(in srgb,var(--color-ink) 22%,transparent),0 8px 24px -12px rgba(0,0,0,.18)}
+html.glass #session .question.waiting{box-shadow:inset 0 1px 0 var(--glass-edge),0 0 0 1.5px var(--color-action),0 0 0 5px color-mix(in srgb,var(--color-action) 14%,transparent),0 8px 24px -12px rgba(0,0,0,.18)}   /* the one ring in the thread: it asks for an answer */
+html.glass #session :is(.question,.check-card){border-radius:14px}   /* one material, one radius: the composer's */
+/* A figure has no plate of its own (10 Nov): its ink sits straight on the glass, so it gets no rim either. */
+/* The composer takes the field's shape too, so the glide from Home carries one object, not two. */
+html.glass #session .composer{border-radius:14px;padding-left:20px}
+/* Tints inside the session are the ink at a low strength, so they take the glass's colour instead of sitting on it as
+   gray boxes: your bubbles and hovers 7% (9% at night), code 4%, the tab strip 6% with the selected tab a pill of the
+   sidebar's own glass. Outlined buttons drop their fill, like Home's pills. The terminal drawer keeps its solid sheet. */
+html.glass #session,html.glass .islands,html.glass .mapwrap,html.glass .mapctl,html.glass :is(.palette,.menu,.sheet,.quit-card,.plan){--color-bubble:color-mix(in srgb,var(--color-ink) 7%,transparent);--color-selected:color-mix(in srgb,var(--color-ink) 7%,transparent)}
+html.glass[data-theme="night"] #session,html.glass[data-theme="night"] .islands,html.glass[data-theme="night"] .mapwrap,html.glass[data-theme="night"] .mapctl,html.glass[data-theme="night"] :is(.palette,.menu,.sheet,.quit-card,.plan){--color-bubble:color-mix(in srgb,var(--color-ink) 9%,transparent);--color-selected:color-mix(in srgb,var(--color-ink) 9%,transparent)}
+html.glass #session .codeblock,html.glass #session .bubble .codeblock{background:color-mix(in srgb,var(--color-ink) 4%,transparent)}
+html.glass #session .btn.neutral,html.glass #session .btn.neutral:disabled{background:transparent}
+/* The question and check cards are the composer's glass (the v2 prototype drew them as one material); their option rows,
+   answer fields and the stop button are outlines on it. */
+:where(html.glass #session) :is(.option,.cc-opt,.cc-field){background:color-mix(in srgb,var(--glass-field) 50%,transparent)}   /* half the card's glass, so a row reads as an outline on the card, not a hole through it; :where keeps their selected and hover fills winning */
+:where(html.glass #session) :is(.send[data-act="interrupt"],.codeblock .copy,.shot-chip){background:var(--glass-field)}
+html.glass #session .codeblock{border-color:transparent}
+html.glass #session{--color-action-soft:color-mix(in srgb,var(--color-ink) 9%,transparent)}   /* a picked answer and math chips: a tint, not a gray slab */
+html.glass #session .btn.neutral:hover:not(:disabled){background:var(--color-selected)}
+html.glass .tabs{background:color-mix(in srgb,var(--color-ink) 6%,transparent)}
+html.glass .tabs .ind,html.glass .tabs:not(:has(.ind)) button.on{background:rgba(255,255,255,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 0 0 .5px rgba(255,255,255,.6),0 1px 2px rgba(0,0,0,.06)}
+html.glass[data-theme="night"] .tabs .ind,html.glass[data-theme="night"] .tabs:not(:has(.ind)) button.on{background:rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 0 0 .5px rgba(255,255,255,.08)}
+
+/* ---------- the index (5 Nov 2026, the v2 prototype's sidebar) ----------
+   Subjects sit in one list, their names lined up with the labels above (icon 18 + gap 10), a deadline word on the
+   right, bold for today. On glass the selected row is a pill of the panel's own glass; hover is that pill, faint
+   (38% by day, 55% at night, the prototype's measured half-step). */
+/* a 30px pill on a 34px pitch: two lit rows keep a 4px gap and never merge (Square, Base44, Dropbox Dash, Descript) */
+.nav-row{height:30px;margin:2px 0}
+.nav-row.ix{padding-left:43px}
+.nav-row .n.now{color:var(--color-ink);font-weight:600}
+.nav-row .n.k{font-size:12px;letter-spacing:.02em}
+.side-label.ix{margin:18px 15px 4px 43px;font:400 12.5px/16px var(--font-sans)}
+.side-scroll{padding-top:6px}
+.window.icons .nav-row.ix,.window.icons .side-label.ix,.window.icons .nav-row .n.k{display:none}
+html.glass .nav-row.on{background:rgba(255,255,255,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 0 0 .5px rgba(255,255,255,.6),0 1px 2px rgba(0,0,0,.06);font-weight:500}
+html.glass[data-theme="night"] .nav-row.on{background:rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 0 0 .5px rgba(255,255,255,.08)}
+@media (hover:hover) and (pointer:fine){
+  html.glass .nav-row:hover:not(:disabled):not(.on){background:rgba(255,255,255,.24)}
+  html.glass[data-theme="night"] .nav-row:hover:not(:disabled):not(.on){background:rgba(255,255,255,.055)}
+}
+
+/* ---------- the glide (5 Nov 2026, spec 29 Oct: "the glide makes me feel like a transition is happening") ----------
+   Home's field and a session's composer share one view-transition name, so when you press Continue, send, or open a
+   subject from Home, the browser glides the field from the middle of the window down to where it lives in every
+   subject, and back the other way. Home's column lifts and blurs out as it goes (exit faster than the glide). Motion
+   on screen: a strong ease-in-out, 420 ms. Reduce motion: swap() skips the transition, so pages simply change. */
+.home2 .h-field{view-transition-name:field}
+#session .composer{view-transition-name:field}
+.home2 .h-col{view-transition-name:home-col}
+::view-transition-group(field){animation-duration:360ms;animation-timing-function:cubic-bezier(0.77,0,0.175,1)}   /* down into a session: 360 ms (Edison, 5 Nov: could be a bit faster) */
+html[data-glide="home"]::view-transition-group(field){animation-duration:480ms;animation-timing-function:var(--ease-fold)}   /* back up to Home: the fold's spring, which moves from the first frame and settles softly (Edison, 5 Nov: 420 in-out too fast, 540 in-out lagged) */
+/* the two fields cross with a light blur, so their words never read on top of each other (Emil: blur masks a crossfade) */
+/* Both fields are the reading column's width, so the glide is a move, not a stretch: the snapshots keep their own
+   aspect (no height:100%, which scaled them to the moving box) and are clipped to its rounded shape. */
+/* One crossfade, both at once: the browser adds the two (plus-lighter), so the field stays solid the whole way. Fading
+   the old out before the new came in left both half there mid-flight, a ghost sliding down (Edison, 5 Nov). */
+::view-transition-old(field){animation:field-out 300ms ease both}
+::view-transition-new(field){animation:field-in 300ms ease both}
+::view-transition-image-pair(field){overflow:hidden;border-radius:14px}
+@keyframes field-out{to{opacity:0;filter:blur(2px)}}
+@keyframes field-in{from{opacity:0;filter:blur(2px)}}
+::view-transition-old(home-col){animation:home-lift 200ms cubic-bezier(0.23,1,0.32,1) both}
+::view-transition-new(home-col){animation:none}   /* coming back, Home's own settle is its arrival */
+@keyframes home-lift{to{opacity:0;transform:translateY(-14px);filter:blur(6px)}}
+@keyframes home-land{from{opacity:0;transform:translateY(-10px);filter:blur(4px)}}
+
+/* ---------- floating glass: menus, ⌘K, settings and hover labels (5 Nov 2026, the v2 prototype's) ----------
+   What floats over the glass is glass too: a frosted card a step more solid than the panel, blurring what is under it,
+   lit along its top edge; ⌘K and Settings sit over a light veil that blurs the window behind them (the prototype's
+   .ix-menu, .k-card and .k-veil). They were the last solid sheets on screen. */
+html.glass{--glass-float:color-mix(in srgb,var(--color-surface) 82%,transparent)}
+html.glass[data-theme="night"]{--glass-float:color-mix(in srgb,var(--color-surface) 80%,transparent)}
+html.glass .menu,html.glass .palette,html.glass .sheet,html.glass .quit-card{background:var(--glass-float);-webkit-backdrop-filter:blur(30px) saturate(1.4);backdrop-filter:blur(30px) saturate(1.4);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 18px 44px -14px rgba(0,0,0,.35)}
+html.glass .scrim:not(.clear){background:color-mix(in srgb,var(--color-bg) 28%,transparent)}   /* a light dim, no blur: the blurred veil read as "deadass too frosty" (Edison, 5 Nov) */
+/* Cmd-K, Settings and the quit card are read, so their glass is nearly solid (96%): at 80% the page showed through and
+   was hard to read. Menus stay a little lighter. */
+/* Cmd-K, Settings and the quit card: 96% glass in neutral greys under the metal ink (6 Nov, Edison: Cmd-K's colours felt out
+   of place; the app's surface greys lean blue, #25262A and #FBFCFD, against the warm ink and the colour-coded subject tiles) */
+html.glass .palette,html.glass .sheet,html.glass .quit-card{background:rgba(251,251,250,.96)}
+html.glass[data-theme="night"] .palette,html.glass[data-theme="night"] .sheet,html.glass[data-theme="night"] .quit-card{background:rgba(37,37,38,.96)}
+html.glass [data-tip]::after{background:var(--glass-float);border-color:transparent;box-shadow:inset 0 0 0 .5px var(--glass-rim),0 6px 18px -8px rgba(0,0,0,.3)}
+html.glass [data-tip]:is(:hover,:focus-visible)::after{-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4)}   /* blurred only while it shows */
+
+/* ---------- the subject header (5 Nov 2026, the v2 prototype's line) ----------
+   Plain words on the glass, no islands: the subject's name and what it covers (the name opens the subject menu), its
+   deadline, and on Session what is next with the subject's bricks, then the note, terminal and plan buttons. */
+.island.s-head-l,.island.s-head-r,html.glass .islands .island.s-head-l,html.glass .islands .island.s-head-r{background:none;border-color:transparent;box-shadow:none}
+.s-head-l{gap:10px;padding-left:2px}
+.s-title{display:inline-flex;align-items:baseline;gap:7px;height:32px;padding:0 8px;border-radius:var(--radius-option);font:400 15px/32px var(--font-sans);color:var(--color-ink-2);white-space:nowrap;min-width:0;overflow:hidden;transition:background var(--duration-fast) var(--ease-out)}
+.s-title b{font-weight:600;color:var(--color-ink);letter-spacing:-.005em}
+.s-title .mu{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.s-title .sep{color:var(--color-ink-3)}
+.s-title svg.i.dn{align-self:center;margin-left:-1px}
+.s-title[aria-expanded="true"]{background:var(--color-selected)}
+@media (hover:hover) and (pointer:fine){.s-title:hover{background:var(--color-selected)}}
+.s-due{font:600 12.5px/16px var(--font-sans);color:var(--color-ink);white-space:nowrap}
+.s-head-r{gap:12px;padding-right:2px}
+.s-now,.s-count{font:400 12.5px/16px var(--font-sans);color:var(--color-ink-2);white-space:nowrap}
+.s-now b{font-weight:600;color:var(--color-ink)}
+.s-now{max-width:300px;overflow:hidden;text-overflow:ellipsis}
+.s-count{font-variant-numeric:tabular-nums}
+.s-bond{display:inline-flex;gap:2px;margin-right:4px}
+/* The header's bricks are the Skills page's bricks, smaller (6 Nov, Edison: they didn't look alike): square-cornered glass
+   bars, a passed one lit from above, a due one the review orange with its glow, the rest an outline (skills.js .mk u). */
+.s-bond i{width:18px;height:6px;border-radius:1.5px;background:color-mix(in srgb,var(--color-ink) 50%,transparent)}
+html.glass .s-bond i{background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,.3));box-shadow:inset 0 1px 0 #fff,inset 0 0 0 .5px rgba(25,26,27,.16),0 1px 2px rgba(30,34,42,.2)}
+html.glass[data-theme="night"] .s-bond i{background:linear-gradient(180deg,rgba(244,246,255,.58),rgba(232,236,248,.34));box-shadow:inset 0 1px 0 rgba(250,252,255,.95),inset 0 0 3px rgba(255,255,255,.35),inset 0 0 0 .5px rgba(248,250,255,.5),0 0 6px rgba(226,230,242,.2)}
+.s-bond i.due{background:#E2602A}
+html[data-theme="night"] .s-bond i.due{background:#FF8A3D}
+html.glass .s-bond i.due{background:linear-gradient(180deg,#F08A52,#E2602A 55%,#CC5222);box-shadow:inset 0 1px 0 rgba(255,228,206,.85),inset 0 0 0 .5px rgba(255,200,170,.5),0 1px 2px rgba(120,40,10,.22)}
+html.glass[data-theme="night"] .s-bond i.due{background:linear-gradient(180deg,#FFB070,#FF8A3D 55%,#E8682A);box-shadow:inset 0 1px 0 rgba(255,238,214,.9),inset 0 0 0 .5px rgba(255,214,170,.6),0 0 10px rgba(255,138,61,.6)}
+.s-bond i.now,html.glass .s-bond i.now,html.glass[data-theme="night"] .s-bond i.now{background:transparent;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--color-ink) 62%,transparent)}
+.s-bond i.not,html.glass .s-bond i.not,html.glass[data-theme="night"] .s-bond i.not{background:transparent;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--color-ink) 32%,transparent)}
+.s-head-r .status-line:empty{display:none}
+.s-head-r .icon-btn:first-of-type{margin-left:2px}
+
+/* ---------- the plan panel and the terminal on the glass (6 Nov, Edison: the right panel "still has the old style"; the
+   terminal had a gradient on its top edge and didn't fit) ---------- */
+html.glass .plan{background:var(--glass-panel);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 18px 40px -28px rgba(0,0,0,.25);gap:2px;padding:14px 10px}
+html.glass .plan .plan-head{padding:0 6px}
+html.glass .plan>.cap{padding:0 6px 10px;color:var(--color-ink-3)}
+html.glass .plan-card{border:0;border-radius:10px;padding:9px 10px;gap:12px;background:transparent}
+html.glass .plan-card:hover{background:var(--color-selected)}
+html.glass .plan-card.cur{background:var(--glass-field);box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim)}
+html.glass .plan-card .pc-name{font-weight:500}
+html.glass .plan-card.done .pc-name{color:var(--color-ink-2)}
+html.glass .plan-card>svg.i{opacity:0;transition:opacity var(--duration-fast) var(--ease-out)}
+html.glass .plan-card:is(:hover,:focus-visible,.cur)>svg.i{opacity:1}
+.pc-bk{margin:0;flex:none;align-self:flex-start;margin-top:6px}
+html.glass .plan-foot{margin:auto 6px 0;border-top-color:var(--color-line)}
+html.glass{--term-bg:#FBFBFA}
+html.glass[data-theme="night"]{--term-bg:#252526}
+html.glass .drawer{left:8px;right:8px;bottom:8px;border:0;border-radius:12px;overflow:hidden;background:var(--term-bg);box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 18px 44px -14px rgba(0,0,0,.4)}
+html.glass .drawer::before{display:none}
+html.glass .drawer-empty{background:var(--term-bg)}
+html.glass .drawer-head{border-bottom-color:var(--color-line)}
+html.glass .termcard .xterm-viewport::-webkit-scrollbar-thumb{border-color:var(--term-bg)}
+/* ---------- diagrams on the glass (6 Nov, Edison: "ugly, not on theme"): no solid box and no drop shadows; nodes are faint ink
+   glass with a hairline and soft corners, lines and arrows in the tertiary ink, words in the metal ink. Mermaid writes its own
+   colours into an id-scoped style, hence !important. ---------- */
+html.glass #session .codeblock:has(>.mermaid){background:var(--glass-field);box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim)}
+html.glass #session .codeblock .mermaid{background:transparent;padding:18px 12px}
+html.glass #session .mermaid svg :is(.node rect,.node polygon,.node circle,.node ellipse,.node path,.cluster rect,rect.actor,.note rect,rect.note,.statediagram-state rect){fill:color-mix(in srgb,var(--color-ink) 6%,transparent)!important;stroke:color-mix(in srgb,var(--color-ink) 20%,transparent)!important;stroke-width:1px!important;filter:none!important}
+html.glass #session .mermaid svg .node rect{rx:8px;ry:8px}
+html.glass #session .mermaid svg :is(.flowchart-link,.edgePath path,.relation,.messageLine0,.messageLine1,.actor-line,.transition,.loopLine){stroke:color-mix(in srgb,var(--color-ink) 42%,transparent)!important;stroke-width:1.2px!important}
+html.glass #session .mermaid svg :is(marker path,.arrowheadPath,.arrowMarkerPath){fill:color-mix(in srgb,var(--color-ink) 42%,transparent)!important;stroke:none!important}
+html.glass #session .mermaid svg :is(.nodeLabel,.edgeLabel,.label,text,span,p){color:var(--color-ink)!important;fill:var(--color-ink)!important}
+html.glass #session .mermaid svg :is(.edgeLabel,.edgeLabel p,.labelBkg){background:transparent!important;background-color:transparent!important}
+html.glass #session .mermaid svg .edgeLabel rect{fill:transparent!important}
+html.glass #session .mermaid svg *{filter:none!important}
+
+/* Cmd-K, calmer and with some life (6 Nov, Edison: grey icons "lack a bit of life", and the list "still reads as busy"): a
+   subject's icon is its colour, a bare glyph with no tile; a row's shortcut and its why-line show only on the row you're on
+   (the next step keeps its line), so the list at rest is one column of names. */
+.palette .item>svg.i{transition:color var(--duration-fast) var(--ease-out)}
+.palette .item.subj>svg.i{color:var(--c)}
+.palette .item.sel:not(.subj)>svg.i{color:var(--color-ink)}
+.palette .item:not(.sel):not(.lead) :is(.why,.keys){opacity:0}
+.palette .item :is(.why,.keys){transition:opacity var(--duration-fast) var(--ease-out)}
+/* The plan panel's open and close (7 Nov, Edison: "moves kind of fast", then the both-ends ease read as "laggy": it
+   sat still for the first 90 ms). 320 ms that leaves at once and settles slowly, content fading a beat behind */
+.window.plan-move{transition:grid-template-columns 320ms cubic-bezier(.32,.72,0,1)}
+.window.snap,.window.snap .plan{transition:none!important}
+.window.plan-move .plan{transition:opacity 280ms var(--ease-out)}
+.window.plan-move.planned .plan{transition-delay:60ms}
+/* The close-out card (7 Nov): the quit card's shape, with one line on what it does */
+.quit-card .qc-p{margin:8px 0 0;font:var(--type-ui);color:var(--color-ink-2);text-wrap:pretty}
+/* The subject menu's recent subjects wear their colour the way Cmd-K does: the glyph only, no tile (7 Nov) */
+.menu .menu-item.subj>svg.i{color:var(--c)}
+/* The skill map on the glass (7 Nov, Edison: "old style, box in a box"). No inner dark card, no dots, no glow: the map
+   sits on the panel like the session's thread, and fades out under the header as it pans. Cards are glass fields with
+   the Skills bricks; the skill up next is the lit card; untaught skills are quieter, not dashed. */
+html.glass .mapwrap.space{inset:0;border:0;border-radius:0;background:transparent;background-image:none;-webkit-mask-image:linear-gradient(180deg,transparent 0,transparent 52px,#000 92px);mask-image:linear-gradient(180deg,transparent 0,transparent 52px,#000 92px)}
+html.glass .mapwrap .map-glow{display:none}
+html.glass .mapwrap #mapEdges{stroke:color-mix(in srgb,var(--color-ink) 22%,transparent)!important}
+html.glass .mapwrap .node{background:color-mix(in srgb,var(--glass-field) 70%,transparent);border:0;border-radius:10px;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim);padding:11px 13px;gap:11px}
+html.glass .mapwrap .node.upn{background:var(--glass-field);box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 1px color-mix(in srgb,var(--color-ink) 30%,transparent),0 10px 28px -16px rgba(0,0,0,.35)}
+html.glass .mapwrap .node.not{background:transparent;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--color-ink) 22%,transparent)}
+html.glass .mapwrap .node b{font-weight:500}
+.nd-bk{margin:0;flex:none;margin-top:6px}
+html.glass .mapctl{padding:3px}
+html.glass .mapctl .btn:not(.text){background:var(--color-selected);color:var(--color-ink);margin-left:4px}
+html.glass .mapctl .btn:not(.text):hover{background:color-mix(in srgb,var(--color-ink) 14%,transparent)}
+/* Progress on the glass, one column (7 Nov) */
+.prog2{max-width:var(--reading-max);margin:0 auto;padding:84px 24px 80px}
+.prog2 .pg-head{display:flex;align-items:flex-end;gap:16px}
+.prog2 .pg-head>div{flex:1;min-width:0}
+.prog2 .pg-sub{margin-top:6px;font:var(--type-ui);color:var(--color-ink-2)}
+.prog2 .pg-go{flex:none;height:40px;padding:0 20px;font-size:13.5px}   /* Home's button: the page's one action (7 Nov: the grey pill looked "basic") */
+.prog2 .pg-rows{margin-top:28px;display:flex;flex-direction:column}
+.prog2 .pg-row{display:flex;align-items:flex-start;gap:14px;padding:11px 0;border-top:.5px solid var(--color-line)}
+.prog2 .pg-row:last-child{border-bottom:.5px solid var(--color-line)}
+.prog2 .pg-bk{margin:0;flex:none;margin-top:7px}
+.prog2 .pg-name{flex:1;min-width:0}
+.prog2 .pg-name b{display:block;font:var(--type-ui);font-weight:500;color:var(--color-ink)}
+.prog2 .pg-name span{display:block;margin-top:3px;font:var(--type-caption);color:var(--color-ink-2)}
+.prog2 .pg-row.not .pg-name b{color:var(--color-ink-3);font-weight:400}
+.prog2 .pg-when{flex:none;font:var(--type-caption);color:var(--color-ink-3);margin-top:2px;font-variant-numeric:tabular-nums}
+.prog2 .pg-row.now .pg-when{color:var(--color-ink)}
+.prog2 .pg-row.due .pg-when{color:#E2602A}
+html[data-theme="night"] .prog2 .pg-row.due .pg-when{color:#FF8A3D}
+.prog2 .pg-sec{margin-top:36px}
+/* the page scrolls under the header and fades there, like the thread (7 Nov: the title ran over the header) */
+html.glass #screen:has(> .prog2){-webkit-mask-image:linear-gradient(180deg,transparent 0,transparent 56px,#000 100px);mask-image:linear-gradient(180deg,transparent 0,transparent 56px,#000 100px)}
+.prog2 .pg-row{position:relative;border-radius:0}
+.prog2 .pg-tip{position:absolute;left:30px;top:calc(100% - 2px);z-index:3;max-width:420px;padding:10px 12px;border-radius:10px;background:var(--glass-float,var(--color-surface));box-shadow:inset 0 0 0 .5px var(--glass-rim,var(--color-line)),0 10px 28px -12px rgba(0,0,0,.4);opacity:0;transform:translateY(-3px);pointer-events:none;transition:opacity 140ms var(--ease-out),transform 140ms var(--ease-out)}
+html.glass[data-theme="night"] .prog2 .pg-tip{background:#252526}
+html.glass:not([data-theme="night"]) .prog2 .pg-tip{background:#FBFBFA}
+.prog2 .pg-row:hover .pg-tip{opacity:1;transform:none;transition-delay:280ms}
+.prog2 .pg-tip p{margin:0;font:var(--type-ui);color:var(--color-ink);text-wrap:pretty}
+.prog2 .pg-tip span{display:block;margin-top:4px;font:var(--type-caption);color:var(--color-ink-3)}
+.prog2 .pg-tip p+span{margin-top:6px}
+.prog2 .pg-extra{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows 300ms cubic-bezier(.32,.72,0,1),opacity 200ms var(--ease-out)}
+.prog2 .pg-extra>div{overflow:hidden;min-height:0}
+.prog2 .pg-extra.open{grid-template-rows:1fr;opacity:1}
+.prog2 .pg-extra .check-list{margin-top:0}
+.prog2 .pg-more{display:inline-flex;align-items:center;gap:4px;margin:6px 0 0 20px;padding:2px 0;font:var(--type-ui);color:var(--color-ink-3);background:none;transition:color var(--duration-fast) var(--ease-out)}
+.prog2 .pg-more:hover{color:var(--color-ink)}
+.prog2 .pg-more svg.i{width:13px;height:13px;transition:transform 300ms cubic-bezier(.32,.72,0,1)}
+.prog2 .pg-more.open svg.i{transform:rotate(180deg)}
+
+/* Questions (7 Nov): a chat of its own for a question asked from Home. The thread is the session's (same bubbles, same
+   reply type), with its own field at the foot, shaped like Home's. */
+.qchat{position:absolute;inset:0;display:flex;flex-direction:column}
+.q-scroll{flex:1;min-height:0;overflow-y:auto}
+.q-thread{padding-bottom:32px}
+.q-err{margin:10px 0;font:var(--type-ui);color:var(--color-ink-2)}
+.q-dock{flex:none;padding:8px 24px 18px}
+.q-field{max-width:var(--reading-max);margin:0 auto;gap:10px;padding:12px 12px 12px 20px;border-radius:14px;view-transition-name:field}   /* Home's field glides into it, as into a session's (styles.css "share one view-transition name") */
+.q-row{display:flex;align-items:flex-end;gap:10px}
+.q-scroll{view-transition-name:q-thread}   /* its own name: the session's hidden thread still holds "thread" */
+::view-transition-new(q-thread){animation:vt-in 220ms ease 200ms both}
+::view-transition-old(q-thread){animation:vt-out 160ms ease both}
+.q-field .attach{padding-top:2px}
+.q-side{position:relative}
+.q-side .nav-row{padding-right:34px}
+.q-arch{position:absolute;right:6px;top:50%;translate:0 -50%;width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:var(--color-ink-3);opacity:0;transition:opacity var(--duration-fast) var(--ease-out),background var(--duration-fast) var(--ease-out)}
+.q-side:hover .q-arch,.q-arch:focus-visible{opacity:1}
+.q-arch:hover{color:var(--color-ink);background:color-mix(in srgb,var(--color-ink) 8%,transparent)}
+.toast .btn.text{height:26px;padding:0 8px;font:600 13px/1 var(--font-sans);color:var(--color-ink)}
+.q-field textarea{flex:1;min-width:0;border:0;outline:0;background:none;resize:none;font:400 15px/22px var(--font-sans);color:var(--color-ink);padding:4px 0;max-height:200px}
+.q-field textarea::placeholder{color:var(--color-ink-3)}
+.q-field .send{width:32px;height:32px;border-radius:var(--radius-button)}
+.q-field .send[data-act="question-stop"]{background:var(--color-surface);color:var(--color-ink);box-shadow:inset 0 0 0 1px var(--color-line-strong)}
+html.glass .q-field{background:var(--glass-field);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 8px 24px -12px rgba(0,0,0,.18)}
+html.glass .q-field:focus-within{box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 1px color-mix(in srgb,var(--color-ink) 22%,transparent),0 8px 24px -12px rgba(0,0,0,.18)}
+html.glass .q-scroll{-webkit-mask-image:linear-gradient(180deg,transparent 0,transparent 56px,#000 100px,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(180deg,transparent 0,transparent 56px,#000 100px,#000 calc(100% - 24px),transparent)}
+html.glass .qchat .codeblock{background:color-mix(in srgb,var(--color-ink) 4%,transparent)}
+
+/* Home's field holds pasted screenshots before the words (7 Nov). */
+.h-att{display:none;gap:6px;flex:none}
+.h-att.on{display:flex}
+.att.sm{width:36px;height:36px;border-radius:8px}
+.att.sm button{top:-1px;right:-1px;width:16px;height:16px}
+.att.sm button svg.i{width:10px;height:10px}
+.att img,.bubble .shots img{cursor:zoom-in}
+/* A screenshot, full size: the page dims behind it; it eases up from a touch smaller. */
+.viewer{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:48px;background:rgba(0,0,0,.55);opacity:0;transition:opacity 180ms var(--ease-out);cursor:zoom-out}
+.viewer.on{opacity:1}
+.viewer img{max-width:100%;max-height:100%;border-radius:10px;box-shadow:0 24px 64px -16px rgba(0,0,0,.5);scale:.96;transition:scale 240ms cubic-bezier(.32,.72,0,1)}
+.viewer.on img{scale:1}
+.viewer .v-x{position:absolute;top:16px;right:16px;color:#fff;background:rgba(255,255,255,.12);border-radius:var(--radius-button);width:32px;height:32px}
+@media (prefers-reduced-motion: reduce){.viewer img{transition:none;scale:1}}
+
+/* Questions in the one list (7 Nov): a question keeps no record, so its name sits in a lighter ink than a subject's. */
+.q-row-side .lbl{color:var(--color-ink-2)}
+.q-row-side.on .lbl,.q-row-side:hover .lbl{color:var(--color-ink)}
+/* The offer to turn a question into a lesson: the composer's material, under the reply that made it. */
+.q-offer{margin:18px 0 8px;padding:16px 18px;border-radius:14px;border:1px solid var(--color-line-strong);background:var(--color-surface);animation:enter var(--duration-message) var(--ease-out);transition:opacity 180ms var(--ease-out),translate 180ms var(--ease-out)}
+.q-offer.out{opacity:0;translate:0 4px}
+.qo-t{font:600 14px/20px var(--font-sans);color:var(--color-ink)}
+.qo-p{margin-top:4px;font:var(--type-ui);color:var(--color-ink-2)}
+.qo-p b{color:var(--color-ink);font-weight:500}
+.qo-b{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+html.glass .q-offer{background:var(--glass-field);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 8px 24px -12px rgba(0,0,0,.18)}
+.q-setup{display:flex;align-items:center;gap:10px;margin:18px 0 8px;font:var(--type-ui);color:var(--color-ink-2);animation:enter var(--duration-message) var(--ease-out)}
+.q-setup .spin{width:10px;height:10px;border-radius:50%;border:1.6px solid currentColor;border-right-color:transparent;animation:spin .9s linear infinite;flex:none}
+.q-setup .btn.text{height:24px;padding:0 6px}
+/* 7 Nov (Edison): the list's heading and its names sat indented past the icons above them; they now start at the
+   icons' edge, as a list's names do under its nav. The list still scrolls, with no bar (the fade at its foot says
+   there is more). */
+.nav-row.ix{padding-left:15px}
+.side-label.ix{margin-left:15px}
+.side-scroll{scrollbar-width:none}
+.side-scroll::-webkit-scrollbar,.side-scroll:hover::-webkit-scrollbar{width:0;display:none}
+/* The lesson card's two answers: one height, one shape, centred on one line. */
+.qo-b{align-items:center}
+.qo-b .btn{height:36px;padding:0 18px}
+.qo-b .btn.text{border-radius:var(--radius-button);color:var(--color-ink-2)}
+/* The tutor's question, answered in the thread (7 Nov, Edison: the old cards didn't work and "don't match the vibe"):
+   the composer's glass with no bright ring, rows that light on hover, a soft fill for the one you chose, and a field
+   for your own words. The number keys belonged to the terminal, so they go. */
+.question.answerable{border-color:var(--color-line-strong);box-shadow:none}
+html.glass #session .question.answerable{box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 8px 24px -12px rgba(0,0,0,.18)}
+.question.answerable .option{cursor:pointer;text-align:left;transition:background var(--duration-fast) var(--ease-out),border-color var(--duration-fast) var(--ease-out)}
+.question.answerable .option kbd{display:none}
+.question.answerable .option:hover{background:color-mix(in srgb,var(--color-ink) 6%,transparent)}
+.question.answerable .option.sel{border-color:color-mix(in srgb,var(--color-ink) 30%,transparent);background:color-mix(in srgb,var(--color-ink) 9%,transparent);box-shadow:none}
+.question.answerable .option.sel .radio{border:4px solid var(--color-ink)}
+.question.answerable .option:active{transform:scale(.99)}
+.option.other{cursor:text}
+.option.other input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;color:var(--color-ink);padding:0}
+.option.other input::placeholder{color:var(--color-ink-3)}
+.option.other:focus-within{border-color:color-mix(in srgb,var(--color-ink) 30%,transparent)}
+.pick-go{display:flex;justify-content:flex-end;margin-top:14px}
+.pick-go .btn{height:36px;padding:0 18px}
+/* The terminal slides as one finished layer (7 Nov, Edison: closing felt laggy). Its text is drawn as page elements, so
+   without its own layer a real screen could redraw all of it on every frame of the slide. Closing at 180 ms on a
+   steep curve then read as "too quick"; it now takes 260 ms on the gentle ease-out. */
+.drawer{will-change:transform;contain:layout paint}
+.drawer:not(.on){transition:transform 260ms var(--ease-out),visibility 0s 260ms}
+.option.other input:focus,.option.other input:focus-visible{outline:none;box-shadow:none}
+#session .pick-go .btn:not(:disabled){background:var(--color-action);color:var(--color-action-ink);border:0}
+#session .pick-go .btn:disabled{background:color-mix(in srgb,var(--color-ink) 8%,transparent);color:var(--color-ink-3);border:0}
+/* A chosen answer (7 Nov, Edison: "I don't like this dot selection"): no radio dots. A row lifts to a soft fill and
+   takes a small check at its right edge; your own words sit in a plain field. */
+.question.answerable .option .radio{display:none}
+.question.answerable .option{position:relative;padding-right:40px}
+.question.answerable .pick-check{position:absolute;right:14px;top:50%;translate:0 -50%;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--color-ink);color:var(--color-surface);opacity:0;scale:.6;transition:opacity 160ms var(--ease-out),scale 200ms cubic-bezier(.32,.72,0,1)}
+.question.answerable .pick-check svg.i{width:12px;height:12px;stroke-width:2.4}
+.question.answerable .option.sel .pick-check{opacity:1;scale:1}
+.question.answerable .option.sel{border-color:transparent;background:color-mix(in srgb,var(--color-ink) 10%,transparent)}
+.question.answerable .option.other{padding-left:14px}
+.question.answerable .option.other.sel{background:transparent;border-color:color-mix(in srgb,var(--color-ink) 30%,transparent)}
+.side-empty{padding:4px 15px;line-height:18px}   /* lines up with the list's heading (7 Nov alignment) */
+.start-card .qc-p{margin-top:6px}
+.start-card .start-in{width:100%;margin-top:14px;height:40px;padding:0 14px;border-radius:10px;font:400 14.5px/22px var(--font-sans)}
+.start-card .start-in:focus{border-color:color-mix(in srgb,var(--color-ink) 30%,transparent);box-shadow:none;outline:none}
+/* Home on a big window (Edison, 9 Nov, on the 27": "a little bit small"). The words and the space between them grow;
+   the field keeps its size and the column its width, so the glide into a session's composer is the same move. */
+@media (min-width:1700px){
+  .home2 .h-head{font-size:40px;letter-spacing:-.022em}
+  .home2 .h-sub{margin-top:10px;font-size:17px;line-height:25px}
+  .home2 .h-go{margin:28px 0 34px}
+  .home2 .h-go .btn{height:44px;padding:0 22px;font-size:14.5px}
+  .home2 .h-also{margin-top:42px;grid-template-columns:84px max-content minmax(0,1fr) auto}
+  .home2 .h-row{min-height:46px;font-size:14.5px;line-height:20px}
+  .home2 .h-l,.home2 .h-c{font-size:13.5px}
+}
+/* How sure: one highlight that slides between choices, on the drawer's spring. The labels keep one weight, so a pick
+   never shifts their widths under the highlight. */
+.cc-sure{position:relative}
+.cc-sure button{position:relative;z-index:1;font-weight:400;transition:color 160ms var(--ease-out)}
+.cc-sure button.on{background:none;box-shadow:none;font-weight:400}
+.seg-thumb{position:absolute;top:2px;bottom:2px;left:0;width:0;border-radius:7px;background:var(--color-surface);box-shadow:0 0 0 1px var(--color-line-strong);opacity:0;scale:.92;pointer-events:none;transition:transform 300ms cubic-bezier(.32,.72,0,1),width 300ms cubic-bezier(.32,.72,0,1),opacity 140ms var(--ease-out),scale 220ms cubic-bezier(.32,.72,0,1)}
+.seg-thumb.on{opacity:1;scale:1}
+.seg-thumb.still{transition:none}
+
+/* 9 Nov. Question cards: no dots, and a pick is a soft fill with a check, on every card (Edison: the white ring on a
+   picked answer looked like a focused text box). Answered, a card folds to one line per question. */
+.question .option .radio{display:none}
+.question .option{position:relative}
+.question:not(.waiting) .option kbd{display:none}
+.question:not(.waiting) .option{padding-right:40px}
+.question .option.sel{border-color:transparent;background:color-mix(in srgb,var(--color-ink) 10%,transparent);box-shadow:none}
+.question .pick-check{position:absolute;right:14px;top:50%;translate:0 -50%;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--color-ink);color:var(--color-surface);opacity:0;scale:.6;transition:opacity 160ms var(--ease-out),scale 200ms cubic-bezier(.32,.72,0,1)}
+.question .pick-check svg.i{width:12px;height:12px;stroke-width:2.4}
+.question .option.sel .pick-check{opacity:1;scale:1}
+.question:not(.waiting):not(.answerable) .option:not(.sel){color:var(--color-ink-2)}
+.question.folded{display:flex;flex-direction:column;gap:6px;width:100%;padding:12px 16px;text-align:left;cursor:pointer;transition:background var(--duration-fast) var(--ease-out)}
+@media (hover:hover) and (pointer:fine){html #session .question.folded:hover{background:color-mix(in srgb,var(--color-ink) 7%,var(--glass-field,var(--color-surface)))}}
+.question.folded:active{transform:scale(.995)}
+.qf-row{display:flex;gap:14px;align-items:baseline;min-width:0;font:var(--type-ui);font-size:13.5px;line-height:19px}
+.qf-q{flex:1;min-width:0;color:var(--color-ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qf-a{flex:none;max-width:55%;color:var(--color-ink);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qf-a.none{color:var(--color-ink-3);font-weight:400}
+.qf-q p,.qf-a p{display:inline;margin:0}
+.qf-q :is(strong,b){font-weight:inherit}
+.question .option.typed{white-space:pre-wrap}
+#session .pick-go .btn.neutral{height:30px;padding:0 14px;background:none;color:var(--color-ink-2);box-shadow:inset 0 0 0 1px var(--color-line-strong);border:0}
+/* A check card's answer field, clicked into: the caret says where you are, so the border only deepens a little, as Start
+   a subject's field does. It had the app's focus ring on top of a full-ink border, two white rings (Edison, 9 Nov:
+   "in your face and not subtle"). */
+.cc-field:focus,.cc-field:focus-visible{border-color:color-mix(in srgb,var(--color-ink) 30%,transparent);box-shadow:none;outline:none}
+/* An opened answered card folds again when clicked anywhere on it. */
+.question.refold{cursor:pointer}
+/* Home: Start a subject, a quiet word beside the tutor's pick (Edison, 9 Nov). */
+.home2 .h-go{display:flex;align-items:center;gap:18px}
+.home2 .h-new{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;margin-left:-4px;border-radius:var(--radius-button);font:400 13.5px/18px var(--font-sans);color:var(--color-ink-2);transition:color var(--duration-fast) ease,background var(--duration-fast) ease}
+.home2 .h-new svg.i{width:14px;height:14px;color:var(--color-ink-3)}
+@media (hover:hover) and (pointer:fine){.home2 .h-new:hover{color:var(--color-ink);background:var(--color-selected)}}
+@media (min-width:1700px){.home2 .h-new{font-size:14.5px;height:36px}}
+/* A demo is read at the card's full width (learn/system/demos.md, "Fit the card"). */
+.figure.demo{max-width:min(100%,760px);width:100%;margin:12px 0}
+/* A figure's ink follows the app's theme, not the Mac's: an SVG in an <img> reads prefers-color-scheme from the
+   image's color-scheme (measured 10 Nov, Electron 45), so night labels stay light on night glass with the Mac in light
+   mode. A demo has no plate (demos.md, "No background"), so it sits on the glass with no rim. */
+.figure{color-scheme:light}
+html[data-theme="night"] .figure{color-scheme:dark}
+
+/* ---------- the stone (10 Nov 2026) ----------
+   The stone picked in Settings (stone.js) tints every sheet of glass and colours your laid bricks. --stone-tone is the
+   stone's light tone by day and a deepened dark tone at night, so quiet text keeps 4.5:1 on every stone (measured as
+   solid colour). Strengths follow the Settings sample Edison approved (tint strength 3). Orange, due and repair keep their
+   own colours, and subject colours are untouched. */
+/* the frame: one tinted sheet over macOS's glass, under everything; the sidebar shows it as it is */
+html.glass[data-stone] body{background:color-mix(in srgb,var(--stone-tone) 10%,transparent)}
+html.glass[data-stone][data-theme="night"] body{background:color-mix(in srgb,var(--stone-tone) 18%,transparent)}
+/* each sheet keeps its own opacity; its colour takes some of the stone */
+html.glass[data-stone]{--glass-panel:color-mix(in srgb,color-mix(in srgb,#FFFFFF 45%,var(--stone-tone)) 26%,transparent);--glass-field:color-mix(in srgb,color-mix(in srgb,#FFFFFF 74%,var(--stone-tone)) 62%,transparent);--glass-float:color-mix(in srgb,color-mix(in srgb,var(--color-surface) 74%,var(--stone-tone)) 82%,transparent);--term-bg:color-mix(in srgb,#FBFBFA 82%,var(--stone-tone));--stone-sheet:color-mix(in srgb,color-mix(in srgb,#FBFBFA 74%,var(--stone-tone)) 96%,transparent);--stone-pill:color-mix(in srgb,color-mix(in srgb,#FFFFFF 78%,var(--stone-tone)) 62%,transparent)}
+html.glass[data-stone][data-theme="night"]{--glass-panel:color-mix(in srgb,color-mix(in srgb,#0C0C10 50%,var(--stone-tone)) 20%,transparent);--glass-field:color-mix(in srgb,color-mix(in srgb,#08080C 56%,var(--stone-tone)) 30%,transparent);--glass-float:color-mix(in srgb,color-mix(in srgb,var(--color-surface) 56%,var(--stone-tone)) 80%,transparent);--term-bg:color-mix(in srgb,#252526 70%,var(--stone-tone));--stone-sheet:color-mix(in srgb,color-mix(in srgb,#252526 56%,var(--stone-tone)) 96%,transparent);--stone-pill:rgba(255,255,255,.10)}
+html.glass[data-stone] :is(.palette,.sheet,.quit-card),html.glass[data-stone] .prog2 .pg-tip{background:var(--stone-sheet)}
+html.glass[data-stone] :is(.nav-row.on,.tabs .ind,.tabs:not(:has(.ind)) button.on){background:var(--stone-pill)}
+/* laid bricks: the same clear glass with its lit top edge, carrying the stone (Session header, Progress, plan, map, Skills) */
+html.glass[data-stone] .s-bond i:not(.due):not(.now):not(.not),html.glass[data-stone] .sk .mk u.laid{background:linear-gradient(180deg,color-mix(in srgb,var(--stone-brick) var(--bk1),rgba(255,255,255,.62)),color-mix(in srgb,var(--stone-brick) var(--bk2),rgba(255,255,255,.22)));box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 .5px rgba(25,26,27,.14),0 1px 2px rgba(30,34,42,.14)}
+html.glass[data-stone][data-theme="night"] .s-bond i:not(.due):not(.now):not(.not),html.glass[data-stone][data-theme="night"] .sk .mk u.laid{background:linear-gradient(180deg,color-mix(in srgb,var(--stone-brick) var(--bk1),rgba(244,246,255,.55)),color-mix(in srgb,var(--stone-brick) var(--bk2),rgba(232,236,248,.30)));box-shadow:inset 0 1px 0 rgba(250,252,255,.9),inset 0 0 0 .5px rgba(248,250,255,.45),0 0 8px color-mix(in srgb,var(--stone-brick) 30%,transparent)}
+html.glass[data-stone] .sk-float .mk.mini u.laid{background:var(--stone-brick)}
+/* Settings: the eight stones as their own icons; the ring hugs the tile, not the icon's margin */
+.stones{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 8px;margin-top:10px}
+.stone{display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0;border-radius:10px}
+.stone .st-tile{position:relative;width:46px;height:46px;border-radius:11px}
+.stone img{position:absolute;left:-5.5px;top:-5.5px;width:57px;height:57px}
+.stone .lab{font:var(--type-caption);color:var(--color-ink-2)}
+.stone:hover .lab{color:var(--color-ink)}
+.stone.on .st-tile,.stone:focus-visible .st-tile{box-shadow:0 0 0 2px var(--color-surface),0 0 0 4px var(--color-action)}
+.stone:focus-visible{outline:none}
+.stone.on .lab{color:var(--color-ink);font-weight:700}
+/* the sidebar's captions sit straight on the tinted frame: a step darker by day and lighter at night, so they keep 4.5:1
+   on every stone (estimated over macOS's plain glass: worst 4.80 by day, Maple; 4.9 at night, Snow) */
+/* the field and the composer on a stone (10 Nov, Edison: "weird chat box glow for each of the different colors"): the
+   white rim and grey drop shadow made for a white field ringed a tinted one in light. By day the rim is a hairline of
+   the stone itself and the shadow takes the stone's brick colour, so the field sits in the tint instead of glowing. */
+html.glass[data-stone]:not([data-theme="night"]){--glass-edge:color-mix(in srgb,color-mix(in srgb,#FFFFFF 60%,var(--stone-tone)) 70%,transparent);--glass-rim:color-mix(in srgb,var(--stone-brick) 22%,transparent);--stone-drop:0 6px 18px -12px color-mix(in srgb,var(--stone-brick) 34%,transparent)}
+html.glass[data-stone] :is(.home2 .h-field,#session .composer){background-clip:padding-box}   /* its clear border showed the fill as a pale ring outside the hairline */
+html.glass[data-stone]:not([data-theme="night"]) :is(.home2 .h-field,#session .composer){box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),var(--stone-drop)}
+html.glass[data-stone]:not([data-theme="night"]) :is(.home2 .h-field,#session .composer,.q-field):focus-within{box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),var(--stone-drop)}
+/* Settings at the foot of the sidebar (10 Nov, Edison: "there isn't a settings button") */
+.side-end{flex:none;padding-top:6px}
+/* the send button on a stone (10 Nov, Edison picked C of three: "I like C the most", on Home's field too): a faint circle
+   of the stone with the arrow in its deep shade, one shape on Home and in a session. Arrow on its circle, measured as
+   solid colour: worst 4.19:1 by day (Sakura), 4.45:1 at night (Maple). Stop and Interrupt keep their own look. */
+html.glass[data-stone] .send:not([data-act="interrupt"]):not([data-act="question-stop"]){--send-ink:color-mix(in srgb,var(--stone-brick) 70%,black);width:32px;height:32px;border-radius:var(--radius-button);background:color-mix(in srgb,var(--stone-brick) 16%,transparent);color:var(--send-ink);box-shadow:none}
+html.glass[data-stone][data-theme="night"] .send:not([data-act="interrupt"]):not([data-act="question-stop"]){--send-ink:color-mix(in srgb,var(--stone-brick) 80%,white);background:color-mix(in srgb,var(--stone-brick) 22%,transparent)}
+html.glass[data-stone] .send:not([data-act="interrupt"]):not([data-act="question-stop"]):not(:disabled):hover{background:color-mix(in srgb,var(--stone-brick) 26%,transparent)}
+html.glass[data-stone] .send:not([data-act="interrupt"]):not([data-act="question-stop"]):disabled{background:color-mix(in srgb,var(--stone-brick) 8%,transparent);color:color-mix(in srgb,var(--send-ink) 40%,transparent)}
+html.glass[data-stone] #session .composer-row .send{width:32px;height:32px}
+
+/* the stone reaches the ink (10 Nov, Edison: Home "doesn't have the right contrast and the colors are off... everything
+   surrounding the app should compliment that specific color palette", on every stone and every screen). Text is a deep
+   shade of the stone instead of grey and black; quiet text keeps 4.5:1 on the four stones measured. Lines take the stone
+   too, so no grey hairline sits on a tinted sheet. Orange and status colours stay their own. */
+html.glass[data-stone]:not([data-theme="night"]),html.glass[data-stone]:not([data-theme="night"]) #session,html.glass[data-stone]:not([data-theme="night"]) :is(.islands,.mapwrap,.mapctl,.palette,.menu,.sheet,.quit-card,.plan,.sidebar){--color-ink:color-mix(in srgb,var(--stone-brick) 30%,#0E0F12);--color-read:var(--color-ink);--color-ink-2:color-mix(in srgb,var(--stone-brick) 42%,#1C1D22);--color-ink-3:color-mix(in srgb,var(--stone-brick) 42%,#26282D);--color-line:color-mix(in srgb,var(--stone-brick) 14%,transparent);--color-line-strong:color-mix(in srgb,var(--stone-brick) 24%,transparent);--stone-focus:color-mix(in srgb,var(--stone-brick) 34%,transparent)}
+html.glass[data-stone][data-theme="night"],html.glass[data-stone][data-theme="night"] #session,html.glass[data-stone][data-theme="night"] :is(.islands,.mapwrap,.mapctl,.palette,.menu,.sheet,.quit-card,.plan,.sidebar){--color-ink:color-mix(in srgb,var(--stone-brick) 18%,#F3F1EE);--color-read:var(--color-ink);--color-ink-2:color-mix(in srgb,var(--stone-brick) 28%,#DEDBD7);--color-ink-3:color-mix(in srgb,var(--stone-brick) 36%,#BEBAB6);--color-line:color-mix(in srgb,color-mix(in srgb,var(--stone-brick) 30%,white) 10%,transparent);--color-line-strong:color-mix(in srgb,color-mix(in srgb,var(--stone-brick) 30%,white) 17%,transparent);--stone-focus:color-mix(in srgb,var(--stone-brick) 32%,transparent);--stone-drop:0 8px 24px -12px rgba(0,0,0,.18)}
+/* the sidebar sits on the thinner frame, over the wallpaper: its quiet text a step deeper (worst 4.61:1, Sakura, over the test wallpaper) */
+html.glass[data-stone]:not([data-theme="night"]) .sidebar{--color-ink-3:color-mix(in srgb,var(--stone-brick) 30%,#24262B)}
+/* a focused field looks the same as a resting one (10 Nov, Edison: "I don't like the subtle outline that happens when I'm
+   selected within the textbox"); the caret shows where you are typing */
+html.glass[data-stone] :is(.home2 .h-field,#session .composer,.q-field):focus-within{box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),var(--stone-drop)}
+html.glass[data-stone] .mapwrap .node.upn{box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 1px var(--stone-focus),0 10px 28px -16px rgba(0,0,0,.3)}
+/* buttons are glass (10 Nov, Edison picked E of five: a flat fill "feels flat and doesn't feel glassy", a glossy one
+   "too gamy and not refined"): a clear sheet with a lit top edge, a hairline of the stone and a small soft shadow. The
+   main button keeps its weight through its bold label; a quieter one is the same glass, thinner. */
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral){color:var(--color-ink);background:linear-gradient(180deg,rgba(255,255,255,.50),rgba(255,255,255,.34));-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.75),inset 0 0 0 .5px color-mix(in srgb,var(--stone-brick) 24%,transparent),0 1px 2px color-mix(in srgb,var(--stone-brick) 10%,transparent),0 4px 14px -8px color-mix(in srgb,var(--stone-brick) 30%,transparent)}
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral):hover:not(:disabled){background:linear-gradient(180deg,rgba(255,255,255,.64),rgba(255,255,255,.46))}
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral):active:not(:disabled){background:linear-gradient(180deg,rgba(255,255,255,.40),rgba(255,255,255,.28))}
+html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral){color:var(--color-ink);background:linear-gradient(180deg,rgba(255,255,255,.11),rgba(255,255,255,.06));-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 0 0 .5px rgba(255,255,255,.12),0 4px 14px -8px rgba(0,0,0,.45)}
+html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral):hover:not(:disabled){background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.10))}
+html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral):active:not(:disabled){background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.04))}
+html.glass[data-stone] .btn:not(.text):not(.neutral):disabled{background:color-mix(in srgb,var(--stone-brick) 8%,transparent);color:var(--color-ink-3);box-shadow:inset 0 0 0 .5px var(--color-line)}
+html.glass[data-stone]:not([data-theme="night"]) :is(.btn.neutral,.home2 .pill){border-color:transparent;background:linear-gradient(180deg,rgba(255,255,255,.46),rgba(255,255,255,.30));box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 0 0 .5px color-mix(in srgb,var(--stone-brick) 22%,transparent),0 3px 10px -7px color-mix(in srgb,var(--stone-brick) 30%,transparent)}
+html.glass[data-stone][data-theme="night"] :is(.btn.neutral,.home2 .pill){border-color:transparent;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.05));box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 0 0 .5px rgba(255,255,255,.10)}
+html.glass[data-stone] :is(.btn.neutral,.home2 .pill):hover:not(:disabled){background:linear-gradient(180deg,rgba(255,255,255,.58),rgba(255,255,255,.40))}
+html.glass[data-stone][data-theme="night"] :is(.btn.neutral,.home2 .pill):hover:not(:disabled){background:linear-gradient(180deg,rgba(255,255,255,.15),rgba(255,255,255,.09))}
+/* Home's rows part on a white seam of glass, not a dark line (10 Nov, Edison picked G: the grey outlines "just feel not as good") */
+html.glass[data-stone]:not([data-theme="night"]) .home2 .h-row.g::before{border-top:1px solid rgba(255,255,255,.55);box-shadow:0 -1px 0 color-mix(in srgb,var(--stone-brick) 7%,transparent)}
+html.glass[data-stone][data-theme="night"] .home2 .h-row.g::before{border-top:1px solid rgba(255,255,255,.07)}
+/* Home shows no scroll bar (10 Nov, Edison: "I dont like the scroll bar on home"); it still scrolls in a short window */
+.screen:has(> .home2)::-webkit-scrollbar{display:none}
+
+/* the main sheet on real glass (10 Nov, Edison: "It lowkey does feel like glass I think I like it"): thinner, with a soft
+   diagonal sheen and a lit top and left edge, so it reads as a pane over the wallpaper */
+html.glass[data-stone]:not([data-theme="night"]) .panel{background:linear-gradient(160deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.10) 28%,rgba(255,255,255,0) 55%,rgba(255,255,255,.08) 100%),var(--glass-panel);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 1px 0 0 rgba(255,255,255,.45),inset 0 0 0 .5px rgba(255,255,255,.6),inset 0 -1px 0 color-mix(in srgb,var(--stone-brick) 10%,transparent),0 24px 48px -30px color-mix(in srgb,var(--stone-brick) 45%,rgba(0,0,0,.3))}
+html.glass[data-stone][data-theme="night"] .panel{background:linear-gradient(160deg,rgba(255,255,255,.09) 0%,rgba(255,255,255,.03) 30%,rgba(255,255,255,0) 55%,rgba(255,255,255,.03) 100%),var(--glass-panel);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 1px 0 0 rgba(255,255,255,.06),inset 0 0 0 .5px rgba(255,255,255,.10),0 24px 48px -30px rgba(0,0,0,.6)}
+
+/* ---------- the wallpaper behind the window (wallpaper.js, 10 Nov 2026) ----------
+   One layer under the whole page (sidebar, panel, frame) shows the window's part of a wallpaper, so the window reads
+   as glass over its own wallpaper whatever sits behind it. The layer carries the glass tint the body used to, then a
+   shade that keeps text readable: thicker in a session, for reading (Edison, 10 Nov). */
+#wall{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;border-radius:calc(16px / var(--z,1));contain:strict;display:none}
+html.wall-on #wall{display:block}
+.win #wall{border-radius:0}   /* off the Mac the window is a plain rectangle the page fills */
+html.wall-on,html.wall-on body{background:transparent!important}
+#wall .wall-media,#wall .wall-tint,#wall .wall-shade{position:absolute;inset:0}
+#wall .wall-pic{position:absolute;left:0;top:0;display:block;object-fit:cover;transform-origin:0 0;background:#0b0d10}
+#wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#2E9C96) 36%,transparent)}
+html[data-theme="night"] #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#21807B) 46%,transparent)}
+#wall .wall-shade{background:rgba(255,255,255,.18);transition:background-color var(--duration-base) var(--ease-out)}
+html[data-theme="night"] #wall .wall-shade{background:rgba(6,8,12,.26)}
+/* over a picture the stone is a light tint, so the picture keeps its own colours (11 Nov, Edison picked C of three:
+   Sakura over the blue Tahiti waves turned the window mauve at 46%). The stone glass keeps its full tint above. */
+html:not([data-wkind="stone"]) #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#2E9C96) 16%,transparent)}
+html[data-theme="night"]:not([data-wkind="stone"]) #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#21807B) 20%,transparent)}
+html:not([data-wkind="stone"]) #wall .wall-shade{background:rgba(255,255,255,.22)}
+html[data-theme="night"]:not([data-wkind="stone"]) #wall .wall-shade{background:rgba(6,8,12,.32)}
+html[data-wroute="session"] #wall .wall-shade{background:rgba(255,255,255,.34)}
+html[data-theme="night"][data-wroute="session"] #wall .wall-shade{background:rgba(6,8,12,.44)}
+/* Settings: the wallpaper choices */
+.walls{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:8px}
+.wall-opt{display:flex;flex-direction:column;gap:4px;padding:0;border:0;background:none;text-align:left;cursor:pointer;color:var(--color-ink-2);font:var(--type-caption)}
+.wall-opt .wt{display:block;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:color-mix(in srgb,var(--stone-tone,#2E9C96) 40%,#0b0d10);box-shadow:inset 0 0 0 1px var(--color-line)}
+.wall-opt .wt img{width:100%;height:100%;object-fit:cover;display:block}
+.wall-opt .wt-stone{display:block;width:100%;height:100%;background:radial-gradient(120% 90% at 20% 110%,color-mix(in srgb,var(--stone-tone,#2E9C96) 70%,white),transparent 60%),linear-gradient(160deg,color-mix(in srgb,var(--stone-tone,#2E9C96) 35%,#06080c),var(--stone-tone,#2E9C96))}
+.wall-opt .wt-add{display:grid;place-items:center;width:100%;height:100%;color:var(--color-ink-3)}
+.wall-opt.on .wt{box-shadow:0 0 0 2px var(--color-ink)}
+.wall-opt .wl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wall-group{margin-top:12px;font:var(--type-caption);color:var(--color-ink-3)}
+
+/* Setup on glass (11 Nov): a friend's first screen. Its cards and the tutor switch are sheets of the same glass as
+   Home's field; they were solid slabs left from the flat design, near-black at night. */
+html.glass .setup .stepc{background:var(--glass-field);border:0;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim)}
+html.glass .setup .num:not(.ok){background:color-mix(in srgb,var(--color-ink) 10%,transparent)}
+html.glass .setup .btn.neutral{background:transparent;border-color:color-mix(in srgb,var(--color-ink) 22%,transparent)}
+html.glass .setup .seg{background:color-mix(in srgb,var(--color-ink) 7%,transparent)}
+html.glass .setup .seg button.on{background:var(--glass-field);box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim)}
+
+/* Home's start field: no button above it, so it sits a little lower under the line (11 Nov) */
+.home2 .h-field.h-start{margin-top:26px}
+/* the start card's field is the card's own glass, not a dark well (11 Nov, Edison: "I don't like how the textbox is
+   black here") */
+html.glass .start-card .start-in{background:color-mix(in srgb,var(--color-ink) 5%,transparent);border-color:color-mix(in srgb,var(--color-ink) 12%,transparent);color:var(--color-ink)}
+html.glass .start-card .start-in::placeholder{color:var(--color-ink-3)}
+html.glass .start-card .start-in:focus{border-color:color-mix(in srgb,var(--color-ink) 32%,transparent)}
+
+/* Flat buttons (11 Nov, Edison: the buttons felt "a little bit too 3D", not sleek; the Documents / Desktop switch
+   "feels better"). No gradient, lit top edge, drop shadow or blur: the main button is the switch's light chip, the
+   second one its quiet track, and the label is medium weight, not bold. */
+.btn:not(.text){font-weight:500}
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral),html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral){-webkit-backdrop-filter:none;backdrop-filter:none}
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral){background:rgba(255,255,255,.58);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--stone-brick) 22%,transparent)}
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral):hover:not(:disabled){background:rgba(255,255,255,.74)}
+html.glass[data-stone]:not([data-theme="night"]) .btn:not(.text):not(.neutral):active:not(:disabled){background:rgba(255,255,255,.46)}
+html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral){background:rgba(255,255,255,.13);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.10)}
+html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral):hover:not(:disabled){background:rgba(255,255,255,.19)}
+html.glass[data-stone][data-theme="night"] .btn:not(.text):not(.neutral):active:not(:disabled){background:rgba(255,255,255,.09)}
+html.glass[data-stone] .btn:not(.text):not(.neutral):disabled{background:color-mix(in srgb,var(--color-ink) 5%,transparent);box-shadow:none}
+html.glass[data-stone]:not([data-theme="night"]) :is(.btn.neutral,.home2 .pill),html.glass[data-stone][data-theme="night"] :is(.btn.neutral,.home2 .pill),html.glass[data-stone] .setup .btn.neutral{border-color:transparent;background:color-mix(in srgb,var(--color-ink) 7%,transparent);box-shadow:none}
+html.glass[data-stone]:not([data-theme="night"]) :is(.btn.neutral,.home2 .pill):hover:not(:disabled),html.glass[data-stone][data-theme="night"] :is(.btn.neutral,.home2 .pill):hover:not(:disabled){background:color-mix(in srgb,var(--color-ink) 12%,transparent)}
+
+/* Wallpaper tiles say where their moving copy stands (11 Nov): an arrow when it is not on this Mac yet, a bar that
+   fills while it is made. The line above the choices says the same in words, where you can see it. */
+.wall-opt .wt{position:relative}
+.wall-opt .wt-get,.wall-opt .wt-bar{display:none;position:absolute}
+.wall-opt.need .wt-get{display:grid;place-items:center;right:5px;bottom:5px;width:18px;height:18px;border-radius:5px;background:rgba(10,12,16,.55);color:#fff}
+.wall-opt.busy .wt-get{display:none}
+.wall-opt.busy .wt-bar{display:block;left:6px;right:6px;bottom:6px;height:4px;border-radius:2px;background:rgba(10,12,16,.5);overflow:hidden}
+.wall-opt .wt-bar b{display:block;height:100%;width:var(--p,0%);background:#fff;border-radius:2px;transition:width 400ms linear}
+.wall-opt.busy .wt img{opacity:.6}
+.wall-status{position:sticky;bottom:-24px;z-index:2;margin:10px -26px 0;padding:9px 26px 10px;color:var(--color-ink);background:var(--stone-sheet,var(--color-surface));box-shadow:0 -1px 0 var(--color-line)}   /* stays in view at the foot of Settings while you scroll the choices */
+.wall-status:empty{display:none}
+.wall-kept{display:flex;align-items:center;gap:8px;margin-top:12px;min-height:28px}
+.wall-kept [hidden]{display:none}

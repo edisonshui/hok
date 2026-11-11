@@ -61,15 +61,15 @@
   --tile-edge: 20%;               /* Home count tile border, same mix */
 
   /* Type. Two faces, both SIL OFL, bundled with the app. */
-  --font-sans: "Figtree";         /* 400, 500, 600, 700. Everything you read and tap. */
-  --font-mono: "Geist Mono";      /* 400, 500. Code, math lines, keys. */
+  --font-sans: "IBM Plex Sans";   /* 400, 500, 600, 700. One face for every word on screen, yours and the tutor's. */
+  --font-mono: "IBM Plex Mono";   /* 400, 500. Code, math lines, keys. */
 
   /* Type scale, desktop px: size / line height / weight / tracking. */
   --type-greeting: 700 36px/42px var(--font-sans);     /* Home's greeting; tracking -0.025em */
   --type-title: 700 30px/34px var(--font-sans);        /* screen title; tracking -0.025em */
   --type-heading: 700 21px/28px var(--font-sans);      /* card title; tracking -0.015em */
   --type-section: 700 15px/22px var(--font-sans);      /* section heads: This week, Subjects */
-  --type-reading: 400 15px/25px var(--font-sans);      /* tutor replies, notes */
+  --type-reading: 400 var(--read-size)/1.65 var(--font-sans);   /* the thread, notes and your bubbles, one size for both voices */
   --type-ui: 400 13px/18px var(--font-sans);           /* rows, buttons, inputs */
   --type-ui-strong: 600 13px/18px var(--font-sans);    /* row titles, buttons */
   --type-caption: 400 12px/16px var(--font-sans);      /* dates, counts, hints */
@@ -81,11 +81,15 @@
   /* Space and shape. 4px grid. */
   --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
   --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
-  --sidebar: 240px;               /* the one sidebar: screens, subjects, Today (Browserbase pattern, Edison 26 Oct 2026) */
-  --sidebar-icons: 56px;          /* sidebar folded to subject icons */
+  --sidebar: 272px;               /* the one sidebar (Browserbase pattern, Edison 26 Oct); 272 since 5 Nov, so a subject's name keeps the 174 px it had once the icons' shared 35 px inset took 32 px */
+  --sidebar-icons: 88px;          /* sidebar folded to icons: the three traffic lights sit on it with 14 px to spare (Edison, 5 Nov: at 56 the green one sat on the panel, at 76 flush on its edge) */
   --plan-panel: 290px;            /* the Session's plan panel on the right; the header's panel button hides it */
   --island-height: 40px;          /* the floating header islands (Replit pattern, option A, Edison 26 Oct 2026) */
-  --reading-max: 660px;           /* thread and notes column */
+  /* The thread grows with the window (Edison, 5 Nov: "squished into the middle" on a 2000 px window), and its type with
+     it, so a wide line keeps a readable count of characters. Both follow the window (vw), not the panel, so folding the
+     sidebar never re-wraps the thread. At 1280 wide: 660 px and 15 px; at 2000: 880 px and 16.5 px. */
+  --reading-max: clamp(660px, 44vw, 880px);
+  --read-size: clamp(15px, calc(10px + .33vw), 16.5px);   /* Plex's x-height is .516 em (measured), so 15 to 16.5 px keeps the 7.6 to 8.5 px the thread had */
   --content-max: 900px;           /* Home and subject pages */
   --row-height: 28px;
   --radius-card: 10px;
@@ -93,7 +97,7 @@
   --radius-option: 8px;           /* answer options, segmented tabs, small buttons */
   --radius-chip: 4px;             /* deadline chips */
   --radius-icon: 6px;             /* 20px subject icon; 8px at 28 to 30px */
-  --radius-pill: 999px;           /* buttons and quick actions */
+  --radius-button: 8px;           /* every button, quick action and send (11 Nov, Edison: pills felt playful) */
   --button-height: 34px;
 
   /* Icons. Drawn line icons from icons.js (Edison picked option A, 26 Oct 2026).
@@ -114,11 +118,26 @@
   --shadow-float: 0 12px 32px rgba(17, 24, 39, 0.12), 0 2px 6px rgba(17, 24, 39, 0.06);
   --focus-ring: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-action);
   --scrim: rgba(17, 24, 39, 0.32);
+  /* The thread's scroll thumb (spec, scroll bar redrawn 1 Nov): no track, ink at 22%, 36% pointed at. */
+  --scroll-thumb: color-mix(in srgb, var(--color-ink) 22%, transparent);
+  --scroll-thumb-hot: color-mix(in srgb, var(--color-ink) 36%, transparent);
+  --scroll-thumb-edge: rgba(255, 255, 255, 0.4);
 
   /* Motion. Short and calm; nothing bounces. */
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --duration-fast: 120ms;         /* hover, press, toggles */
-  --duration-base: 200ms;         /* panels, the sidebar fold, screen cross-fade */
+  --duration-base: 200ms;         /* panels, the plan panel, screen cross-fade */
+  /* The sidebar fold (5 Nov, second pass): a critically damped spring (no bounce) with the click's push as its starting
+     speed, sampled into linear() so a CSS transition can carry it and a second click retargets it from where it is:
+     6% of the way on the first frame, 70% at 100 ms opening, then a long soft settle. The fold animates the window's
+     columns, a layout property, so each frame is laid out on the main thread (measured 8 to 17 ms here). Opening is
+     slower than closing: you open it to read it, you close it to get it out of the way. */
+  --ease-fold: linear(0, 0.026 1.1%, 0.078 3.2%, 0.152 5.8%, 0.243 8.9%, 0.344 12.5%, 0.448 16.4%, 0.549 20.7%, 0.641 25.3%, 0.722 30.2%, 0.790 35.4%, 0.845 40.8%, 0.888 46.5%, 0.921 52.4%, 0.946 58.6%, 0.963 65.0%, 0.976 71.6%, 0.984 78.4%, 0.990 85.4%, 0.994 92.6%, 1);
+  --duration-fold-open: 360ms;
+  --duration-fold-close: 300ms;
+  --duration-fold-fade: 100ms;    /* labels out while the width moves */
+  --duration-fold-label-in: 200ms;/* labels in, starting once there is room */
+  --delay-fold-label-in: 60ms;
   --duration-message: 180ms;      /* a new message fades in and rises 4px */
   --duration-proof: 320ms;        /* a disc turns Solid. Reduced motion: no animation. */
 }
@@ -166,4 +185,7 @@
 
   --shadow-float: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
   --scrim: rgba(0, 0, 0, 0.5);
+  --scroll-thumb: color-mix(in srgb, var(--color-ink) 26%, transparent);
+  --scroll-thumb-hot: color-mix(in srgb, var(--color-ink) 42%, transparent);
+  --scroll-thumb-edge: rgba(255, 255, 255, 0.1);
 }

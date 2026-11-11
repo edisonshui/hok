@@ -1,6 +1,6 @@
 {
   "name": "flash",
-  "productName": "Flash",
+  "productName": "Obsidian Learning",
   "version": "0.1.0",
   "description": "A desktop companion for the learning vault: your tutor's terminal, the live log, and your progress in one window.",
   "main": "main.js",
@@ -8,12 +8,16 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test test/*.test.js",
+    "smoke": "node scripts/smoke.mjs",
     "dist": "electron-builder",
     "postinstall": "node scripts/fix-pty.js",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux",
-    "icon": "electron scripts/make-icon.js"
+    "icon": "electron scripts/make-icon.js",
+    "dist:friends": "node scripts/check-starter.js && electron-builder --mac --universal -c.extraResources=starter-vault -c.directories.output=dist.friends.noindex",
+    "dist:friends:win": "node scripts/check-starter.js && electron-builder --win -c.extraResources=starter-vault -c.directories.output=dist.friends.noindex",
+    "dist:friends:linux": "node scripts/check-starter.js && electron-builder --linux -c.extraResources=starter-vault -c.directories.output=dist.friends.noindex"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
@@ -24,19 +28,24 @@
     "mermaid": "^12.2.0",
     "node-pty": "^1.1.0"
   },
+  "optionalDependencies": {
+    "electron-liquid-glass": "1.1.1"
+  },
   "devDependencies": {
     "electron": "^45.0.0",
-    "electron-builder": "^26.18.0"
+    "electron-builder": "^26.18.0",
+    "playwright": "^1.64.1"
   },
   "author": {
     "name": "Edison Hui",
     "email": "edisonshui@users.noreply.github.com"
   },
   "build": {
-    "appId": "com.edisonshui.flash",
-    "productName": "Flash",
+    "appId": "com.edisonshui.obsidian-learning",
+    "productName": "Obsidian Learning",
+    "artifactName": "Obsidian-Learning-${version}-${os}-${arch}.${ext}",
     "directories": {
-      "output": "dist",
+      "output": "dist.noindex",
       "buildResources": "build"
     },
     "files": [
@@ -46,10 +55,12 @@
       "renderer/**",
       "node_modules/**",
       "!node_modules/**/*.{md,map,ts}",
-      "!node_modules/**/{test,tests,docs,example,examples}/**"
+      "!node_modules/**/{test,tests,docs,example,examples}/**",
+      "!node_modules/node-pty/prebuilds/**/*.pdb"
     ],
     "asarUnpack": [
-      "node_modules/node-pty/**"
+      "node_modules/node-pty/**",
+      "node_modules/electron-liquid-glass/**"
     ],
     "mac": {
       "target": [
@@ -58,7 +69,8 @@
       ],
       "category": "public.app-category.education",
       "identity": "-",
-      "hardenedRuntime": false
+      "hardenedRuntime": false,
+      "x64ArchFiles": "Contents/Resources/app.asar.unpacked/node_modules/{node-pty,electron-liquid-glass}/prebuilds/**"
     },
     "win": {
       "target": [

@@ -145,7 +145,7 @@ Two islands float over the top of the Session panel. The left island holds the s
 
 ## Buttons
 
-One filled ink button per screen. Everything else is a neutral pill or a text button. Each action's shortcut goes in its hover tip (`data-tip`) and the command palette, never beside the button.
+One filled ink button per screen. Everything else is a neutral button or a text button. Buttons are flat rounded squares (8px). Each action's shortcut goes in its hover tip (`data-tip`) and the command palette, never beside the button.
 
 ```html
 <button class="btn">${ic("resume","sm")}Resume</button>
@@ -156,7 +156,7 @@ One filled ink button per screen. Everything else is a neutral pill or a text bu
 ```
 
 ```css
-.btn{display:inline-flex;align-items:center;gap:6px;height:var(--button-height);padding:0 18px;border:0;border-radius:var(--radius-pill);font:var(--type-ui-strong);background:var(--color-action);color:var(--color-action-ink);cursor:pointer;transition:background var(--duration-fast) var(--ease-out),transform var(--duration-fast) var(--ease-out)}
+.btn{display:inline-flex;align-items:center;gap:6px;height:var(--button-height);padding:0 18px;border:0;border-radius:var(--radius-button);font:var(--type-ui);font-weight:500;background:var(--color-action);color:var(--color-action-ink);cursor:pointer;transition:background var(--duration-fast) var(--ease-out),transform var(--duration-fast) var(--ease-out)}
 .btn:hover{background:color-mix(in srgb,var(--color-action) 88%,var(--color-ink))}
 .btn:active{background:color-mix(in srgb,var(--color-action) 78%,var(--color-ink));transform:scale(.98)}
 .btn:disabled{background:var(--color-selected);color:var(--color-ink-3);cursor:default}

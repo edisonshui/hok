@@ -16,7 +16,7 @@ Use the vault's words in screens and copy: subject, node, skill, check, review, 
 ## Design a screen
 
 1. Find the screen's layout and its hard rule in [screens.md](screens.md).
-2. Name the one next step. Give it the screen's only filled ink button. Every other action is a neutral pill, a text button, or a row.
+2. Name the one next step. Give it the screen's only filled ink button. Every other action is a neutral button, a text button, or a row.
 3. Give every color on the screen one job from the [color table](#color). Remove any color that is only decoration.
 4. Build from the parts in [components.md](components.md) and the icons in [icons.js](icons.js). Take every value from [tokens.css](tokens.css). A raw hex value in a component is a bug.
 5. Design every state. Each control needs hover, focus, disabled, and loading. Each screen needs light and night, with the sidebar full, folded, and hidden. Each action needs a keyboard shortcut, shown in its hover tip and in the command palette.
@@ -87,7 +87,7 @@ Build hierarchy from size and weight: one heavy heading per region, small quiet 
 - The window is one sidebar (240px, folds to 56px with ⌘\ or the sidebar button beside search, hides with ⇧⌘\ and comes back from the button in the left island; subjects grouped by course), a white panel inset 8px in the grey frame, and on Session a 290px plan panel. Regions are told apart by grey steps, not borders.
 - Session's header is two floating islands: the subject switcher and the tabs (Session, Skill map, Progress) on the left, the status line and icon buttons on the right.
 - Everything sits on a 4px grid of `--space-*` steps. The thread is 660px. Home and other content columns are 900px.
-- Radii: cards 10, the composer and islands 12, options and tabs 8, chips 4, buttons are pills.
+- Radii: cards 10, the composer and islands 12, options and tabs 8, chips 4, buttons 8. Buttons are flat rounded squares, never pills or circles, with no gradient, lit edge, shadow or blur, and medium-weight labels (Edison, 11 Nov 2026: pills read as playful, raised buttons as "too 3D"). A found or finished state is said in words ("Installed"), not with a check badge.
 - Resting things get a 1px border and no shadow. Only floating things (menus, the command palette, popovers, Settings) get `--shadow-float`. The only gradients are the subject wash, the dock fade under the composer, and the header fade.
 
 ## Motion

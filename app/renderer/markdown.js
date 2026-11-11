@@ -11,7 +11,10 @@ function inline(t) {
   h = h.replace(/`([^`]+)`/g, (_, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
   h = h.replace(/!\[\[([^\]|]+?\.(?:png|jpe?g|gif|webp|svg))(?:\|\d+)?\]\]/gi, (_, p) => {
     const name = p.replace(/&amp;/g, "&").split("/").pop(), svg = /\.svg$/i.test(name);
-    return `<img class="${svg ? "figure" : "shot"}" alt="${svg ? "Figure" : "Screenshot you sent"}" src="vault-file:///${encodeURIComponent(name)}">`;
+    // A demo (learn/system/demos.md: a picture of the thing itself, a screen or a page) is drawn to be read at the card's
+    // full width; a math figure keeps its narrower measure.
+    const demo = svg && /-demo-/.test(name);
+    return `<img class="${svg ? `figure${demo ? " demo" : ""}` : "shot"}" alt="${demo ? "Demo" : svg ? "Figure" : "Screenshot you sent"}" src="vault-file:///${encodeURIComponent(name)}">`;
   });
   h = h.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "<span>$2</span>")
     .replace(/\[\[([^\]]+)\]\]/g, (_, p) => `<span>${p.split("/").pop()}</span>`)
@@ -108,8 +111,10 @@ function loadLibs() {
 const needsLibs = (el) => /\$|\\\(/.test(el.textContent) || el.querySelector(".mermaid");
 let mermaidTheme = "";
 let mermaidSeq = 0;
-async function typeset(el) {
-  if (!el || !needsLibs(el)) return;
+// onMath runs the moment the math is drawn, before any diagram, so a reply's words
+// can be taken apart for their arrival in the same task as the markup changed.
+async function typeset(el, onMath) {
+  if (!el || !needsLibs(el)) { if (el && onMath) onMath(); return; }
   await loadLibs();
   if (window.renderMathInElement) {
     window.renderMathInElement(el, {
@@ -118,16 +123,25 @@ async function typeset(el) {
       ignoredClasses: ["codeblock", "mermaid"],
     });
   }
+  if (onMath) onMath();
   const diagrams = [...el.querySelectorAll(".mermaid:not([data-done])")];
   if (window.mermaid && diagrams.length) {
-    const css = getComputedStyle(document.documentElement), v = (n) => css.getPropertyValue(n).trim();
+    // Mermaid's colour parser reads hex and rgb() only, and the stone tint defines the ink tokens with color-mix()
+    // (11 Nov: initialize threw "Unsupported color format" and the first diagrams of a session never drew). So each
+    // token is resolved by the browser on a probe element and handed over as plain rgb.
+    const v = (n) => {
+      const p = document.createElement("i"); p.style.color = `var(${n})`; document.documentElement.append(p);
+      const c = getComputedStyle(p).color; p.remove();
+      const k = c.startsWith("color(") ? 255 : 1, [r, g, b, a = 1] = (c.match(/[\d.]+(?:e-?\d+)?/g) || []).map(Number);
+      return Number.isFinite(b) ? `rgba(${Math.round(r * k)}, ${Math.round(g * k)}, ${Math.round(b * k)}, ${a})` : "#888888";
+    };
     const theme = document.documentElement.dataset.theme || "light";
     if (mermaidTheme !== theme) {
       mermaidTheme = theme;
       window.mermaid.initialize({
         startOnLoad: false, theme: "base", securityLevel: "strict",
         themeVariables: {
-          fontFamily: "Figtree", fontSize: "13px",
+          fontFamily: "IBM Plex Sans", fontSize: "13px",
           primaryColor: v("--color-surface"), primaryBorderColor: v("--color-line-strong"), primaryTextColor: v("--color-ink"),
           lineColor: v("--color-ink-3"), secondaryColor: v("--color-side"), tertiaryColor: v("--color-bg"),
           noteBkgColor: v("--color-side"), noteTextColor: v("--color-ink"), actorBkg: v("--color-surface"), actorBorder: v("--color-line-strong"),
@@ -147,5 +161,5 @@ async function typeset(el) {
   }
 }
 
-window.MD = { esc, inline, renderMd, typeset };
+window.MD = { esc, inline, renderMd, typeset, preload: loadLibs };
 })();

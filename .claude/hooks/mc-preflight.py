@@ -2,7 +2,10 @@
 """Place a multiple-choice key before display and return the matching log field."""
 
 import argparse
-import fcntl
+try:
+    import fcntl
+except ImportError:  # Windows has no fcntl: turns are not locked against each other there
+    fcntl = None
 import json
 import os
 import re
@@ -51,7 +54,8 @@ def prepare(vault, scope, subject, question, correct, distractors):
     runtime = vault / "learn/.mc-runtime"
     runtime.mkdir(parents=True, exist_ok=True)
     with (runtime / "placement.lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        if fcntl:
+            fcntl.flock(lock, fcntl.LOCK_EX)
         state_path = runtime / "placement.json"
         try:
             prepared = json.loads(state_path.read_text())
