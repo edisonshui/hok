@@ -1,4 +1,4 @@
-// Renders build/icon.png (1024 px) from scripts/icon.html with the app's own
+// Renders build/icon.png (1024 px) from scripts/icon.html (the lantern in build/icon.svg); was the app's own
 // fonts and light. electron-builder makes the .icns and .ico from it.
 // Run: npx electron scripts/make-icon.js
 const { app, BrowserWindow } = require("electron");
