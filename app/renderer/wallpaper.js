@@ -29,23 +29,43 @@
 
   // play or hold, every time something that decides it changes
   let raf = 0;
+  // The wallpaper slows to a stop and gathers speed again, instead of cutting (11 Nov, Edison: the waves stopping
+  // "feels a little bit too sudden when you leave the home page"). speed runs 0 to 1: out over 900 ms, in over 700 ms,
+  // on a smoothstep; a video's playback rate follows it (Chromium's floor is 1/16), the stone glass's clock too.
+  // Reduce motion, and a hidden window, stop at once.
+  let speed = 0, target = 0, ramp = 0, rampT = 0;
+  const curve = (x) => x * x * (3 - 2 * x);
+  function apply() {
+    const k = curve(speed);
+    if (kind === "video" && media) {
+      if (k > 0) { media.playbackRate = Math.max(0.0625, k); if (media.paused) media.play().catch(() => {}); }
+      else { media.pause(); media.playbackRate = 1; }
+    }
+    if (kind === "stone") { if (k > 0 && !raf) loop(); if (k === 0 && raf) { cancelAnimationFrame(raf); raf = 0; } }
+  }
+  function step(t) {
+    const dt = Math.min(100, t - rampT); rampT = t;
+    speed = target > speed ? Math.min(target, speed + dt / 700) : Math.max(target, speed - dt / 900);
+    apply();
+    ramp = speed !== target ? requestAnimationFrame(step) : 0;
+  }
   function sync() {
-    const on = shouldPlay();
-    if (kind === "video" && media) { if (on) media.play().catch(() => {}); else media.pause(); }
-    if (kind === "stone") { if (on && !raf) loop(); if (!on && raf) { cancelAnimationFrame(raf); raf = 0; } }
+    target = shouldPlay() ? 1 : 0;
+    if (calm() || document.visibilityState !== "visible") { if (ramp) cancelAnimationFrame(ramp); ramp = 0; speed = target; apply(); return; }
+    if (!ramp && speed !== target) { rampT = performance.now(); ramp = requestAnimationFrame(step); }
   }
   // the stone glass draws at 15 frames a second into a small canvas the layer stretches (energy 12.4 against 18.6 at
-  // full size and 60 frames, measured 10 Nov)
-  let last = 0, t0 = performance.now();
-  const loop = (ms) => { raf = requestAnimationFrame(loop); if (ms && ms - last < 66) return; last = ms || 0; if (stoneDraw) stoneDraw(((ms || performance.now()) - t0) / 1000); };
+  // full size and 60 frames, measured 10 Nov); its clock runs at the wallpaper's speed, so it eases like the video
+  let last = 0, clock = 0;
+  const loop = (ms) => { raf = requestAnimationFrame(loop); ms = ms || performance.now(); if (last && ms - last < 66) return; if (last) clock += ((ms - last) / 1000) * curve(speed); last = ms; if (stoneDraw) stoneDraw(clock); };
 
   function set(el, k) {
-    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+    if (raf) { cancelAnimationFrame(raf); raf = 0; last = 0; }
     box.textContent = ""; media = el; kind = k; stoneDraw = null;
     root.dataset.wkind = k;   // a picture takes a lighter stone tint than the stone glass (styles.css)
     if (el) { el.classList.add("wall-pic"); box.append(el); }
     root.classList.toggle("wall-on", !!el);
-    fit(); sync();
+    fit(); apply(); sync();
   }
   function showVideo(url) {
     const v = document.createElement("video");
@@ -102,7 +122,7 @@
     gl.uniform2f(gl.getUniformLocation(pr, "R"), cv.width, cv.height);
     const uS = gl.getUniformLocation(pr, "S"), uT = gl.getUniformLocation(pr, "T");
     const draw = (t) => { gl.uniform3f(uS, ...stoneRGB()); gl.uniform1f(uT, t + 20); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); };
-    set(cv, "stone"); stoneDraw = draw; draw((performance.now() - t0) / 1000);
+    set(cv, "stone"); stoneDraw = draw; draw(clock);
   }
 
   // The stone glass without WebGL (11 Nov: the first Linux run had none, and the window fell back to the flat page):
@@ -139,7 +159,7 @@
     route(name) { routeName = name; root.dataset.wroute = name; sync(); },
     moveOnBattery(on) { onBattery = !!on; sync(); },
     reload,
-    stone() { if (kind === "stone" && stoneDraw) stoneDraw((performance.now() - t0) / 1000); },
+    stone() { if (kind === "stone" && stoneDraw) stoneDraw(clock); },
   };
   reload();
 })();

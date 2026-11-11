@@ -226,8 +226,12 @@ function go(name, slug) {
   }, glide);
 }
 function scrollerOf(name) { return name === "session" ? $("threadScroll") : $("screen"); }
+// The subject a session opens on when none is chosen yet (⌘2, the session pre-drawn at launch): the one you opened
+// last, else the tutor's top pick (11 Nov, Edison: ⌘2 went to the recommended repair, not his most recent lesson).
 function defaultSlug() {
   if (!S) return null;
+  const last = recentSubjects(1)[0];
+  if (last) return last.slug;
   const top = S.ranked.find((x) => x.subject);
   return top ? top.subject : S.subjects[0] && S.subjects[0].slug;
 }

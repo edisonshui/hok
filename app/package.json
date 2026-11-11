@@ -74,7 +74,8 @@
       "x64ArchFiles": "Contents/Resources/app.asar.unpacked/node_modules/{node-pty,electron-liquid-glass}/prebuilds/**",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Dictation listens after you press the microphone button, until you press it again. Your voice is turned into text on this computer and is never sent anywhere."
-      }
+      },
+      "icon": "build/Hok.icon"
     },
     "win": {
       "target": [
