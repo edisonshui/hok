@@ -5,7 +5,8 @@
 // still; "hold a still frame" on battery). Sessions get a slightly thicker glass for reading (Edison, 10 Nov).
 (function () {
   const F = window.flash;
-  if (!F || !F.wall || F.platform !== "darwin") { window.Wall = { route() {}, reload() {}, stone() {} }; return; }
+  if (!F || !F.wall) { window.Wall = { route() {}, reload() {}, stone() {} }; return; }
+  const MAC = F.platform === "darwin";   // pictures and Aerials come from macOS; other systems always show the stone glass
   const root = document.documentElement;
   const wall = document.createElement("div"); wall.id = "wall"; wall.setAttribute("aria-hidden", "true");
   wall.innerHTML = `<div class="wall-media"></div><div class="wall-tint"></div><div class="wall-shade"></div>`;
@@ -98,7 +99,7 @@
   }
 
   async function reload(force) {
-    const r = await F.wall.resolve(root.dataset.theme === "night", force);
+    const r = MAC ? await F.wall.resolve(root.dataset.theme === "night", force) : { type: "stone" };
     waiting = r.preparing ? r.preparing.key : null;
     if (r.type === "video" && r.url) showVideo(r.url);
     else if (r.type === "image" && r.url) showImage(r.url);

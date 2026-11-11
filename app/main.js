@@ -458,7 +458,7 @@ function createWindow() {
     ...(process.platform === "darwin" ? (LIQUID ? { transparent: true, backgroundColor: "#00000000" } : { vibrancy: "under-window", visualEffectState: "active", backgroundColor: "#00000000" }) : { backgroundColor: night ? "#1E1F22" : "#F4F6F8" }),
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
     trafficLightPosition: { x: 14, y: 17 },   // 4 px lower than it was (13), on one line with the title-strip button and clear of the window's top edge (Edison, 5 Nov)
-    ...(process.platform === "darwin" ? {} : { titleBarOverlay: { color: night ? "#1E1F22" : "#F4F6F8", symbolColor: night ? "#AEB2B9" : "#4B525C", height: 38 } }),
+    ...(process.platform === "darwin" ? {} : { titleBarOverlay: { color: process.platform === "win32" ? "#00000000" : night ? "#1E1F22" : "#F4F6F8", symbolColor: night ? "#AEB2B9" : "#4B525C", height: 38 } }   /* Windows: clear, so the window buttons sit on the glass (untested on a PC) */),
     show: false,
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
   });
@@ -609,8 +609,9 @@ app.whenReady().then(async () => {
       if (!WALL.allowed(full) || !fs.existsSync(full)) return new Response("not found", { status: 404 });
       return wallpaper.serve(full, request);
     });
-    if (powerMonitor) { powerMonitor.on("on-battery", () => send("wall:power", true)); powerMonitor.on("on-ac", () => send("wall:power", false)); }
   }
+  // every system: the stone glass also holds still on battery. A system that can't report power just keeps it moving.
+  try { powerMonitor.on("on-battery", () => send("wall:power", true)); powerMonitor.on("on-ac", () => send("wall:power", false)); } catch { /* no power events here */ }
   readFirstName();
   PATH = await env.shellPath();
   tools = env.checkTools(PATH, config.host);

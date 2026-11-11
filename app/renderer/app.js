@@ -12,7 +12,10 @@ const $ = (id) => document.getElementById(id);
 // ---------- state ----------
 let S = null, cfg = null, info = null;
 // macOS draws the window as glass over the desktop (main.js, vibrancy); the page then paints only tints
-const GLASS = window.flash.platform === "darwin";
+// Every system gets the glass look. On a Mac the glass is the window itself; elsewhere the page draws the stone glass
+// under its own sheets (wallpaper.js), so Windows and Linux show the same design, not the older flat one (11 Nov;
+// seen off the Mac only in a simulated run).
+const GLASS = true;
 if (GLASS) document.documentElement.classList.add("glass");
 let route = { name: "home", slug: null };
 let setupInfo = null;
@@ -3499,7 +3502,7 @@ async function openSettings() {
   const stone = Stone.pick(cfg.stone), nightNow = document.documentElement.dataset.theme === "night";
   // Each preview wears its own theme's tokens, so it shows true colors in either mode.
   const pv = (t) => `<span data-theme="${t}"><i></i><i></i></span>`;
-  const wallSection = GLASS && F.wall ? await wallSettings() : "";
+  const wallSection = F.wall && F.platform === "darwin" ? await wallSettings() : "";   // pictures come from macOS; elsewhere the wallpaper is the stone glass
   const thumb = (value, label, preview) => `<button class="thumb ${theme === value ? "on" : ""}" data-act="set-theme" data-arg="${value}" aria-pressed="${theme === value}"><div class="pv">${preview}</div><div class="lab">${label}</div></button>`;
   scrim.innerHTML = `<div class="card float sheet" role="dialog" aria-label="Settings">
     <div style="display:flex;align-items:center"><h2 class="t-head">Settings</h2><button style="margin-left:auto" class="icon-btn" data-act="close" aria-label="Close" data-tip="Esc">${icon("x")}</button></div>

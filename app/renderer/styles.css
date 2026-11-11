@@ -1340,6 +1340,7 @@ html.glass[data-stone][data-theme="night"] .panel{background:linear-gradient(160
    shade that keeps text readable: thicker in a session, for reading (Edison, 10 Nov). */
 #wall{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;border-radius:calc(16px / var(--z,1));contain:strict;display:none}
 html.wall-on #wall{display:block}
+.win #wall{border-radius:0}   /* off the Mac the window is a plain rectangle the page fills */
 html.wall-on,html.wall-on body{background:transparent!important}
 #wall .wall-media,#wall .wall-tint,#wall .wall-shade{position:absolute;inset:0}
 #wall .wall-pic{position:absolute;left:0;top:0;display:block;object-fit:cover;transform-origin:0 0;background:#0b0d10}
