@@ -21,27 +21,44 @@
   function fit() {
     if (!place || !media) return;
     const w = place.dw / z, h = place.dh / z;
-    media.style.width = w + "px"; media.style.height = h + "px";
-    media.style.transform = `translate(${-place.x / z}px,${-place.y / z}px)`;
+    for (const el of [media, held]) { if (!el) continue; el.style.width = w + "px"; el.style.height = h + "px"; el.style.transform = `translate(${-place.x / z}px,${-place.y / z}px)`; }
   }
   F.wall.onPlace((p) => { place = p; fit(); });
   if (F.onZoom) F.onZoom((f) => { z = f || 1; fit(); });
 
   // play or hold, every time something that decides it changes
   let raf = 0;
-  // The wallpaper slows to a stop and gathers speed again, instead of cutting (11 Nov, Edison: the waves stopping
-  // "feels a little bit too sudden when you leave the home page"). speed runs 0 to 1: out over 900 ms, in over 700 ms,
-  // on a smoothstep; a video's playback rate follows it (Chromium's floor is 1/16), the stone glass's clock too.
+  // The wallpaper comes to rest and back gently, instead of cutting (11 Nov, Edison: the waves stopping "feels a
+  // little bit too sudden when you leave the home page"). A video is never slowed down: slowed, each frame stays up
+  // longer and the waves stutter (Edison, 11 Nov: "laggy and not smooth"). Instead a still of the frame on screen fades
+  // in over the moving picture (650 ms), and only then does the video stop beneath it; coming back, the video plays
+  // under the still and the still fades away (500 ms). The stone glass is drawn, so its clock slows (900 ms out, 700 in).
   // Reduce motion, and a hidden window, stop at once.
-  let speed = 0, target = 0, ramp = 0, rampT = 0;
+  let speed = 0, target = 0, ramp = 0, rampT = 0, held = null, heldTimer = 0;
   const curve = (x) => x * x * (3 - 2 * x);
   function apply() {
     const k = curve(speed);
-    if (kind === "video" && media) {
-      if (k > 0) { media.playbackRate = Math.max(0.0625, k); if (media.paused) media.play().catch(() => {}); }
-      else { media.pause(); media.playbackRate = 1; }
-    }
     if (kind === "stone") { if (k > 0 && !raf) loop(); if (k === 0 && raf) { cancelAnimationFrame(raf); raf = 0; } }
+  }
+  const dropHeld = () => { clearTimeout(heldTimer); if (held) held.remove(); held = null; };
+  function holdVideo(now) {
+    if (!media || held) { if (media && now) media.pause(); return; }
+    if (now || media.paused || media.readyState < 2) { media.pause(); return; }
+    const cv = document.createElement("canvas"); cv.width = media.videoWidth || 640; cv.height = media.videoHeight || 360;
+    try { cv.getContext("2d").drawImage(media, 0, 0, cv.width, cv.height); } catch { media.pause(); return; }
+    cv.className = "wall-pic wall-held"; held = cv; fit(); box.append(cv);
+    cv.style.opacity = "0"; cv.style.transition = "opacity 650ms cubic-bezier(.4,0,.2,1)";
+    requestAnimationFrame(() => requestAnimationFrame(() => { cv.style.opacity = "1"; }));
+    heldTimer = setTimeout(() => { if (held === cv && !shouldPlay()) media.pause(); }, 680);
+  }
+  function releaseVideo(now) {
+    if (!media) return;
+    media.play().catch(() => {});
+    if (!held) return;
+    if (now) return dropHeld();
+    const cv = held; clearTimeout(heldTimer);
+    cv.style.transition = "opacity 500ms cubic-bezier(.4,0,.2,1)"; cv.style.opacity = "0";
+    heldTimer = setTimeout(() => { if (held === cv) dropHeld(); }, 520);
   }
   function step(t) {
     const dt = Math.min(100, t - rampT); rampT = t;
@@ -51,7 +68,9 @@
   }
   function sync() {
     target = shouldPlay() ? 1 : 0;
-    if (calm() || document.visibilityState !== "visible") { if (ramp) cancelAnimationFrame(ramp); ramp = 0; speed = target; apply(); return; }
+    const now = calm() || document.visibilityState !== "visible";
+    if (kind === "video") { if (target) releaseVideo(now); else holdVideo(now); }
+    if (now) { if (ramp) cancelAnimationFrame(ramp); ramp = 0; speed = target; apply(); return; }
     if (!ramp && speed !== target) { rampT = performance.now(); ramp = requestAnimationFrame(step); }
   }
   // the stone glass draws at 15 frames a second into a small canvas the layer stretches (energy 12.4 against 18.6 at
@@ -61,7 +80,7 @@
 
   function set(el, k) {
     if (raf) { cancelAnimationFrame(raf); raf = 0; last = 0; }
-    box.textContent = ""; media = el; kind = k; stoneDraw = null;
+    dropHeld(); box.textContent = ""; media = el; kind = k; stoneDraw = null;
     root.dataset.wkind = k;   // a picture takes a lighter stone tint than the stone glass (styles.css)
     if (el) { el.classList.add("wall-pic"); box.append(el); }
     root.classList.toggle("wall-on", !!el);
