@@ -1434,8 +1434,7 @@ html.glass[data-stone]:not([data-theme="night"]) :is(.btn.neutral,.home2 .pill):
 /* Toasts are the same frosted glass as the menus and sheets (11 Nov, Edison: "solid black") */
 html.glass .toast{background:var(--glass-float);-webkit-backdrop-filter:blur(30px) saturate(1.4);backdrop-filter:blur(30px) saturate(1.4);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 18px 44px -14px rgba(0,0,0,.35)}
 
-.wall-batt{display:flex;align-items:center;gap:8px;margin-top:8px;font:var(--type-ui);color:var(--color-ink)}
-.wall-batt input{width:15px;height:15px;margin:0;accent-color:var(--stone-brick,var(--color-action))}
+
 
 /* Dictation (dictation.js): the mic sits beside send, quiet until it listens; listening, it takes the stone's colour
    and a ring that follows your voice (--lvl, 0 to 1); writing, it spins. */
@@ -1451,3 +1450,18 @@ html.glass .toast{background:var(--glass-float);-webkit-backdrop-filter:blur(30p
 .dict-prog span{display:block;margin-top:6px;font:var(--type-caption);color:var(--color-ink-3)}
 #dictRemove[hidden]{display:none}
 #wall .wall-held{background:transparent}   /* the twin still never shows a dark box while its picture comes in (wallpaper.js) */
+/* Settings' two-way switches (On battery, Tutor, Dictation language) are the glass's own tint, not a dark well
+   (11 Nov: the new On battery switch read as a black box); the picked side is a lighter step of the same ink */
+html.glass .sheet .seg{background:color-mix(in srgb,var(--color-ink) 7%,transparent)}
+html.glass .sheet .seg button.on{background:color-mix(in srgb,var(--color-ink) 13%,transparent);box-shadow:none}
+
+/* A setting that is on or off: one row, its words and a glass switch (11 Nov, Edison picked the glass toggle, then
+   "a little bit too realistic and 3D"): flat, no gradient, glow or lit edge. Off, the track is the glass's own tint;
+   on, an even pane of the stone. The knob is a plain frosted disc with a faint shadow, and slides. */
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:10px 0 12px}
+.set-row>span{font:var(--type-ui);font-size:13.5px;color:var(--color-ink)}
+.glass-switch{position:relative;width:34px;height:20px;border-radius:10px;flex:none;padding:0;background:color-mix(in srgb,var(--color-ink) 12%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--color-ink) 14%,transparent);transition:background-color 200ms var(--ease-out)}
+.glass-switch i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.94);box-shadow:0 1px 2px rgba(0,0,0,.18);transition:transform 220ms cubic-bezier(.32,.72,0,1)}
+.glass-switch.on{background:color-mix(in srgb,var(--stone-brick,var(--color-action)) 72%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--stone-brick,var(--color-action)) 85%,transparent)}
+.glass-switch.on i{transform:translateX(14px)}
+.glass-switch:focus-visible{outline:2px solid color-mix(in srgb,var(--color-ink) 40%,transparent);outline-offset:2px}
