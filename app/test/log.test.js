@@ -132,3 +132,36 @@ test("a Drawing callout from the hook parses as a drawing item", () => {
   const [c] = parseLog("## Conversation — 2026-11-10\n\nDrawing the two sign-in screens.\n\n> [!drawing] Drawing · 12:03\n> Drawing the picture. This usually takes one to three minutes.\n");
   assert.equal(c.items[c.items.length - 1].kind, "drawing");
 });
+
+test("a question held back, then asked in plain chat instead, is not waiting", () => {
+  const log = `## Conversation — 2026-11-12
+
+> [!question] Question · 11:28
+> How long?
+>
+> - **30 min** — two tables
+
+> [!warning] Probe check · 11:28
+> This probe may not stand alone.
+>
+> Withdrawn before it was asked. The tutor is re-asking with the material inline.
+
+So I'll ask in plain chat instead: how long?
+`;
+  const q = readLog(log)[0].items.find((x) => x.kind === "question");
+  assert.equal(q.withdrawn, true);
+});
+
+test("a question the hook let through stays waiting", () => {
+  const log = `## Conversation — 2026-11-12
+
+> [!question] Question · 11:28
+> How long?
+>
+> - **30 min** — two tables
+
+Pick one.
+`;
+  const q = readLog(log)[0].items.find((x) => x.kind === "question");
+  assert.equal(q.withdrawn, false);
+});
