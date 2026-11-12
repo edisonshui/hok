@@ -2362,11 +2362,48 @@ MSG.addEventListener("keydown", (e) => {
   const mod = isMac() ? e.metaKey : e.ctrlKey;
   if (composing(e)) return;   // Chinese or Japanese input: Return confirms the characters, never sends
   if (e.key === "$" && !e.metaKey && !e.ctrlKey && window.MathLive) { e.preventDefault(); insertMath(); }
+  else if (e.key === "Enter" && e.shiftKey && !mod && !e.altKey) { if (continueList()) e.preventDefault(); }
   else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ACTIONS.send(); }
   else if (e.key === "Escape") { if (escapeSession()) e.preventDefault(); }
   else if (e.key === "ArrowUp" && !e.shiftKey && !mod && !e.altKey && msgEmpty() && !ATT.length) { if (editLast()) e.preventDefault(); }
   else if (mod && !e.shiftKey && e.key.toLowerCase() === "z" && lastDeleted() && (msgEmpty() || lastDeleted().when > lastTyped)) { if (undoDelete()) e.preventDefault(); }
 }, true);
+// A numbered list carries on (12 Nov, Edison): Shift-Return after "1. something" starts the next
+// line with "2. ", in the same style and indent, and Shift-Return on an empty "2. " takes the
+// number away and ends the list. True when it did the line break itself.
+function lineBeforeCaret() {
+  const sel = getSelection();
+  if (!sel.rangeCount || !sel.isCollapsed || !MSG.contains(sel.anchorNode)) return null;
+  const r = document.createRange();
+  r.setStart(MSG, 0); r.setEnd(sel.anchorNode, sel.anchorOffset);
+  const box = document.createElement("div");
+  box.append(r.cloneContents());
+  let out = "";
+  const walk = (node) => {
+    for (const n of node.childNodes) {
+      if (n.nodeType === 3) out += n.nodeValue;
+      else if (n.tagName === "BR") out += "\n";
+      else if (n.classList && n.classList.contains("chip-wrap")) out += "x";
+      else { if (/^(DIV|P)$/.test(n.tagName) && out && !out.endsWith("\n")) out += "\n"; walk(n); }
+    }
+  };
+  walk(box);
+  return out.replace(/\u200b/g, "").replace(/\u00a0/g, " ").split("\n").pop();
+}
+function continueList() {
+  const line = lineBeforeCaret();
+  if (line === null) return false;
+  const empty = line.match(/^(\s*)(\d{1,3})([.)])\s*$/);
+  if (empty) {
+    for (let i = 0; i < line.length; i++) document.execCommand("delete");
+    return true;
+  }
+  const item = line.match(/^(\s*)(\d{1,3})([.)])\s+\S/);
+  if (!item) return false;
+  document.execCommand("insertLineBreak");
+  document.execCommand("insertText", false, `${item[1]}${Number(item[2]) + 1}${item[3]} `);
+  return true;
+}
 // Esc closes the innermost thing first, then stops the tutor. (Menus, the
 // palette, and a math chip catch it before this.) True when it did something.
 function escapeSession() {

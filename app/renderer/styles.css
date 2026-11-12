@@ -395,6 +395,8 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .composer math-field:focus-within{border-color:var(--color-line-strong)}
 .composer math-field::part(menu-toggle),.composer math-field::part(virtual-keyboard-toggle){display:none}
 .composer math-field::part(content){padding:0}
+/* The field's own frame adds 4px above and below; without it a chip is the line's height, so a line with math keeps its spacing. */
+.composer math-field::part(container){padding:0;min-height:0}
 .composer-row{display:flex;align-items:center;gap:6px}
 .composer-row .icon-btn{width:28px;height:28px;margin-left:-6px}
 .model{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font:var(--type-caption);color:var(--color-ink-2);padding:4px 8px;border-radius:7px;transition:background var(--duration-fast) var(--ease-out)}
