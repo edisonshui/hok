@@ -2122,8 +2122,9 @@ ACTIONS.send = () => {
     rise(enqueue(message), from);
     startTutor(s ? resumeTyped(s) : "");
   } else {
+    // Waiting behind a reply or not, your message glides up the same way (12 Nov, Edison: "keep it consistent").
     const item = speak(message);
-    if (item) rise(item, from);
+    if (item) sendGlide(item, from);
     else if (text && !IS_CMD.test(text)) sendGlide(showSent(message), from);
   }
 };
