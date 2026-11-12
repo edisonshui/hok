@@ -122,7 +122,7 @@ SKIP_COMMANDS = {"end", "close", "start", "review"}   # replies shaped by a skil
 # two-question and verdict checks flagged good replies ("4 for 4, ..." as no
 # verdict, a confidence question as a second question). `reply-check.py report`
 # counts the log, to tune a check before it joins HOLD.
-KINDS = ("length", "questions", "verdict", "nudge", "machinery", "report")
+KINDS = ("length", "questions", "verdict", "nudge", "machinery", "report", "drawing")
 HOLD = {"machinery", "report"}
 
 # The closing lines of an engineering report: Where, Your check, On you, and a
@@ -217,6 +217,29 @@ def report_lines(text):
 def CODE_BLOCK_FREE(text):
     """The reply without fenced code, where a label could be part of an example."""
     return re.sub(r"```.*?```", " ", text, flags=re.S)
+
+
+# A diagram typed out as text: a flow or a tree drawn with box-drawing corners and
+# arrows in an untyped or `text` block. diagrams.md asks for mermaid. Box drawing
+# stays in a picker probe (which this hook never sees) and in grids that line up
+# cell by cell, which have corners but no arrows; a line of typed arrows with no
+# corners (a grammar rule, a truth table, "n1 -> solid") is not a drawing either.
+# A plan reached Hok as a broken text drawing on 12 Nov 2026, a month after the
+# rule was written (13 Oct). Replayed over 2,305 logged replies on 12 Nov, it
+# finds the plan graphs and decision trees drawn this way. Logs only.
+CORNER = re.compile(r"[\u250c\u2510\u2514\u2518\u251c\u2524\u252c\u2534\u256d\u256e\u256f\u2570]")
+TYPED_ARROW = re.compile(r"[\u2500\u2501\-\u2014=]+>|<[\u2500\u2501\-\u2014=]+|[\u2190-\u2193\u27F5\u27F6\u25B6\u25BA\u25BC]|\u251c\u2500")
+TEXT_FENCE = re.compile(r"```[ \t]*(?:text|txt|plain)?[ \t]*\n(.*?)```", re.S)
+
+
+def typed_drawing(text):
+    """The first corner line of a flow or tree drawn as text, or ''."""
+    for match in TEXT_FENCE.finditer(str(text or "")):
+        body = match.group(1)
+        corners = [l for l in body.splitlines() if CORNER.search(l)]
+        if corners and TYPED_ARROW.search(body):
+            return corners[0].strip()
+    return ""
 
 
 def is_nudge(text):
@@ -393,6 +416,11 @@ def reply_findings(reply, asked=(), learner=None, command=""):
         problems.append(("report", "The reply ends like an engineering report (%s). Tutoring replies never carry "
                         "Where, Your check, On you, or a Skills followed paragraph (CLAUDE.md, Hard rules); "
                         "say what happens next in plain words instead." % ", ".join(labels)))
+    drawn = typed_drawing(text)
+    if drawn:
+        problems.append(("drawing", "The reply types a diagram out as text (\"%s\"). Draw it as a mermaid block "
+                        "instead; box drawing stays only in a picker probe or a grid that lines up cell by "
+                        "cell (diagrams.md)." % drawn[:80]))
     names = machinery(text)
     if names:
         problems.append(("machinery", "The prose names %s. Say the topic's name instead; the learner never reads "

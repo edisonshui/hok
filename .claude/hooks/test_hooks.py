@@ -3387,6 +3387,20 @@ eq("code spans are not prose", rc.machinery("Type `python3 run.py` to start."), 
 eq("a lower-case word is not the checker", rc.machinery("the jev of it"), [])
 eq("N2 the molecule is not a node", rc.machinery("N2 is a gas."), [])
 
+section("reply-check: a diagram typed out as text")
+PLAN_12NOV = ("Here's the plan. Five steps:\n\n```\n1. conditional probability \u2500\u2500> 2. independence test \u2500\u2500\u2510\n"
+              "          \u2514\u2500\u2500\u2500\u2500\u2534\u2500\u2500> 5. timed table\n3. what ML does \u2500\u2500> 4. overfitting\n```\n\nReady?")
+eq("the 12 Nov plan drawing is found", bool(rc.typed_drawing(PLAN_12NOV)), True)
+eq("it logs as drawing, never holds", [k for k, _ in rc.reply_findings([PLAN_12NOV], command="start")], ["drawing"])
+eq("drawing is not in HOLD", "drawing" in rc.HOLD, False)
+GRID = "```text\n\u250c\u2500\u2500\u252c\u2500\u2500\u2510\n\u2502 3\u2502 7\u2502\n\u2514\u2500\u2500\u2534\u2500\u2500\u2518\n```"
+eq("a grid of cells with no arrows is allowed", rc.typed_drawing(GRID), "")
+eq("a mermaid block is allowed", rc.typed_drawing("```mermaid\nflowchart LR\n  A --> B\n  B --> C\n```"), "")
+eq("Java lambdas in a java block are allowed", rc.typed_drawing("```java\nlist.forEach(x -> f(x));\nmap(y -> y * 2);\n```"), "")
+eq("one arrow in a sentence is allowed", rc.typed_drawing("So P(late) \u2192 0.2, and then we compare."), "")
+eq("a grammar rule block with arrows and no corners is allowed", rc.typed_drawing("```\nE -> V | E+E\nS -> N | S;N\n```"), "")
+eq("a tree drawn with branches is found", bool(rc.typed_drawing("```\nThrowable\n\u251c\u2500\u2500 Error\n\u2514\u2500\u2500 Exception\n```")), True)
+
 section("reply-check: the verdict rule asks for one only when it is sure there was a check")
 CHECK = {"who": "tutor", "kind": "text", "text": "Here is the swap.\n\n```java\nint t = a;\n```\n\nWhat does `*p` print now?"}
 eq("a reply that ended with a three-word question is a check", rc.asked_a_check([CHECK]), True)
