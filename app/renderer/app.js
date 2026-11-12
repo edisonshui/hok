@@ -243,6 +243,7 @@ function render() {
   if (window.Wall) Wall.route(route.name);
   if (route.slug && !subj(route.slug)) route.slug = defaultSlug();
   paintShell(); paintSide(); paintIslands();
+  $("homeFox").classList.toggle("on", route.name === "home");   // the fox keeps Home's empty corner (12 Nov)
   const inSession = route.name === "session";
   $("session").classList.toggle("hidden", !inSession);
   $("screen").classList.toggle("hidden", inSession);
@@ -4019,6 +4020,9 @@ function applyStone(night) {
   const stone = Stone.pick(cfg && cfg.stone);
   Stone.apply(stone, night);
   const k = stone + (night ? "-night" : "-day");
+  // the fox in Home's corner wears the stone too (12 Nov 2026; drawn in .scratch/hok-mascot/r18)
+  const fox = `mascot/fox-${stone}-${night ? "night" : "day"}.svg`;
+  if ($("homeFox").getAttribute("src") !== fox) $("homeFox").src = fox;
   if (k !== dockKey && F.setDockIcon) { dockKey = k; Stone.png(stone, night, 1024).then((png) => png && dockKey === k && F.setDockIcon(png, k)); }
 }
 
