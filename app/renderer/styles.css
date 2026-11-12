@@ -388,9 +388,11 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .composer .msg:empty::before{content:attr(data-placeholder);color:var(--color-ink-3);pointer-events:none}
 /* Math chips in the message box: MathLive fields drawn like inline code, without its menu or keyboard toggles. */
 .composer .chip-wrap{display:inline-block;vertical-align:middle}
-.composer math-field{display:inline-block;vertical-align:middle;min-width:22px;margin:1px 2px;padding:1px 6px;border-radius:6px;border:1px solid var(--color-line-strong);background:var(--color-action-soft);color:var(--color-ink);font-size:17px;outline:none;
-  --caret-color:var(--color-ink);--selection-background-color:var(--color-selected);--selection-color:var(--color-ink);--contains-highlight-background-color:transparent;--placeholder-color:var(--color-ink-3);--primary:var(--color-ink);--smart-fence-color:var(--color-ink-3)}
-.composer math-field:focus-within{border-color:var(--color-ink)}
+/* 12 Nov: at rest a chip is a soft tint with no edge, so math reads as part of the line; the edge comes back
+   while you type in it. The sqrt you type under keeps the ink (MathLive drew it blue). */
+.composer math-field{display:inline-block;vertical-align:middle;min-width:22px;margin:0 1px;padding:0 5px;border-radius:6px;border:1px solid transparent;background:var(--color-action-soft);color:var(--color-ink);font-size:17px;outline:none;
+  --caret-color:var(--color-ink);--selection-background-color:var(--color-selected);--selection-color:var(--color-ink);--contains-highlight-background-color:transparent;--contains-highlight-color:var(--color-ink);--placeholder-color:var(--color-ink-3);--primary:var(--color-ink);--smart-fence-color:var(--color-ink-3)}
+.composer math-field:focus-within{border-color:var(--color-line-strong)}
 .composer math-field::part(menu-toggle),.composer math-field::part(virtual-keyboard-toggle){display:none}
 .composer math-field::part(content){padding:0}
 .composer-row{display:flex;align-items:center;gap:6px}
@@ -986,6 +988,7 @@ html.glass [data-tip]:is(:hover,:focus-visible)::after{-webkit-backdrop-filter:b
 @media (hover:hover) and (pointer:fine){.s-title:hover{background:var(--color-selected)}}
 .s-due{font:600 12.5px/16px var(--font-sans);color:var(--color-ink);white-space:nowrap}
 .s-head-r{gap:12px;padding-right:2px}
+.s-prog{display:contents}
 .s-now,.s-count{font:400 12.5px/16px var(--font-sans);color:var(--color-ink-2);white-space:nowrap}
 .s-now b{font-weight:600;color:var(--color-ink)}
 .s-now{max-width:300px;overflow:hidden;text-overflow:ellipsis}

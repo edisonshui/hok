@@ -374,9 +374,7 @@ function paintIslands() {
   const left = `<div class="island s-head-l"><span class="bare-only"${bare ? "" : " inert"}>${bareButtons()}</span>
     <button class="s-title" id="switcher" data-act="switcher" aria-haspopup="menu" aria-expanded="false" title="${esc(s.title)}"><b>${esc(code)}</b>${about ? `<span class="sep">·</span><span class="mu">${esc(about)}</span>` : ""}${view ? `<span class="sep">·</span><span class="mu">${view}</span>` : ""}${icon("down", "dn")}</button>
     ${due}<span class="warm-label" id="warmLabel"></span></div>`;
-  const up = s.nodes.find((n) => n.id === s.up_next), done = s.nodes.filter((n) => ["solid", "checked", "decayed"].includes(n.status)).length;
-  const brick = (n) => `<i class="${n.status === "decayed" ? "due" : n.status === "solid" || n.status === "checked" ? "pass" : up && n.id === up.id ? "now" : "not"}" title="${esc(nodeName(n.name))}"></i>`;
-  const right = route.name === "session" ? `<div class="island s-head-r">${up ? `<span class="s-now">Now <b>${esc(nodeName(up.name))}</b></span>` : ""}<span class="s-count">${s.total ? s.proven : done} of ${s.total || s.nodes.length}</span><span class="s-bond" aria-hidden="true">${s.nodes.map(brick).join("")}</span>
+  const right = route.name === "session" ? `<div class="island s-head-r"><span class="s-prog" id="sProg">${headProgress(s)}</span>
     <span class="status-line" id="statusLine"></span>
     <button class="icon-btn ${LOG.tab === "note" ? "on" : ""}" data-act="toggle-note" aria-label="Session note" aria-pressed="${LOG.tab === "note"}" data-tip="${LOG.tab === "note" ? "Back to the thread" : "Session note"}  ${keyAlt("2")}" data-tip-side="left-down">${icon("note")}</button>
     <button class="icon-btn ${T.drawer ? "on" : ""}" data-act="toggle-term" aria-label="Terminal" aria-pressed="${T.drawer}" data-tip="Terminal  Ctrl+\`" data-tip-side="left-down">${icon("terminal")}</button>
@@ -385,6 +383,19 @@ function paintIslands() {
   slideTab();
   paintStatus();
   paintWarm();
+}
+// What is next, how many passed, and a brick per skill. A record change repaints only this, so the header
+// keeps up while the plan panel is shut (12 Nov: the bricks waited until the panel was opened again).
+function headProgress(s) {
+  const up = s.nodes.find((n) => n.id === s.up_next), done = s.nodes.filter((n) => ["solid", "checked", "decayed"].includes(n.status)).length;
+  const brick = (n) => `<i class="${n.status === "decayed" ? "due" : n.status === "solid" || n.status === "checked" ? "pass" : up && n.id === up.id ? "now" : "not"}" title="${esc(nodeName(n.name))}"></i>`;
+  return `${up ? `<span class="s-now">Now <b>${esc(nodeName(up.name))}</b></span>` : ""}<span class="s-count">${s.total ? s.proven : done} of ${s.total || s.nodes.length}</span><span class="s-bond" aria-hidden="true">${s.nodes.map(brick).join("")}</span>`;
+}
+function paintHeadProgress() {
+  const el = $("sProg"), s = subj(route.slug);
+  if (!el || !s) return;
+  const html = headProgress(s);
+  if (el.innerHTML !== html) el.innerHTML = html;
 }
 // While you warm up, the header is honest about it: "Warm-up HW23" (spec, 1 Nov).
 // No skill of this subject is named or lit until the last warm-up's key comes back.
@@ -2140,6 +2151,10 @@ ACTIONS.attach = async () => {
 // (MathLive's <math-field>) at the caret: / stacks a fraction, ^ raises an
 // exponent, int, sqrt, sum, and pi turn into symbols. Arrow past either end,
 // Escape, or $ leaves the chip; $ in an empty chip types a plain $ instead.
+// The chip is part of the line (12 Nov, Edison): an arrow or Backspace next to it
+// goes in, Backspace in an empty one removes it, and $ beside one carries on in it,
+// so two chips never sit side by side. Math in a line of words is set at text
+// size, the way the thread sets $…$, so a fraction stays one line tall.
 // The tutor receives each chip as $LaTeX$, which the thread renders as math.
 const MSG = $("msg");
 if (window.MathLive) {
@@ -2191,6 +2206,7 @@ function makeChip(latex) {
   mf.chip = chip;
   chip.append(mf);
   mf.mathVirtualKeyboardPolicy = "manual";
+  mf.defaultMode = "inline-math";
   mf.value = latex || "";
   mf.addEventListener("move-out", (e) => {
     e.preventDefault();
@@ -2212,10 +2228,40 @@ function leaveChip(mf, side) {
   r.setStart(t, t.nodeValue.startsWith("\u200b") ? 1 : 0); r.collapse(true);
   sel.removeAllRanges(); sel.addRange(r);
 }
+// The chip right before (dir -1) or after (dir 1) a collapsed caret in the box, past the
+// zero-width spaces that keep a caret beside it. Null when words come between.
+function chipBeside(dir) {
+  const sel = getSelection();
+  if (!sel.rangeCount || !sel.isCollapsed || !MSG.contains(sel.anchorNode)) return null;
+  const blank = (t) => /^\u200b*$/.test(t);
+  let node = sel.anchorNode;
+  if (node.nodeType === 3) {
+    const t = node.nodeValue, off = sel.anchorOffset;
+    if (!blank(dir < 0 ? t.slice(0, off) : t.slice(off))) return null;
+    node = dir < 0 ? node.previousSibling : node.nextSibling;
+  } else node = node.childNodes[dir < 0 ? sel.anchorOffset - 1 : sel.anchorOffset];
+  while (node && node.nodeType === 3 && blank(node.nodeValue)) node = dir < 0 ? node.previousSibling : node.nextSibling;
+  return node && node.classList && node.classList.contains("chip-wrap") ? node.querySelector("math-field") : null;
+}
+function enterChip(mf, where) {
+  mf.focus({ preventScroll: true });
+  mf.executeCommand(where === "end" ? "moveToMathfieldEnd" : "moveToMathfieldStart");
+}
+// Backspace in an empty chip: the chip goes, and the caret stays where it was.
+function dropChip(mf) {
+  const box = mf.chip || mf, before = box.previousSibling, parent = box.parentNode;
+  MSG.focus({ preventScroll: true });
+  box.remove();
+  if (before) caretAt(before, "after");
+  else { const r = document.createRange(); r.setStart(parent, 0); r.collapse(true); getSelection().removeAllRanges(); getSelection().addRange(r); }
+  afterMsgInput();
+}
 function insertMath() {
   if (!window.MathLive) return toast("The math editor didn't load. Type math as LaTeX between $ signs instead.");
   if (route.name !== "session") return;
   MSG.focus({ preventScroll: true });
+  const before = chipBeside(-1), near = before || chipBeside(1);
+  if (near) return enterChip(near, before ? "end" : "start");
   const sel = getSelection();
   let range = sel.rangeCount && MSG.contains(sel.anchorNode) ? sel.getRangeAt(0) : null;
   if (!range) { range = document.createRange(); range.selectNodeContents(MSG); range.collapse(false); }
@@ -2302,7 +2348,16 @@ MSG.addEventListener("keydown", (e) => {
       else leaveChip(chip, "after");
     } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); leaveChip(chip, "after"); }
     else if (e.key === "Enter" && !e.shiftKey && !composing(e)) { e.preventDefault(); e.stopPropagation(); ACTIONS.send(); }
+    else if ((e.key === "Backspace" || e.key === "Delete") && !e.metaKey && !e.altKey && !chip.value.trim()) { e.preventDefault(); e.stopPropagation(); dropChip(chip); }
+    else if (e.key === "Backspace" && !e.metaKey && !e.altKey && chip.position === 0 && chip.selectionIsCollapsed) { e.preventDefault(); e.stopPropagation(); leaveChip(chip, "before"); }
     return;
+  }
+  // Into a chip from the words beside it: the arrow toward it, or Backspace and Delete,
+  // which then take its math one symbol at a time.
+  const plain = !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey;
+  if (plain && (e.key === "ArrowLeft" || e.key === "Backspace" || e.key === "ArrowRight" || e.key === "Delete")) {
+    const back = e.key === "ArrowLeft" || e.key === "Backspace", mf = chipBeside(back ? -1 : 1);
+    if (mf) { e.preventDefault(); return enterChip(mf, back ? "end" : "start"); }
   }
   const mod = isMac() ? e.metaKey : e.ctrlKey;
   if (composing(e)) return;   // Chinese or Japanese input: Return confirms the characters, never sends
@@ -3989,7 +4044,7 @@ F.onState((state) => {
   if (route.name === "session" && T.running) lastSaved = Date.now();
   paintSide();
   if (route.name === "question") return;   // a vault change never touches a question chat
-  if (route.name === "session") { paintStatus(); if (cfg.panel) paintPlan(); if (!T.running) { paintActs(); if (LOG.data) paintThread(false); } return; }
+  if (route.name === "session") { paintStatus(); paintHeadProgress(); if (cfg.panel) paintPlan(); if (!T.running) { paintActs(); if (LOG.data) paintThread(false); } return; }
   // Home never changes under you: it waits until you come back (rule 6).
   if (route.name === "home") { homeStale = true; return; }
   if (pal || $("scrim").classList.contains("on")) return;
