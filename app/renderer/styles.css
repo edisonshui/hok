@@ -391,13 +391,13 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .composer .chip-wrap{display:inline-block;vertical-align:baseline}
 /* 12 Nov: at rest a chip is a soft tint with no edge, so math reads as part of the line; the edge comes back
    while you type in it. The sqrt you type under keeps the ink (MathLive drew it blue). */
-.composer math-field{display:inline-block;vertical-align:baseline;min-width:22px;margin:0 1px;padding:0 5px;border-radius:6px;border:1px solid transparent;background:var(--color-action-soft);color:var(--color-ink);font-size:17px;outline:none;
+.composer math-field{display:inline-block;vertical-align:baseline;min-width:22px;margin:0 1px;padding:2px 7px;border-radius:6px;border:1px solid transparent;background:var(--color-action-soft);color:var(--color-ink);font-size:21px;outline:none;
   --caret-color:var(--color-ink);--selection-background-color:var(--color-selected);--selection-color:var(--color-ink);--contains-highlight-background-color:transparent;--contains-highlight-color:var(--color-ink);--placeholder-color:var(--color-ink-3);--primary:var(--color-ink);--smart-fence-color:var(--color-ink-3)}
 .composer math-field:focus-within{border-color:var(--color-line-strong)}
 .composer math-field::part(menu-toggle),.composer math-field::part(virtual-keyboard-toggle){display:none}
 .composer math-field::part(content){padding:0}
-/* The field's own frame adds 4px above and below; without it a chip is the line's height, so a line with math keeps its spacing. */
-.composer math-field::part(container){padding:0;min-height:0}
+/* 12 Nov, Edison picked B: math at 21px so a fraction's digits read, with 4px of room above and below and 7px at the sides so it never touches the chip's edge (the field's own 4px frame is replaced by this). */
+.composer math-field::part(container){padding:2px 0;min-height:0}
 .composer-row{display:flex;align-items:center;gap:6px}
 .composer-row .icon-btn{width:28px;height:28px;margin-left:-6px}
 .model{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font:var(--type-caption);color:var(--color-ink-2);padding:4px 8px;border-radius:7px;transition:background var(--duration-fast) var(--ease-out)}
