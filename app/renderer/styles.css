@@ -375,18 +375,32 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .composer .msg{border:0;outline:0;background:none;font:var(--type-ui);font-size:14px;line-height:22px;color:var(--color-ink);min-height:22px;flex:0 1 auto;overflow-y:auto;white-space:pre-wrap;word-break:break-word;cursor:text}
 /* The box grows to a third of the window, then scrolls inside with its top line fading. */
 #composer{max-height:calc(100vh / 3)}
-#composer>.attach,#composer>.composer-row{flex:none}
+#composer>.attach{flex:none}
+/* One row (11 Nov, Edison picked B, after the question chat's field): + on the left, the words, then mic and send.
+   The row grows with the words and its buttons stay on the bottom line. */
+#composer{gap:6px;padding:12px}
+#composer>.composer-row{flex:1 1 auto;min-height:0;align-items:flex-end;gap:10px}
+#composer .msg{flex:1 1 auto;min-width:0;align-self:stretch;max-height:calc(100vh / 3 - 24px);padding:5px 0;font-size:15px;line-height:22px}
+#composer .composer-row .icon-btn{width:32px;height:32px;margin:0;flex:none}
 .composer .msg.fade-top{-webkit-mask-image:linear-gradient(transparent,var(--color-ink) 22px);mask-image:linear-gradient(transparent,var(--color-ink) 22px)}
 /* Edit: the words are on their way back into the box, so they show when they land. */
 .composer .msg.landing{color:transparent;caret-color:transparent}
 .composer .msg:empty::before{content:attr(data-placeholder);color:var(--color-ink-3);pointer-events:none}
 /* Math chips in the message box: MathLive fields drawn like inline code, without its menu or keyboard toggles. */
-.composer .chip-wrap{display:inline-block;vertical-align:middle}
-.composer math-field{display:inline-block;vertical-align:middle;min-width:22px;margin:1px 2px;padding:1px 6px;border-radius:6px;border:1px solid var(--color-line-strong);background:var(--color-action-soft);color:var(--color-ink);font-size:17px;outline:none;
-  --caret-color:var(--color-ink);--selection-background-color:var(--color-selected);--selection-color:var(--color-ink);--contains-highlight-background-color:transparent;--placeholder-color:var(--color-ink-3);--primary:var(--color-ink);--smart-fence-color:var(--color-ink-3)}
-.composer math-field:focus-within{border-color:var(--color-ink)}
-.composer math-field::part(menu-toggle),.composer math-field::part(virtual-keyboard-toggle){display:none}
-.composer math-field::part(content){padding:0}
+/* Baseline, not middle (12 Nov, Edison: the 1/2 sat wrong): the math's baseline is the words' baseline, so x sits on the line with them. */
+:is(.composer,.cc-field) .chip-wrap{display:inline-block;vertical-align:baseline}
+/* 12 Nov: at rest a chip is a soft tint with no edge, so math reads as part of the line; the edge comes back
+   while you type in it. The sqrt you type under keeps the ink (MathLive drew it blue). */
+:is(.composer,.cc-field) math-field{display:inline-block;vertical-align:baseline;min-width:22px;margin:0 1px;padding:2px 7px;border-radius:6px;border:1px solid transparent;background:var(--color-action-soft);color:var(--color-ink);font-size:21px;outline:none;
+  --caret-color:var(--color-ink);--selection-background-color:var(--color-selected);--selection-color:var(--color-ink);--contains-highlight-background-color:transparent;--contains-highlight-color:var(--color-ink);--placeholder-color:var(--color-ink-3);--primary:var(--color-ink);--smart-fence-color:var(--color-ink-3)}
+:is(.composer,.cc-field) math-field:focus-within{border-color:var(--color-line-strong)}
+:is(.composer,.cc-field) math-field::part(menu-toggle),:is(.composer,.cc-field) math-field::part(virtual-keyboard-toggle){display:none}
+/* MathLive cuts its content off at the edge of the box it measures, and it measures an empty limit too short: the top box
+   of an integral's limits was cut in half (14 Nov, Edison). The cut edge sits 5px out instead, and the margin takes the
+   room back, so the chip keeps the size picked on 12 Nov. */
+:is(.composer,.cc-field) math-field::part(content){padding:5px 0;margin:-3px 0}
+/* 12 Nov, Edison picked B: math at 21px so a fraction's digits read, with 4px of room above and below and 7px at the sides so it never touches the chip's edge (the field's own 4px frame is replaced by this). */
+:is(.composer,.cc-field) math-field::part(container){padding:0;min-height:0}
 .composer-row{display:flex;align-items:center;gap:6px}
 .composer-row .icon-btn{width:28px;height:28px;margin-left:-6px}
 .model{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font:var(--type-caption);color:var(--color-ink-2);padding:4px 8px;border-radius:7px;transition:background var(--duration-fast) var(--ease-out)}
@@ -397,9 +411,8 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .send[data-act="interrupt"]{background:var(--color-surface);color:var(--color-ink);box-shadow:inset 0 0 0 1px var(--color-line-strong)}
 .send[data-act="interrupt"]:hover{background:var(--color-selected)}
 .send svg.i{width:15px;height:15px}
-.send.resume{animation:resume-in var(--duration-fast) var(--ease-out)}
-.send.resume svg.i{width:13px;height:13px;margin-left:1px}   /* the play mark sits optically centred */
-@keyframes resume-in{from{opacity:.4}}
+/* Resume keeps the send arrow at its own size, with no fade: typing changes nothing about the button (11 Nov, Edison:
+   the arrow grew "unelegantly" as text went in; the 13px size was left from the old play mark). */
 .acts:empty{display:none}
 .drawer{position:absolute;left:0;right:0;bottom:0;height:52%;min-height:220px;background:var(--color-surface);border-top:1px solid var(--color-line-strong);box-shadow:0 -8px 24px rgba(17,24,39,.08);z-index:7;display:flex;flex-direction:column;transform:translateY(102%);visibility:hidden;transition:transform var(--duration-base) var(--ease-out),visibility 0s var(--duration-base)}
 .drawer.on{transform:none;visibility:visible;transition:transform var(--duration-base) var(--ease-out),visibility 0s}
@@ -454,7 +467,7 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .menu-item:hover,.menu-item.hl{background:var(--color-selected)}
 .menu-item .lbl{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .menu-item kbd{margin-left:auto;font:var(--type-caption);color:var(--color-ink-3);padding-left:8px;white-space:nowrap}
-.sheet{position:absolute;left:50%;top:60px;transform:translateX(-50%);width:540px;max-width:calc(100vw - 40px);padding:22px 26px 24px;animation:pop var(--duration-base) var(--ease-out);max-height:calc(100vh - 100px);overflow:auto}
+.sheet{position:absolute;left:50%;top:60px;transform:translateX(-50%);width:680px;max-width:calc(100vw - 40px);padding:26px 32px 28px;animation:pop var(--duration-base) var(--ease-out);max-height:calc(100vh - 100px);overflow:auto}
 .sheet .sec{padding:16px 0;border-top:1px solid var(--color-line)}
 .sheet .sec:first-of-type{border-top:0}
 .field{height:32px;width:100%;padding:0 10px;border-radius:var(--radius-option);border:1px solid var(--color-line-strong);background:var(--color-surface);font:var(--type-ui);color:var(--color-ink);margin-top:8px}
@@ -611,6 +624,9 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .nav-row:active:not(:disabled),.week-row:active,.plan-card:active,.subject-card:active,.streak-card:active,.menu-item:active,.icon-btn:active:not(:disabled){transform:scale(.98)}
 /* Menus grow from where they were opened. */
 .menu{transform-origin:top left;animation:menu-in 150ms var(--ease-out)}
+.menu.up{transform-origin:bottom left;animation-name:menu-up}
+@keyframes menu-up{from{opacity:0;transform:scale(.97) translateY(3px)}}
+.menu.up{width:220px}
 @keyframes menu-in{from{opacity:0;transform:scale(.97) translateY(-3px)}}
 /* The new-messages pill rises in instead of popping. */
 .newpill{display:inline-flex;opacity:0;pointer-events:none;transform:translate(-50%,6px);transition:opacity var(--duration-fast) var(--ease-out),transform var(--duration-base) var(--ease-out)}
@@ -801,6 +817,9 @@ body.still{pointer-events:none}
 .cc-sure button{padding:5px 11px}
 .cc-field{flex:1;min-width:0;box-sizing:border-box;resize:none;overflow:hidden;border:1px solid var(--color-line-strong);border-radius:var(--radius-option);background:var(--color-surface);padding:7px 10px;font:var(--type-ui);font-size:14px;line-height:20px;color:var(--color-ink);outline:none;transition:border-color var(--duration-fast) var(--ease-out)}
 .cc-field::placeholder{color:var(--color-ink-3)}
+/* 15 Nov: the field is an editable line with math chips, like the message box ($ or Cmd+E opens one). */
+.cc-field.mbox{min-height:36px;white-space:pre-wrap;word-break:break-word;cursor:text}
+.cc-field.mbox:empty::before{content:attr(data-placeholder);color:var(--color-ink-3);pointer-events:none}
 .cc-field:focus{border-color:var(--color-ink)}
 .cc-foot{display:flex;justify-content:flex-end;margin-top:12px}
 /* Check is asleep until there is a pick and a confidence; it wakes on the snappy spring. */
@@ -884,7 +903,7 @@ html.glass #session .question.waiting{box-shadow:inset 0 1px 0 var(--glass-edge)
 html.glass #session :is(.question,.check-card){border-radius:14px}   /* one material, one radius: the composer's */
 /* A figure has no plate of its own (10 Nov): its ink sits straight on the glass, so it gets no rim either. */
 /* The composer takes the field's shape too, so the glide from Home carries one object, not two. */
-html.glass #session .composer{border-radius:14px;padding-left:20px}
+html.glass #session .composer{border-radius:14px}
 /* Tints inside the session are the ink at a low strength, so they take the glass's colour instead of sitting on it as
    gray boxes: your bubbles and hovers 7% (9% at night), code 4%, the tab strip 6% with the selected tab a pill of the
    sidebar's own glass. Outlined buttons drop their fill, like Home's pills. The terminal drawer keeps its solid sheet. */
@@ -895,7 +914,7 @@ html.glass #session .btn.neutral,html.glass #session .btn.neutral:disabled{backg
 /* The question and check cards are the composer's glass (the v2 prototype drew them as one material); their option rows,
    answer fields and the stop button are outlines on it. */
 :where(html.glass #session) :is(.option,.cc-opt,.cc-field){background:color-mix(in srgb,var(--glass-field) 50%,transparent)}   /* half the card's glass, so a row reads as an outline on the card, not a hole through it; :where keeps their selected and hover fills winning */
-:where(html.glass #session) :is(.send[data-act="interrupt"],.codeblock .copy,.shot-chip){background:var(--glass-field)}
+:where(html.glass #session) :is(.codeblock .copy,.shot-chip){background:var(--glass-field)}
 html.glass #session .codeblock{border-color:transparent}
 html.glass #session{--color-action-soft:color-mix(in srgb,var(--color-ink) 9%,transparent)}   /* a picked answer and math chips: a tint, not a gray slab */
 html.glass #session .btn.neutral:hover:not(:disabled){background:var(--color-selected)}
@@ -978,6 +997,7 @@ html.glass [data-tip]:is(:hover,:focus-visible)::after{-webkit-backdrop-filter:b
 @media (hover:hover) and (pointer:fine){.s-title:hover{background:var(--color-selected)}}
 .s-due{font:600 12.5px/16px var(--font-sans);color:var(--color-ink);white-space:nowrap}
 .s-head-r{gap:12px;padding-right:2px}
+.s-prog{display:contents}
 .s-now,.s-count{font:400 12.5px/16px var(--font-sans);color:var(--color-ink-2);white-space:nowrap}
 .s-now b{font-weight:600;color:var(--color-ink)}
 .s-now{max-width:300px;overflow:hidden;text-overflow:ellipsis}
@@ -990,6 +1010,16 @@ html.glass .s-bond i{background:linear-gradient(180deg,rgba(255,255,255,.75),rgb
 html.glass[data-theme="night"] .s-bond i{background:linear-gradient(180deg,rgba(244,246,255,.58),rgba(232,236,248,.34));box-shadow:inset 0 1px 0 rgba(250,252,255,.95),inset 0 0 3px rgba(255,255,255,.35),inset 0 0 0 .5px rgba(248,250,255,.5),0 0 6px rgba(226,230,242,.2)}
 .s-bond i.due{background:#E2602A}
 html[data-theme="night"] .s-bond i.due{background:#FF8A3D}
+/* On a big display (html.big: main.js fitZoom draws the page at 1.08) the header grew less than the page around it read (14 Nov, Edison,
+   on his 27": "the header size is small compared to the rest of the screen"). The header alone steps up; the lesson stays. */
+html.big .s-title{font-size:17px;height:34px;line-height:34px}
+html.big :is(.s-due,.s-now,.s-count){font-size:14px;line-height:18px}
+html.big .status-line{font-size:13.5px}
+html.big .s-bond i{width:20px;height:7px}
+/* the sidebar is the same frame as the header, so it steps up with it (15 Nov, Edison: "yes bigger sidebar") */
+html.big .nav-row{font-size:14.5px;height:32px}
+html.big .nav-row .n{font-size:13px}
+html.big :is(.side-label,.side-label.ix){font-size:13.5px;line-height:18px}
 html.glass .s-bond i.due{background:linear-gradient(180deg,#F08A52,#E2602A 55%,#CC5222);box-shadow:inset 0 1px 0 rgba(255,228,206,.85),inset 0 0 0 .5px rgba(255,200,170,.5),0 1px 2px rgba(120,40,10,.22)}
 html.glass[data-theme="night"] .s-bond i.due{background:linear-gradient(180deg,#FFB070,#FF8A3D 55%,#E8682A);box-shadow:inset 0 1px 0 rgba(255,238,214,.9),inset 0 0 0 .5px rgba(255,214,170,.6),0 0 10px rgba(255,138,61,.6)}
 .s-bond i.now,html.glass .s-bond i.now,html.glass[data-theme="night"] .s-bond i.now{background:transparent;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--color-ink) 62%,transparent)}
@@ -1291,8 +1321,8 @@ html.glass[data-stone] .sk-float .mk.mini u.laid{background:var(--stone-brick)}
 /* Settings: the eight stones as their own icons; the ring hugs the tile, not the icon's margin */
 .stones{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 8px;margin-top:10px}
 .stone{display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0;border-radius:10px}
-.stone .st-tile{position:relative;width:46px;height:46px;border-radius:11px}
-.stone img{position:absolute;left:-5.5px;top:-5.5px;width:57px;height:57px}
+.stone .st-tile{position:relative;width:60px;height:60px;border-radius:14px}   /* 46 to 60 (15 Nov, Edison: the foxes "larger when you choose") */
+.stone img{position:absolute;left:-7px;top:-7px;width:74px;height:74px}
 .stone .lab{font:var(--type-caption);color:var(--color-ink-2)}
 .stone:hover .lab{color:var(--color-ink)}
 .stone.on .st-tile,.stone:focus-visible .st-tile{box-shadow:0 0 0 2px var(--color-surface),0 0 0 4px var(--color-action)}
@@ -1308,15 +1338,29 @@ html.glass[data-stone] :is(.home2 .h-field,#session .composer){background-clip:p
 html.glass[data-stone]:not([data-theme="night"]) :is(.home2 .h-field,#session .composer){box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),var(--stone-drop)}
 html.glass[data-stone]:not([data-theme="night"]) :is(.home2 .h-field,#session .composer,.q-field):focus-within{box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),var(--stone-drop)}
 /* Settings at the foot of the sidebar (10 Nov, Edison: "there isn't a settings button") */
-.side-end{flex:none;padding-top:6px}
+.side-end{flex:none;padding-top:6px;display:flex;align-items:center;gap:2px}
+.side-end .nav-row{flex:1 1 auto;min-width:0}
+/* 15 Nov: a newer Hok is one small icon beside Settings, ink 3 like every resting icon; folded, it sits under Settings */
+.side-end .upd{flex:none;width:30px;height:30px;color:var(--color-ink-3)}
+.side-end .upd:hover{color:var(--color-ink)}
+.side-end .upd svg.i{width:15px;height:15px}
+.side-end .upd.busy{cursor:default}
+.side-end .upd.busy svg.i{animation:upd-turn 1.2s linear infinite}
+@keyframes upd-turn{to{rotate:360deg}}
+@media (prefers-reduced-motion:reduce){.side-end .upd.busy svg.i{animation:none}}
+.window.icons .side-end{flex-direction:column;align-items:flex-start}
+.window.icons .side-end .upd{width:48px;height:30px}
 /* the send button on a stone (10 Nov, Edison picked C of three: "I like C the most", on Home's field too): a faint circle
    of the stone with the arrow in its deep shade, one shape on Home and in a session. Arrow on its circle, measured as
-   solid colour: worst 4.19:1 by day (Sakura), 4.45:1 at night (Maple). Stop and Interrupt keep their own look. */
-html.glass[data-stone] .send:not([data-act="interrupt"]):not([data-act="question-stop"]){--send-ink:color-mix(in srgb,var(--stone-brick) 70%,black);width:32px;height:32px;border-radius:var(--radius-button);background:color-mix(in srgb,var(--stone-brick) 16%,transparent);color:var(--send-ink);box-shadow:none}
-html.glass[data-stone][data-theme="night"] .send:not([data-act="interrupt"]):not([data-act="question-stop"]){--send-ink:color-mix(in srgb,var(--stone-brick) 80%,white);background:color-mix(in srgb,var(--stone-brick) 22%,transparent)}
-html.glass[data-stone] .send:not([data-act="interrupt"]):not([data-act="question-stop"]):not(:disabled):hover{background:color-mix(in srgb,var(--stone-brick) 26%,transparent)}
-html.glass[data-stone] .send:not([data-act="interrupt"]):not([data-act="question-stop"]):disabled{background:color-mix(in srgb,var(--stone-brick) 8%,transparent);color:color-mix(in srgb,var(--send-ink) 40%,transparent)}
+   solid colour: worst 4.19:1 by day (Sakura), 4.45:1 at night (Maple). Stop wears the same tint, so the
+   button keeps one look while the tutor writes and only its mark changes (11 Nov, Edison picked B: the old outlined
+   6px square felt too small for its box). */
+html.glass[data-stone] .send{--send-ink:color-mix(in srgb,var(--stone-brick) 70%,black);width:32px;height:32px;border-radius:var(--radius-button);background:color-mix(in srgb,var(--stone-brick) 16%,transparent);color:var(--send-ink);box-shadow:none}
+html.glass[data-stone][data-theme="night"] .send{--send-ink:color-mix(in srgb,var(--stone-brick) 80%,white);background:color-mix(in srgb,var(--stone-brick) 22%,transparent)}
+html.glass[data-stone] .send:not(:disabled):hover{background:color-mix(in srgb,var(--stone-brick) 26%,transparent)}
+html.glass[data-stone] .send:disabled{background:color-mix(in srgb,var(--stone-brick) 8%,transparent);color:color-mix(in srgb,var(--send-ink) 40%,transparent)}
 html.glass[data-stone] #session .composer-row .send{width:32px;height:32px}
+html.glass[data-stone] .send:is([data-act="interrupt"],[data-act="question-stop"]) svg.i{width:24px;height:24px;fill:currentColor;stroke:none}   /* the stop mark solid, 10px: a third of the box */
 
 /* the stone reaches the ink (10 Nov, Edison: Home "doesn't have the right contrast and the colors are off... everything
    surrounding the app should compliment that specific color palette", on every stone and every screen). Text is a deep
@@ -1376,7 +1420,7 @@ html[data-theme="night"] #wall .wall-shade{background:rgba(6,8,12,.44)}
 html:not([data-wkind="stone"]) #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#2E9C96) 16%,transparent)}
 html[data-theme="night"]:not([data-wkind="stone"]) #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#21807B) 20%,transparent)}
 /* Settings: the wallpaper choices */
-.walls{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:8px}
+.walls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:8px}   /* four across in the 680px sheet (15 Nov, "make the settings page a bit larger") */
 .wall-opt{display:flex;flex-direction:column;gap:4px;padding:0;border:0;background:none;text-align:left;cursor:pointer;color:var(--color-ink-2);font:var(--type-caption)}
 .wall-opt .wt{display:block;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:color-mix(in srgb,var(--stone-tone,#2E9C96) 40%,#0b0d10);box-shadow:inset 0 0 0 1px var(--color-line)}
 .wall-opt .wt img{width:100%;height:100%;object-fit:cover;display:block}
@@ -1443,7 +1487,7 @@ html.glass .toast{background:var(--glass-float);-webkit-backdrop-filter:blur(30p
 .mic.rec{color:var(--stone-brick,var(--color-action));background:color-mix(in srgb,var(--stone-brick,var(--color-action)) 16%,transparent);box-shadow:0 0 0 calc(var(--lvl,0) * 4px) color-mix(in srgb,var(--stone-brick,var(--color-action)) 22%,transparent);transition:box-shadow 80ms linear}
 .mic.busy svg{opacity:0}
 .mic.busy::after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;border:1.6px solid currentColor;border-right-color:transparent;animation:spin .8s linear infinite}
-#session .composer-row .mic{width:28px;height:28px}
+#session .composer-row .mic{width:32px;height:32px}
 .dict-prog{margin-top:14px}
 .dict-prog i{display:block;height:4px;border-radius:2px;background:color-mix(in srgb,var(--color-ink) 10%,transparent);overflow:hidden}
 .dict-prog b{display:block;height:100%;width:0;background:var(--stone-brick,var(--color-action));transition:width 200ms linear}
@@ -1454,6 +1498,10 @@ html.glass .toast{background:var(--glass-float);-webkit-backdrop-filter:blur(30p
    (11 Nov: the new On battery switch read as a black box); the picked side is a lighter step of the same ink */
 html.glass .sheet .seg{background:color-mix(in srgb,var(--color-ink) 7%,transparent)}
 html.glass .sheet .seg button.on{background:color-mix(in srgb,var(--color-ink) 13%,transparent);box-shadow:none}
+/* A check card's How sure? is the same glass tint (15 Nov, Edison: it was "in black, not glass", the 11 Nov black box
+   again, so this covers every switch on the session's glass): the well is the ink at 7%, the sliding pick at 13%. */
+html.glass #session .seg{background:color-mix(in srgb,var(--color-ink) 7%,transparent)}
+html.glass #session .seg-thumb{background:color-mix(in srgb,var(--color-ink) 13%,transparent);box-shadow:none}
 
 /* A setting that is on or off: one row, its words and a glass switch (11 Nov, Edison picked the glass toggle, then
    "a little bit too realistic and 3D"): flat, no gradient, glow or lit edge. Off, the track is the glass's own tint;
@@ -1465,3 +1513,9 @@ html.glass .sheet .seg button.on{background:color-mix(in srgb,var(--color-ink) 1
 .glass-switch.on{background:color-mix(in srgb,var(--stone-brick,var(--color-action)) 72%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--stone-brick,var(--color-action)) 85%,transparent)}
 .glass-switch.on i{transform:translateX(14px)}
 .glass-switch:focus-visible{outline:2px solid color-mix(in srgb,var(--color-ink) 40%,transparent);outline-offset:2px}
+
+/* Hok's fox (12 Nov 2026): a quiet detail in Home's empty bottom-right corner, in the stone and light you picked.
+   Home only: on Session the composer owns that corner, and nothing sits behind text you read. */
+.home-fox{position:absolute;right:28px;bottom:24px;height:56px;width:auto;pointer-events:none;user-select:none;opacity:0;transition:opacity 200ms var(--ease-out);z-index:5}   /* 72px and on every screen (15 Nov, Edison: "a little bit larger", "everywhere"); above the dock's fade, under menus and sheets */
+.home-fox.on{opacity:1}
+html.big .home-fox{height:72px}   /* 15 Nov, Edison on the laptop: 72px is "a little bit big", so it is 56px there and 72px only on a big display, where he asked for it larger */

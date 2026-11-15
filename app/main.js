@@ -12,6 +12,7 @@ const { readLog, stripFrontmatter } = require("./lib/log");
 const { questions } = require("./lib/questions");
 const wallpaper = require("./lib/wallpaper");
 const dictation = require("./lib/dictation");
+const update = require("./lib/update");
 
 const APP_NAME = "Hok";   // 學, "learn" in Cantonese (Edison, 11 Nov 2026); it was Obsidian Learning until then
 app.setName(APP_NAME);
@@ -415,6 +416,16 @@ ipcMain.handle("q:ask", (_e, id, text, images) => {
 ipcMain.handle("q:archive", (_e, id, on) => Q.archive(id, on !== false));
 ipcMain.handle("q:mark", (_e, id, patch) => Q.mark(id, patch || {}));
 ipcMain.handle("q:stop", (_e, id) => Q.stop(id));
+// Updates (lib/update.js): checked a few seconds after launch and every six hours, in the built app only.
+// HOK_UPDATE_URL points the check at a test release; HOK_FAKE_VERSION and HOK_FAKE_EXEC stand in for the running app.
+let UPD = null;
+ipcMain.handle("update:status", () => (UPD ? UPD.status() : { state: "none" }));
+ipcMain.handle("update:install", async () => {
+  if (!UPD) return false;
+  const r = await UPD.install((url) => shell.openExternal(url));
+  if (r === true) app.quit();   // the quit card still asks first while the tutor is writing
+  return r;
+});
 ipcMain.handle("open:external", (_e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); });
 ipcMain.handle("open:file", (_e, rel) => {
   if (!config.vault) return;
@@ -422,6 +433,17 @@ ipcMain.handle("open:file", (_e, rel) => {
   if (full.startsWith(path.resolve(config.vault) + path.sep) && fs.existsSync(full)) shell.showItemInFolder(full);
 });
 
+// ---------- page zoom ----------
+// ⌘+ and ⌘- size the whole page on every screen, Skills included, and ⌘0 goes back (15 Nov, Edison: "why wouldn't we
+// want the skills page to be zoomed in?"). Your step multiplies the display's own fit (fitZoom) and is kept in config.
+// A skill map still zooms itself by pinching and by its + and - buttons.
+const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5];
+let refitZoom = () => {};
+function stepZoom(d) {
+  const i = ZOOM_STEPS.indexOf(config.pageZoom || 1), at = i < 0 ? ZOOM_STEPS.indexOf(1) : i;
+  config.pageZoom = d === 0 ? 1 : ZOOM_STEPS[Math.max(0, Math.min(ZOOM_STEPS.length - 1, at + d))];
+  saveConfig(); refitZoom();
+}
 // ---------- menus ----------
 // Native menus carry every shortcut; each item sends its command to the window.
 function buildMenu() {
@@ -479,9 +501,9 @@ function buildMenu() {
       { label: "Show Terminal", accelerator: "Ctrl+`", click: cmd("toggle-term") },
       { label: "Show Session Note", accelerator: isMac ? "Alt+Cmd+2" : "Ctrl+Shift+Alt+2", click: cmd("tab:note") },
       { type: "separator" },
-      { label: "Zoom In", accelerator: a("="), click: cmd("zoom-in") },
-      { label: "Zoom Out", accelerator: a("-"), click: cmd("zoom-out") },
-      { label: "Fit Map", accelerator: a("0"), click: cmd("zoom-fit") },
+      { label: "Zoom In", accelerator: a("="), click: () => stepZoom(1) },
+      { label: "Zoom Out", accelerator: a("-"), click: () => stepZoom(-1) },
+      { label: "Actual Size", accelerator: a("0"), click: () => stepZoom(0) },
       { type: "separator" },
       { role: "togglefullscreen" },
       ...(app.isPackaged ? [] : [{ role: "toggleDevTools" }, { role: "reload" }]),
@@ -542,10 +564,13 @@ function createWindow() {
   const zoomed = win;
   const fitZoom = () => {
     if (zoomed.isDestroyed() || process.platform !== "darwin") return;
-    const z = +process.env.OL_ZOOM || (screen.getDisplayMatching(zoomed.getBounds()).workAreaSize.width >= 2200 ? 1.08 : 1);
+    const big = process.env.OL_ZOOM ? +process.env.OL_ZOOM > 1 : screen.getDisplayMatching(zoomed.getBounds()).workAreaSize.width >= 2200;
+    const z = (+process.env.OL_ZOOM || (big ? 1.08 : 1)) * (config.pageZoom || 1);
     if (Math.abs(zoomed.webContents.getZoomFactor() - z) > 0.001) zoomed.webContents.setZoomFactor(z);
-    zoomed.webContents.send("zoom", z);
+    zoomed.webContents.send("zoom", z);   // a number: the wallpaper and the traffic-light line-up read it as one
+    zoomed.webContents.send("display", { big });   // its own message (15 Nov: sending {z, big} on "zoom" broke the wallpaper's size)
   };
+  refitZoom = fitZoom;
   win.webContents.on("did-finish-load", fitZoom);
   const placed = win;
   const sendPlace = () => {
@@ -689,6 +714,13 @@ app.whenReady().then(async () => {
   watchVault();
   windowMade = true;
   createWindow();
+  if (app.isPackaged || process.env.HOK_UPDATE_URL) {
+    UPD = update.make({ net, version: process.env.HOK_FAKE_VERSION || app.getVersion(), execPath: process.env.HOK_FAKE_EXEC || process.execPath,
+      platform: process.platform, arch: process.arch, dir: path.join(app.getPath("userData"), "updates"), url: process.env.HOK_UPDATE_URL || undefined,
+      onChange: (st) => send("update:state", st) });
+    setTimeout(UPD.check, Number(process.env.HOK_UPDATE_WAIT || 8000));
+    setInterval(UPD.check, 6 * 3600 * 1000);
+  }
   // Logging out, restarting, or shutting down: never stand in the way.
   if (powerMonitor) powerMonitor.on("shutdown", () => { quitting = true; });
 });
@@ -696,6 +728,7 @@ app.on("window-all-closed", () => { if (process.platform !== "darwin") quitNow()
 // ⌘Q, the Dock's Quit, or logging out. Flash asks only while the tutor is writing;
 // otherwise it lets the quit through untouched, so a Mac logout or restart is never
 // cancelled. (Holding a quit back cancels the logout that asked for it.)
+app.on("will-quit", () => { if (UPD) UPD.swapAtQuit(); });   // the new Hok moves in once this one has gone
 app.on("before-quit", (e) => {
   if (!quitting && tutorWriting() && win && !win.isDestroyed()) { e.preventDefault(); requestQuit(); return; }
   quitting = true;

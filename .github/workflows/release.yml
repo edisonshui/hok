@@ -75,6 +75,7 @@ jobs:
           if-no-files-found: error
           path: |
             app/dist.noindex/*.dmg
+            app/dist.noindex/*-mac-*.zip
             app/dist.noindex/*.exe
             app/dist.noindex/*.AppImage
             app/dist.noindex/*.deb

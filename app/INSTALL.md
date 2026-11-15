@@ -59,6 +59,12 @@ Download the file for your computer from the [latest release](https://github.com
 - Dictation (the microphone beside each text box) turns your voice into text on your computer with Whisper, an open-source speech model. The model downloads once from Hugging Face the first time you use it, 80 to 140 MB. Your voice is never sent anywhere. Settings > Dictation removes it.
 - The first time you dictate, your computer asks whether the app may use the microphone.
 
+## Updating
+
+From 0.2.0 on, a small round arrow shows beside **Settings** at the bottom of the sidebar when a newer Hok is out. On a Mac, press it: Hok downloads the update, restarts, and opens the new version, with your vault and settings as they were. On Windows and Linux it opens this page, and you install the new file over the old one.
+
+If you have 0.1.0 (it was called Flash), install this version once by hand. After that, updates come through the arrow.
+
 ## If something goes wrong
 
 - **"Claude Code isn't signed in" or "Codex isn't signed in":** run `claude` (or `codex login`) in a terminal, sign in, then click **Check again**.

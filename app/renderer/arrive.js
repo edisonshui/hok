@@ -27,8 +27,9 @@
   // Words become spans; a formula gives up its symbols; a picture or a diagram is one token.
   const WHOLE = "img, svg, canvas, video, button, .mermaid, kbd";
   // A box (a code block, a table, a quote) is a token of its own, ahead of its words: its background waits its turn
-  // too, instead of standing empty below words still arriving (Edison, 7 Nov).
-  const BOX = ".codeblock, pre, table, blockquote, .callout";
+  // too, instead of standing empty below words still arriving (Edison, 7 Nov). A list item is one too, so its bullet
+  // or number lands just before its first word instead of every marker standing alone up front (Edison, 14 Nov).
+  const BOX = ".codeblock, pre, table, blockquote, .callout, li";
   function tokenize(root) {
     const out = [];
     const walk = (n) => {

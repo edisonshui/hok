@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld("flash", {
   session: (slug) => ipcRenderer.invoke("session:get", slug),
   openExternal: (url) => ipcRenderer.invoke("open:external", url),
   showFile: (rel) => ipcRenderer.invoke("open:file", rel),
+  update: { status: () => ipcRenderer.invoke("update:status"), install: () => ipcRenderer.invoke("update:install"), onState: on("update:state") },
   questions: {
     list: (all) => ipcRenderer.invoke("q:list", !!all),
     get: (id) => ipcRenderer.invoke("q:get", id),
@@ -46,7 +47,8 @@ contextBridge.exposeInMainWorld("flash", {
     onExit: on("pty:exit"),
   },
   // The window: shown once Home is drawn, hidden while a quit waits for the reply.
-  onZoom: on("zoom"),   // the page's zoom on this display (main.js fitZoom)
+  onZoom: on("zoom"),   // the page's zoom on this display, a number (main.js fitZoom)
+  onDisplay: on("display"),   // { big }: a display 2200+ points wide, where the header and sidebar step up
   windowReady: () => ipcRenderer.send("window:ready"),
   showWindow: () => ipcRenderer.send("window:show"),
   hideWindow: () => ipcRenderer.send("window:hide"),

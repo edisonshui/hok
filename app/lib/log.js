@@ -126,9 +126,13 @@ function readLog(text) {
       if (item.kind === "question") {
         lastQuestion = item;
         item.groups = parseQuestion(item.text);
-        const next = convo.items.slice(index + 1).find((x) => x.kind !== "warning");
-        // Held back by the hook and asked again: only the second one reached the learner.
-        item.withdrawn = !!(next && next.kind === "question");
+        const after = convo.items.slice(index + 1), cut = after.findIndex((x) => x.kind !== "warning");
+        const next = cut < 0 ? null : after[cut];
+        // Held back by the hook: it never reached the learner, whether the tutor asked
+        // again or fell back to plain chat (12 Nov: a fallback left this card "waiting",
+        // and the unread messages behind it never sent).
+        const heldBack = (cut < 0 ? after : after.slice(0, cut)).some((x) => /Withdrawn before it was asked/.test(x.text));
+        item.withdrawn = heldBack || !!(next && next.kind === "question");
         item.picked = next && next.kind === "answer" ? answerParts(item.text, next.text) : [];
         item.answered = !!(next && next.kind === "answer");
         if (item.answered && item.groups.some((g) => g.options.length)) item.answers = answersByGroup(item.groups, item.picked);
