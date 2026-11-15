@@ -304,6 +304,33 @@ function sideOrder(subjects) {
 function qRow(q, tip, icons) {
   return `<div class="q-side"><button class="nav-row subject ix q-row-side ${route.name === "question" && Q.id === q.id ? "on" : ""}" data-act="question" data-arg="${q.id}" title="${esc(q.title)}"${tip(esc(q.title))}><span class="lbl">${esc(q.title)}</span></button>${icons ? "" : `<button class="q-arch" data-act="question-archive" data-arg="${q.id}" aria-label="Archive" data-tip="Archive" data-tip-side="right">${icon("archive", "sm")}</button>`}</div>`;
 }
+// ---------- updates ----------
+// A newer Hok on GitHub shows as one small icon at the end of the Settings row (15 Nov, Edison: "discrete like T3
+// code"), and as a line in the palette. Nothing shows when there is none. Pressing it downloads the new Hok and
+// restarts into it; where Hok can't replace itself (lib/update.js) it opens the release page.
+let UPDATE = { state: "none" };
+function updateBtn() {
+  const u = UPDATE;
+  if (!u.version || u.state === "none") return "";
+  const busyNow = u.state === "downloading" || u.state === "installing";
+  const pct = u.state === "downloading" && u.total ? ` ${Math.round((100 * u.got) / u.total)}%` : "";
+  const words = u.state === "downloading" ? `Downloading Hok ${u.version}${pct}` : u.state === "installing" ? "Restarting into the update"
+    : u.inPlace ? `Update to Hok ${u.version} and restart` : `Hok ${u.version} is out. Open the download page`;
+  return `<button class="icon-btn upd${busyNow ? " busy" : ""}" data-act="update" aria-label="${words}"${busyNow ? ' aria-busy="true" aria-disabled="true"' : ""} data-tip="${words}" data-tip-side="up">${icon("update")}</button>`;
+}
+ACTIONS.update = async () => {
+  if (!F.update || UPDATE.state === "downloading" || UPDATE.state === "installing") return;
+  const r = await F.update.install();
+  if (r === false && UPDATE.state !== "failed") toast("No update is waiting.");
+};
+if (F.update) {
+  F.update.onState((st) => {
+    if (st.state === "failed") toast(`The update didn't download: ${st.error}. Hok is still on this version.`);
+    UPDATE = st.state === "failed" ? { ...st, state: "ready" } : st;
+    if (S) paintSide();
+  });
+  F.update.status().then((st) => { if (st && st.state !== "none") { UPDATE = st; if (S) paintSide(); } });
+}
 function paintSide() {
   const el = $("side"), icons = sideMode() === "icons";
   const tip = (t) => (icons ? ` data-tip="${t}" data-tip-side="right"` : "");
@@ -343,7 +370,7 @@ function paintSide() {
       <h4 class="side-label ix">Learning</h4>
       ${sideOrder(courseGroups(live).flatMap((g) => g.list)).map((x) => (x.q ? qRow(x.q, tip, icons) : subjectRow(x.s))).join("") || `<div class="cap side-empty">Your subjects and questions show up here.</div>`}
     </div>
-    <div class="side-end"><button class="nav-row" data-act="settings" aria-label="Settings">${icon("settings")}<span class="lbl">Settings</span></button></div>`)) return;
+    <div class="side-end"><button class="nav-row" data-act="settings" aria-label="Settings">${icon("settings")}<span class="lbl">Settings</span></button>${updateBtn()}</div>`)) return;
   el.scrollTop = top;
 }
 
@@ -2171,7 +2198,11 @@ if (window.MathLive) {
 // MathLive's own commands become plain LaTeX, so the tutor and every other reader see ordinary math (see MATH_MACROS).
 const plainLatex = (v) => v.replace(/\\differentialD(?![A-Za-z])/g, "\\mathrm{d}").replace(/\\exponentialE(?![A-Za-z])/g, "e")
   .replace(/\\imaginaryI(?![A-Za-z])/g, "i").replace(/\\imaginaryJ(?![A-Za-z])/g, "j");
-function msgValue() {
+// A check card's answer field is the same kind of box (15 Nov, Edison: "can't type math into the check cards"),
+// so every helper below takes the box it works in; the message box is the default.
+const boxOf = (node) => (node && node.closest && node.closest(".mbox")) || MSG;
+function msgValue() { return boxValue(MSG); }
+function boxValue(box) {
   let out = "";
   const walk = (node) => {
     for (const n of node.childNodes) {
@@ -2181,18 +2212,25 @@ function msgValue() {
       else { if (/^(DIV|P)$/.test(n.tagName) && out && !out.endsWith("\n")) out += "\n"; walk(n); }
     }
   };
-  walk(MSG);
+  walk(box);
   return out.replace(/\u200b/g, "").replace(/\u00a0/g, " ");
 }
 const msgEmpty = () => !msgValue().trim();
 // A message with $…$ in it comes back as text and chips.
-function setMsg(text) {
-  MSG.textContent = "";
+function setMsg(text) { setBox(MSG, text); afterMsgInput(); }
+function setBox(box, text) {
+  box.textContent = "";
   String(text || "").split(/(\$[^$\n]+\$)/).forEach((part) => {
-    if (/^\$[^$]+\$$/.test(part) && window.MathLive) MSG.append(makeChip(part.slice(1, -1)).chip, "\u200b");
-    else if (part) MSG.append(part);
+    if (/^\$[^$]+\$$/.test(part) && window.MathLive) box.append(makeChip(part.slice(1, -1), box).chip, "\u200b");
+    else if (part) box.append(part);
   });
-  afterMsgInput();
+}
+// After a chip comes or goes outside the typing path: the message box repaints send and saves its draft; a card's
+// field reports an input, so the card reads its answer the way it does when you type.
+function afterInput(box) {
+  if (box === MSG) return afterMsgInput();
+  if (!box.querySelector("math-field") && !box.textContent.replace(/\u200b/g, "").trim()) box.textContent = "";
+  box.dispatchEvent(new Event("input", { bubbles: true }));
 }
 function focusMsg() {
   if (MSG.contains(document.activeElement)) return;
@@ -2208,7 +2246,7 @@ function caretAt(node, where) {
 }
 // The field sits in a non-editable wrapper, so the box treats it as one unit.
 // (contenteditable="false" on the field itself stops MathLive taking keys.)
-function makeChip(latex) {
+function makeChip(latex, box = MSG) {
   const chip = document.createElement("span");
   chip.className = "chip-wrap";
   chip.setAttribute("contenteditable", "false");
@@ -2222,15 +2260,15 @@ function makeChip(latex) {
     e.preventDefault();
     leaveChip(mf, e.detail.direction === "backward" ? "before" : "after");
   });
-  mf.addEventListener("input", () => paintSend());
+  mf.addEventListener("input", () => { if (box === MSG) paintSend(); });   // a card hears the input bubble up
   mf.addEventListener("focusout", () => setTimeout(() => {
-    if (document.activeElement !== mf && !mf.value.trim()) { chip.remove(); afterMsgInput(); }
+    if (document.activeElement !== mf && !mf.value.trim()) { chip.remove(); afterInput(box); }
   }));
   return mf;
 }
 function leaveChip(mf, side) {
   const chip = mf.chip || mf;
-  MSG.focus({ preventScroll: true });
+  boxOf(chip).focus({ preventScroll: true });
   if (side === "before") return caretAt(chip, "before");
   let t = chip.nextSibling;
   if (!t || t.nodeType !== 3) { t = document.createTextNode("\u200b"); chip.after(t); }
@@ -2240,9 +2278,9 @@ function leaveChip(mf, side) {
 }
 // The chip right before (dir -1) or after (dir 1) a collapsed caret in the box, past the
 // zero-width spaces that keep a caret beside it. Null when words come between.
-function chipBeside(dir) {
+function chipBeside(dir, box = MSG) {
   const sel = getSelection();
-  if (!sel.rangeCount || !sel.isCollapsed || !MSG.contains(sel.anchorNode)) return null;
+  if (!sel.rangeCount || !sel.isCollapsed || !box.contains(sel.anchorNode)) return null;
   const blank = (t) => /^\u200b*$/.test(t);
   let node = sel.anchorNode;
   if (node.nodeType === 3) {
@@ -2259,27 +2297,29 @@ function enterChip(mf, where) {
 }
 // Backspace in an empty chip: the chip goes, and the caret stays where it was.
 function dropChip(mf) {
-  const box = mf.chip || mf, before = box.previousSibling, parent = box.parentNode;
-  MSG.focus({ preventScroll: true });
-  box.remove();
+  const chip = mf.chip || mf, before = chip.previousSibling, parent = chip.parentNode, box = boxOf(chip);
+  box.focus({ preventScroll: true });
+  chip.remove();
   if (before) caretAt(before, "after");
   else { const r = document.createRange(); r.setStart(parent, 0); r.collapse(true); getSelection().removeAllRanges(); getSelection().addRange(r); }
-  afterMsgInput();
+  afterInput(box);
 }
-function insertMath() {
+// Into the box you're writing in: a check card's field when the caret is there, else the message box.
+function insertMath(box) {
   if (!window.MathLive) return toast("The math editor didn't load. Type math as LaTeX between $ signs instead.");
   if (route.name !== "session") return;
-  MSG.focus({ preventScroll: true });
-  const before = chipBeside(-1), near = before || chipBeside(1);
+  if (!box) { const a = document.activeElement, f = a && a.closest && a.closest(".check-card .mbox"); box = f || MSG; }
+  box.focus({ preventScroll: true });
+  const before = chipBeside(-1, box), near = before || chipBeside(1, box);
   if (near) return enterChip(near, before ? "end" : "start");
   const sel = getSelection();
-  let range = sel.rangeCount && MSG.contains(sel.anchorNode) ? sel.getRangeAt(0) : null;
-  if (!range) { range = document.createRange(); range.selectNodeContents(MSG); range.collapse(false); }
+  let range = sel.rangeCount && box.contains(sel.anchorNode) ? sel.getRangeAt(0) : null;
+  if (!range) { range = document.createRange(); range.selectNodeContents(box); range.collapse(false); }
   range.deleteContents();
-  const mf = makeChip("");
+  const mf = makeChip("", box);
   range.insertNode(mf.chip);
   mf.chip.after("\u200b");
-  afterMsgInput();
+  afterInput(box);
   requestAnimationFrame(() => mf.focus());
 }
 ACTIONS.math = () => insertMath();
@@ -2349,30 +2389,48 @@ new ResizeObserver(() => {
   if (near) b.scrollTop = b.scrollHeight;
 }).observe($("dock"));
 // Capture phase, so a chip's keys are handled before MathLive sees them.
-MSG.addEventListener("keydown", (e) => {
+// The keys every math box shares: inside a chip, and stepping into one from the words beside it. True when handled.
+function chipKeys(e, box) {
   const chip = e.target.closest && e.target.closest("math-field");
   if (chip) {
     if (e.key === "$") {
       e.preventDefault(); e.stopPropagation();
-      if (!chip.value.trim()) { const box = chip.chip || chip, at = box.previousSibling; box.remove(); MSG.focus(); if (at) caretAt(at, "after"); document.execCommand("insertText", false, "$"); }
+      if (!chip.value.trim()) { const c = chip.chip || chip, at = c.previousSibling; c.remove(); box.focus(); if (at) caretAt(at, "after"); document.execCommand("insertText", false, "$"); }
       else leaveChip(chip, "after");
     } else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); leaveChip(chip, "after"); }
-    else if (e.key === "Enter" && !e.shiftKey && !composing(e)) { e.preventDefault(); e.stopPropagation(); ACTIONS.send(); }
+    else if (e.key === "Enter" && !e.shiftKey && !composing(e) && box === MSG) { e.preventDefault(); e.stopPropagation(); ACTIONS.send(); }
     else if ((e.key === "Backspace" || e.key === "Delete") && !e.metaKey && !e.altKey && !chip.value.trim()) { e.preventDefault(); e.stopPropagation(); dropChip(chip); }
     else if (e.key === "Backspace" && !e.metaKey && !e.altKey && chip.position === 0 && chip.selectionIsCollapsed) { e.preventDefault(); e.stopPropagation(); leaveChip(chip, "before"); }
-    return;
+    return true;
   }
   // Into a chip from the words beside it: the arrow toward it, or Backspace and Delete,
   // which then take its math one symbol at a time.
   const plain = !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey;
   if (plain && (e.key === "ArrowLeft" || e.key === "Backspace" || e.key === "ArrowRight" || e.key === "Delete")) {
-    const back = e.key === "ArrowLeft" || e.key === "Backspace", mf = chipBeside(back ? -1 : 1);
-    if (mf) { e.preventDefault(); return enterChip(mf, back ? "end" : "start"); }
+    const back = e.key === "ArrowLeft" || e.key === "Backspace", mf = chipBeside(back ? -1 : 1, box);
+    if (mf) { e.preventDefault(); enterChip(mf, back ? "end" : "start"); return true; }
   }
+  if (composing(e)) return false;
+  if (e.key === "$" && !e.metaKey && !e.ctrlKey && window.MathLive) { e.preventDefault(); insertMath(box); return true; }
+  return false;
+}
+// A check card's field: the shared keys, and pasted text arrives plain. (Return and Esc outside a chip are cardKeys'.)
+document.addEventListener("keydown", (e) => {
+  const box = e.target.closest && e.target.closest(".check-card .mbox");
+  if (box) chipKeys(e, box);
+}, true);
+document.addEventListener("paste", (e) => {
+  const box = e.target.closest && e.target.closest(".check-card .mbox");
+  if (!box || (e.target.closest && e.target.closest("math-field"))) return;
+  e.preventDefault();
+  document.execCommand("insertText", false, (e.clipboardData && e.clipboardData.getData("text/plain")) || "");
+});
+MSG.addEventListener("keydown", (e) => {
+  if (chipKeys(e, MSG)) return;
+  if (e.target.closest && e.target.closest("math-field")) return;
   const mod = isMac() ? e.metaKey : e.ctrlKey;
   if (composing(e)) return;   // Chinese or Japanese input: Return confirms the characters, never sends
-  if (e.key === "$" && !e.metaKey && !e.ctrlKey && window.MathLive) { e.preventDefault(); insertMath(); }
-  else if (e.key === "Enter" && e.shiftKey && !mod && !e.altKey) { if (continueList()) e.preventDefault(); }
+  if (e.key === "Enter" && e.shiftKey && !mod && !e.altKey) { if (continueList()) e.preventDefault(); }
   else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ACTIONS.send(); }
   else if (e.key === "Escape") { if (escapeSession()) e.preventDefault(); }
   else if (e.key === "ArrowUp" && !e.shiftKey && !mod && !e.altKey && msgEmpty() && !ATT.length) { if (editLast()) e.preventDefault(); }
@@ -2928,9 +2986,9 @@ function cardHtml(cc, id) {
     ${cc.stem ? `<div class="cc-q">${renderMd(cc.stem)}</div>` : ""}
     ${opts ? `<div class="cc-opts" role="radiogroup" aria-label="Your answer">${opts}</div>` : ""}
     <div class="cc-tail"><div class="cc-fold">
-      ${cc.opts.length ? "" : `<div class="cc-row"><span class="cc-lab">Answer</span><textarea class="cc-field" rows="1" placeholder="Your answer" aria-label="Your answer"></textarea></div>`}
+      ${cc.opts.length ? "" : `<div class="cc-row"><span class="cc-lab">Answer</span><div class="cc-field mbox" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Your answer" data-placeholder="Your answer" spellcheck="true"></div></div>`}
       <div class="cc-row"><span class="cc-lab">How sure?</span><div class="seg cc-sure" role="radiogroup" aria-label="How sure"><i class="seg-thumb" aria-hidden="true"></i>${CONF.map((c) => `<button role="radio" aria-checked="false" data-act="cc-sure" data-arg="${a}|${c}">${c === "Guess" ? "Guess" : `${c}%`}</button>`).join("")}</div></div>
-      ${cc.opts.length ? `<div class="cc-row"><span class="cc-lab">Why?</span><textarea class="cc-field" rows="1" placeholder="One line: why this one?" aria-label="Why"></textarea></div>` : ""}
+      ${cc.opts.length ? `<div class="cc-row"><span class="cc-lab">Why?</span><div class="cc-field mbox" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Why" data-placeholder="One line: why this one?" spellcheck="true"></div></div>` : ""}
       <div class="cc-foot"><button class="btn sm cc-send" data-act="cc-send" data-arg="${a}" disabled>Check</button></div>
     </div><div class="cc-said" aria-live="polite"></div></div>
   </div>`;
@@ -2959,7 +3017,7 @@ function paintPicks(node, st, l, fresh) {
   node.querySelectorAll(".cc-sure button").forEach((b, n) => { const on = CONF[n] === l.conf; b.classList.toggle("on", on); b.setAttribute("aria-checked", String(on)); });
   slideThumb(node.querySelector(".cc-sure"));
   const field = node.querySelector(".cc-field");
-  if (field && fresh) { field.value = l.why; fitField(field); }
+  if (field && fresh) setBox(field, l.why);
   const btn = node.querySelector(".cc-send"), ready = cardReady(st, l);
   if (btn.disabled === !ready) return;
   btn.disabled = !ready;
@@ -2967,8 +3025,6 @@ function paintPicks(node, st, l, fresh) {
   const from = ready ? 0 : 1;
   tween("snappy", (v) => { const w = from + (1 - 2 * from) * v; btn.style.setProperty("--wake", w.toFixed(3)); if (v >= 1) btn.style.removeProperty("--wake"); });
 }
-// The field grows with what you write (border-box, so its height is the text plus padding and border).
-function fitField(f) { f.style.height = "auto"; f.style.height = `${f.scrollHeight + f.offsetHeight - f.clientHeight}px`; }
 // The thread keeps your place while the card gets shorter below what you read:
 // the spacer takes up what the card gives back, so nothing above it moves.
 ARRIVE.layout = (fn) => keepPlace(fn);   // a card growing at the end never moves what you're reading
@@ -3089,9 +3145,8 @@ document.addEventListener("input", (e) => {
   const f = e.target.closest && e.target.closest(".check-card .cc-field");
   if (!f) return;
   const c = cardAct(`${f.closest(".check-card").dataset.card}|`);
-  fitField(f);
   if (!c) return;
-  c.l.why = f.value; c.l.engaged = true;
+  c.l.why = boxValue(f); c.l.engaged = true;
   paintPicks(c.node, c.st, c.l);
 });
 // Choosing the box means you're writing to the tutor: typing stops landing on the card.
@@ -3107,13 +3162,13 @@ function cardKeys(e) {
   const c = cardAct(`${LOG.liveCard}|`);
   if (!c || !c.node) return;
   const { st, l, node } = c, a = document.activeElement, field = node.querySelector(".cc-field");
-  const inField = a === field, mc = st.cc.opts.length > 0;
+  const inField = !!field && field.contains(a), inChip = inField && !!(a.closest && a.closest("math-field")), mc = st.cc.opts.length > 0;
   const boxEmpty = MSG.contains(a) && !(a.closest && a.closest("math-field")) && msgEmpty() && !ATT.length;
   const loose = !a || a === document.body || (node.contains(a) && !inField) || (!MSG.contains(a) && !(a.closest && a.closest("input, textarea, select, [contenteditable], math-field, .xterm")));
   const stop = () => { e.preventDefault(); e.stopPropagation(); };
   if (inField) {
     if (e.key === "Enter") { stop(); if (cardReady(st, l)) cardSend(st.id); }
-    else if (e.key === "Escape") { stop(); l.engaged = false; MSG.focus({ preventScroll: true }); }
+    else if (e.key === "Escape" && !inChip) { stop(); l.engaged = false; MSG.focus({ preventScroll: true }); }   // in a chip, Esc leaves the chip
     return;
   }
   if (!boxEmpty && !loose) return;
@@ -3127,7 +3182,7 @@ function cardKeys(e) {
   const canSure = l.engaged && (mc ? l.pick != null : loose && !!l.why.trim());
   if (sureKey != null && canSure) { stop(); return ACTIONS["cc-sure"](`${st.id}|${sureKey}`); }
   // Anything else you type on an engaged card is your why (or your answer); the key types there.
-  if (l.engaged && field && (!mc || l.pick != null)) field.focus({ preventScroll: true });
+  if (l.engaged && field && (!mc || l.pick != null)) { field.focus({ preventScroll: true }); caretAt(field, "end"); }
 }
 window.addEventListener("keydown", cardKeys, true);
 
@@ -3598,6 +3653,7 @@ function openPalette() {
     { label: "Home", ic: "home", run: () => go("home"), keys: key("1") },
     { label: "Session", ic: "session", run: () => go("session"), keys: key("2") },
     { label: "All skills", ic: "skills", run: () => go("system"), keys: key("3") },
+    ...(UPDATE.version && UPDATE.state === "ready" ? [{ label: UPDATE.inPlace ? `Update to Hok ${UPDATE.version}` : `Get Hok ${UPDATE.version}`, ic: "update", run: ACTIONS.update }] : []),
     { label: "Settings", ic: "settings", run: openSettings, keys: key(",") },
     { label: "Dashboard", ic: "dashboard", run: () => go("dashboard"), keys: key("4"), more: true },
     { label: "Progress", ic: "dashboard", run: () => go("progress"), keys: key("5"), more: true },

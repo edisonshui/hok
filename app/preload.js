@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld("flash", {
   session: (slug) => ipcRenderer.invoke("session:get", slug),
   openExternal: (url) => ipcRenderer.invoke("open:external", url),
   showFile: (rel) => ipcRenderer.invoke("open:file", rel),
+  update: { status: () => ipcRenderer.invoke("update:status"), install: () => ipcRenderer.invoke("update:install"), onState: on("update:state") },
   questions: {
     list: (all) => ipcRenderer.invoke("q:list", !!all),
     get: (id) => ipcRenderer.invoke("q:get", id),

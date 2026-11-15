@@ -12,6 +12,7 @@ const { readLog, stripFrontmatter } = require("./lib/log");
 const { questions } = require("./lib/questions");
 const wallpaper = require("./lib/wallpaper");
 const dictation = require("./lib/dictation");
+const update = require("./lib/update");
 
 const APP_NAME = "Hok";   // 學, "learn" in Cantonese (Edison, 11 Nov 2026); it was Obsidian Learning until then
 app.setName(APP_NAME);
@@ -415,6 +416,16 @@ ipcMain.handle("q:ask", (_e, id, text, images) => {
 ipcMain.handle("q:archive", (_e, id, on) => Q.archive(id, on !== false));
 ipcMain.handle("q:mark", (_e, id, patch) => Q.mark(id, patch || {}));
 ipcMain.handle("q:stop", (_e, id) => Q.stop(id));
+// Updates (lib/update.js): checked a few seconds after launch and every six hours, in the built app only.
+// HOK_UPDATE_URL points the check at a test release; HOK_FAKE_VERSION and HOK_FAKE_EXEC stand in for the running app.
+let UPD = null;
+ipcMain.handle("update:status", () => (UPD ? UPD.status() : { state: "none" }));
+ipcMain.handle("update:install", async () => {
+  if (!UPD) return false;
+  const r = await UPD.install((url) => shell.openExternal(url));
+  if (r === true) app.quit();   // the quit card still asks first while the tutor is writing
+  return r;
+});
 ipcMain.handle("open:external", (_e, url) => { if (/^https?:\/\//.test(url)) shell.openExternal(url); });
 ipcMain.handle("open:file", (_e, rel) => {
   if (!config.vault) return;
@@ -703,6 +714,13 @@ app.whenReady().then(async () => {
   watchVault();
   windowMade = true;
   createWindow();
+  if (app.isPackaged || process.env.HOK_UPDATE_URL) {
+    UPD = update.make({ net, version: process.env.HOK_FAKE_VERSION || app.getVersion(), execPath: process.env.HOK_FAKE_EXEC || process.execPath,
+      platform: process.platform, arch: process.arch, dir: path.join(app.getPath("userData"), "updates"), url: process.env.HOK_UPDATE_URL || undefined,
+      onChange: (st) => send("update:state", st) });
+    setTimeout(UPD.check, Number(process.env.HOK_UPDATE_WAIT || 8000));
+    setInterval(UPD.check, 6 * 3600 * 1000);
+  }
   // Logging out, restarting, or shutting down: never stand in the way.
   if (powerMonitor) powerMonitor.on("shutdown", () => { quitting = true; });
 });
@@ -710,6 +728,7 @@ app.on("window-all-closed", () => { if (process.platform !== "darwin") quitNow()
 // ⌘Q, the Dock's Quit, or logging out. Flash asks only while the tutor is writing;
 // otherwise it lets the quit through untouched, so a Mac logout or restart is never
 // cancelled. (Holding a quit back cancels the logout that asked for it.)
+app.on("will-quit", () => { if (UPD) UPD.swapAtQuit(); });   // the new Hok moves in once this one has gone
 app.on("before-quit", (e) => {
   if (!quitting && tutorWriting() && win && !win.isDestroyed()) { e.preventDefault(); requestQuit(); return; }
   quitting = true;

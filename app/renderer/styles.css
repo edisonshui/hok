@@ -388,19 +388,19 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .composer .msg:empty::before{content:attr(data-placeholder);color:var(--color-ink-3);pointer-events:none}
 /* Math chips in the message box: MathLive fields drawn like inline code, without its menu or keyboard toggles. */
 /* Baseline, not middle (12 Nov, Edison: the 1/2 sat wrong): the math's baseline is the words' baseline, so x sits on the line with them. */
-.composer .chip-wrap{display:inline-block;vertical-align:baseline}
+:is(.composer,.cc-field) .chip-wrap{display:inline-block;vertical-align:baseline}
 /* 12 Nov: at rest a chip is a soft tint with no edge, so math reads as part of the line; the edge comes back
    while you type in it. The sqrt you type under keeps the ink (MathLive drew it blue). */
-.composer math-field{display:inline-block;vertical-align:baseline;min-width:22px;margin:0 1px;padding:2px 7px;border-radius:6px;border:1px solid transparent;background:var(--color-action-soft);color:var(--color-ink);font-size:21px;outline:none;
+:is(.composer,.cc-field) math-field{display:inline-block;vertical-align:baseline;min-width:22px;margin:0 1px;padding:2px 7px;border-radius:6px;border:1px solid transparent;background:var(--color-action-soft);color:var(--color-ink);font-size:21px;outline:none;
   --caret-color:var(--color-ink);--selection-background-color:var(--color-selected);--selection-color:var(--color-ink);--contains-highlight-background-color:transparent;--contains-highlight-color:var(--color-ink);--placeholder-color:var(--color-ink-3);--primary:var(--color-ink);--smart-fence-color:var(--color-ink-3)}
-.composer math-field:focus-within{border-color:var(--color-line-strong)}
-.composer math-field::part(menu-toggle),.composer math-field::part(virtual-keyboard-toggle){display:none}
+:is(.composer,.cc-field) math-field:focus-within{border-color:var(--color-line-strong)}
+:is(.composer,.cc-field) math-field::part(menu-toggle),:is(.composer,.cc-field) math-field::part(virtual-keyboard-toggle){display:none}
 /* MathLive cuts its content off at the edge of the box it measures, and it measures an empty limit too short: the top box
    of an integral's limits was cut in half (14 Nov, Edison). The cut edge sits 5px out instead, and the margin takes the
    room back, so the chip keeps the size picked on 12 Nov. */
-.composer math-field::part(content){padding:5px 0;margin:-3px 0}
+:is(.composer,.cc-field) math-field::part(content){padding:5px 0;margin:-3px 0}
 /* 12 Nov, Edison picked B: math at 21px so a fraction's digits read, with 4px of room above and below and 7px at the sides so it never touches the chip's edge (the field's own 4px frame is replaced by this). */
-.composer math-field::part(container){padding:0;min-height:0}
+:is(.composer,.cc-field) math-field::part(container){padding:0;min-height:0}
 .composer-row{display:flex;align-items:center;gap:6px}
 .composer-row .icon-btn{width:28px;height:28px;margin-left:-6px}
 .model{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font:var(--type-caption);color:var(--color-ink-2);padding:4px 8px;border-radius:7px;transition:background var(--duration-fast) var(--ease-out)}
@@ -817,6 +817,9 @@ body.still{pointer-events:none}
 .cc-sure button{padding:5px 11px}
 .cc-field{flex:1;min-width:0;box-sizing:border-box;resize:none;overflow:hidden;border:1px solid var(--color-line-strong);border-radius:var(--radius-option);background:var(--color-surface);padding:7px 10px;font:var(--type-ui);font-size:14px;line-height:20px;color:var(--color-ink);outline:none;transition:border-color var(--duration-fast) var(--ease-out)}
 .cc-field::placeholder{color:var(--color-ink-3)}
+/* 15 Nov: the field is an editable line with math chips, like the message box ($ or Cmd+E opens one). */
+.cc-field.mbox{min-height:36px;white-space:pre-wrap;word-break:break-word;cursor:text}
+.cc-field.mbox:empty::before{content:attr(data-placeholder);color:var(--color-ink-3);pointer-events:none}
 .cc-field:focus{border-color:var(--color-ink)}
 .cc-foot{display:flex;justify-content:flex-end;margin-top:12px}
 /* Check is asleep until there is a pick and a confidence; it wakes on the snappy spring. */
@@ -1335,7 +1338,18 @@ html.glass[data-stone] :is(.home2 .h-field,#session .composer){background-clip:p
 html.glass[data-stone]:not([data-theme="night"]) :is(.home2 .h-field,#session .composer){box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),var(--stone-drop)}
 html.glass[data-stone]:not([data-theme="night"]) :is(.home2 .h-field,#session .composer,.q-field):focus-within{box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),var(--stone-drop)}
 /* Settings at the foot of the sidebar (10 Nov, Edison: "there isn't a settings button") */
-.side-end{flex:none;padding-top:6px}
+.side-end{flex:none;padding-top:6px;display:flex;align-items:center;gap:2px}
+.side-end .nav-row{flex:1 1 auto;min-width:0}
+/* 15 Nov: a newer Hok is one small icon beside Settings, ink 3 like every resting icon; folded, it sits under Settings */
+.side-end .upd{flex:none;width:30px;height:30px;color:var(--color-ink-3)}
+.side-end .upd:hover{color:var(--color-ink)}
+.side-end .upd svg.i{width:15px;height:15px}
+.side-end .upd.busy{cursor:default}
+.side-end .upd.busy svg.i{animation:upd-turn 1.2s linear infinite}
+@keyframes upd-turn{to{rotate:360deg}}
+@media (prefers-reduced-motion:reduce){.side-end .upd.busy svg.i{animation:none}}
+.window.icons .side-end{flex-direction:column;align-items:flex-start}
+.window.icons .side-end .upd{width:48px;height:30px}
 /* the send button on a stone (10 Nov, Edison picked C of three: "I like C the most", on Home's field too): a faint circle
    of the stone with the arrow in its deep shade, one shape on Home and in a session. Arrow on its circle, measured as
    solid colour: worst 4.19:1 by day (Sakura), 4.45:1 at night (Maple). Stop wears the same tint, so the
@@ -1484,6 +1498,10 @@ html.glass .toast{background:var(--glass-float);-webkit-backdrop-filter:blur(30p
    (11 Nov: the new On battery switch read as a black box); the picked side is a lighter step of the same ink */
 html.glass .sheet .seg{background:color-mix(in srgb,var(--color-ink) 7%,transparent)}
 html.glass .sheet .seg button.on{background:color-mix(in srgb,var(--color-ink) 13%,transparent);box-shadow:none}
+/* A check card's How sure? is the same glass tint (15 Nov, Edison: it was "in black, not glass", the 11 Nov black box
+   again, so this covers every switch on the session's glass): the well is the ink at 7%, the sliding pick at 13%. */
+html.glass #session .seg{background:color-mix(in srgb,var(--color-ink) 7%,transparent)}
+html.glass #session .seg-thumb{background:color-mix(in srgb,var(--color-ink) 13%,transparent);box-shadow:none}
 
 /* A setting that is on or off: one row, its words and a glass switch (11 Nov, Edison picked the glass toggle, then
    "a little bit too realistic and 3D"): flat, no gradient, glow or lit edge. Off, the track is the glass's own tint;
