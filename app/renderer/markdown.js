@@ -125,6 +125,10 @@ function keepSvg(key, svg) {
 }
 // onMath runs the moment the math is drawn, before any diagram, so a reply's words
 // can be taken apart for their arrival in the same task as the markup changed.
+// MathLive, the message box's math editor, writes a few commands of its own that KaTeX doesn't know, and KaTeX draws an
+// unknown command as red text (14 Nov, Edison: the d of dy came out as a red \differentialD). Messages already in the
+// log keep them, so the thread teaches KaTeX their meaning. New messages are written in plain LaTeX (app.js, msgValue).
+window.MATH_MACROS = { "\\differentialD": "\\mathrm{d}", "\\exponentialE": "e", "\\imaginaryI": "i", "\\imaginaryJ": "j" };
 async function typeset(el, onMath) {
   if (!el || !needsLibs(el)) { if (el && onMath) onMath(); return; }
   await loadLibs();
@@ -132,6 +136,7 @@ async function typeset(el, onMath) {
     window.renderMathInElement(el, {
       delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }, { left: "\\(", right: "\\)", display: false }],
       throwOnError: false,
+      macros: { ...window.MATH_MACROS },
       ignoredClasses: ["codeblock", "mermaid"],
     });
   }

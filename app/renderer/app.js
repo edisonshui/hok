@@ -1016,6 +1016,10 @@ function lessonArrived() {
   const s = subj(p.slug) || S.subjects.find((x) => !p.known.has(x.slug) && x.status !== "done");
   if (!s) return;
   Q.pending = null;
+  // The tutor may have named the subject differently (14 Nov: personal-calc-iii-midterm-3 became math241-exam3-review).
+  // The session running is this one, so follow its name; otherwise your next message reads as another subject's and
+  // Hok sends a /learn-resume into the middle of setup.
+  if (T.running && T.route === p.slug && s.slug !== p.slug) { T.route = s.slug; if (route.name === "session") paintComposer(); }
   noteActive(s.slug);
   if (p.home ? route.name === "home" : qPage() && Q.id === p.id) go("session", s.slug);
   else toast(`${shortTitle(s)} is ready.`, { label: "Open", act: "subject", arg: s.slug });
@@ -1032,7 +1036,7 @@ const qLiveHtml = (text) => text.trim() ? renderMd(text) : `<div class="working 
 // Math in a reply still streaming draws as it arrives (Edison, 7 Nov: the formula stayed raw until the reply ended).
 // Only the math: a diagram waits for the finished reply, since half a diagram cannot be drawn.
 function qMath(el) {
-  if (window.renderMathInElement) window.renderMathInElement(el, { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }, { left: "\\(", right: "\\)", display: false }], throwOnError: false, ignoredClasses: ["codeblock", "mermaid"] });
+  if (window.renderMathInElement) window.renderMathInElement(el, { delimiters: [{ left: "$$", right: "$$", display: true }, { left: "$", right: "$", display: false }, { left: "\\(", right: "\\)", display: false }], throwOnError: false, macros: { ...window.MATH_MACROS }, ignoredClasses: ["codeblock", "mermaid"] });
   else typeset(el);
 }
 function paintQuestion(toEnd) {
@@ -2163,12 +2167,15 @@ if (window.MathLive) {
   MathLive.MathfieldElement.soundsDirectory = null;
   MathLive.MathfieldElement.plonkSound = null;
 }
+// MathLive's own commands become plain LaTeX, so the tutor and every other reader see ordinary math (see MATH_MACROS).
+const plainLatex = (v) => v.replace(/\\differentialD(?![A-Za-z])/g, "\\mathrm{d}").replace(/\\exponentialE(?![A-Za-z])/g, "e")
+  .replace(/\\imaginaryI(?![A-Za-z])/g, "i").replace(/\\imaginaryJ(?![A-Za-z])/g, "j");
 function msgValue() {
   let out = "";
   const walk = (node) => {
     for (const n of node.childNodes) {
       if (n.nodeType === 3) out += n.nodeValue;
-      else if (n.tagName === "MATH-FIELD") { const v = n.value.trim(); if (v) out += `$${v}$`; }
+      else if (n.tagName === "MATH-FIELD") { const v = plainLatex(n.value.trim()); if (v) out += `$${v}$`; }
       else if (n.tagName === "BR") out += "\n";
       else { if (/^(DIV|P)$/.test(n.tagName) && out && !out.endsWith("\n")) out += "\n"; walk(n); }
     }

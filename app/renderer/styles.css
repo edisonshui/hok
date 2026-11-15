@@ -395,9 +395,12 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
   --caret-color:var(--color-ink);--selection-background-color:var(--color-selected);--selection-color:var(--color-ink);--contains-highlight-background-color:transparent;--contains-highlight-color:var(--color-ink);--placeholder-color:var(--color-ink-3);--primary:var(--color-ink);--smart-fence-color:var(--color-ink-3)}
 .composer math-field:focus-within{border-color:var(--color-line-strong)}
 .composer math-field::part(menu-toggle),.composer math-field::part(virtual-keyboard-toggle){display:none}
-.composer math-field::part(content){padding:0}
+/* MathLive cuts its content off at the edge of the box it measures, and it measures an empty limit too short: the top box
+   of an integral's limits was cut in half (14 Nov, Edison). The cut edge sits 5px out instead, and the margin takes the
+   room back, so the chip keeps the size picked on 12 Nov. */
+.composer math-field::part(content){padding:5px 0;margin:-3px 0}
 /* 12 Nov, Edison picked B: math at 21px so a fraction's digits read, with 4px of room above and below and 7px at the sides so it never touches the chip's edge (the field's own 4px frame is replaced by this). */
-.composer math-field::part(container){padding:2px 0;min-height:0}
+.composer math-field::part(container){padding:0;min-height:0}
 .composer-row{display:flex;align-items:center;gap:6px}
 .composer-row .icon-btn{width:28px;height:28px;margin-left:-6px}
 .model{margin-left:auto;display:inline-flex;align-items:center;gap:4px;font:var(--type-caption);color:var(--color-ink-2);padding:4px 8px;border-radius:7px;transition:background var(--duration-fast) var(--ease-out)}
@@ -1004,6 +1007,12 @@ html.glass .s-bond i{background:linear-gradient(180deg,rgba(255,255,255,.75),rgb
 html.glass[data-theme="night"] .s-bond i{background:linear-gradient(180deg,rgba(244,246,255,.58),rgba(232,236,248,.34));box-shadow:inset 0 1px 0 rgba(250,252,255,.95),inset 0 0 3px rgba(255,255,255,.35),inset 0 0 0 .5px rgba(248,250,255,.5),0 0 6px rgba(226,230,242,.2)}
 .s-bond i.due{background:#E2602A}
 html[data-theme="night"] .s-bond i.due{background:#FF8A3D}
+/* On a big display (main.js fitZoom draws the page at 1.08) the header grew less than the page around it read (14 Nov, Edison,
+   on his 27": "the header size is small compared to the rest of the screen"). The header alone steps up; the lesson stays. */
+html.zoomed .s-title{font-size:17px;height:34px;line-height:34px}
+html.zoomed :is(.s-due,.s-now,.s-count){font-size:14px;line-height:18px}
+html.zoomed .status-line{font-size:13.5px}
+html.zoomed .s-bond i{width:20px;height:7px}
 html.glass .s-bond i.due{background:linear-gradient(180deg,#F08A52,#E2602A 55%,#CC5222);box-shadow:inset 0 1px 0 rgba(255,228,206,.85),inset 0 0 0 .5px rgba(255,200,170,.5),0 1px 2px rgba(120,40,10,.22)}
 html.glass[data-theme="night"] .s-bond i.due{background:linear-gradient(180deg,#FFB070,#FF8A3D 55%,#E8682A);box-shadow:inset 0 1px 0 rgba(255,238,214,.9),inset 0 0 0 .5px rgba(255,214,170,.6),0 0 10px rgba(255,138,61,.6)}
 .s-bond i.now,html.glass .s-bond i.now,html.glass[data-theme="night"] .s-bond i.now{background:transparent;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--color-ink) 62%,transparent)}
