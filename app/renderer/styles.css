@@ -1516,5 +1516,6 @@ html.glass #session .seg-thumb{background:color-mix(in srgb,var(--color-ink) 13%
 
 /* Hok's fox (12 Nov 2026): a quiet detail in Home's empty bottom-right corner, in the stone and light you picked.
    Home only: on Session the composer owns that corner, and nothing sits behind text you read. */
-.home-fox{position:absolute;right:28px;bottom:24px;height:72px;width:auto;pointer-events:none;user-select:none;opacity:0;transition:opacity 200ms var(--ease-out);z-index:5}   /* 72px and on every screen (15 Nov, Edison: "a little bit larger", "everywhere"); above the dock's fade, under menus and sheets */
+.home-fox{position:absolute;right:28px;bottom:24px;height:56px;width:auto;pointer-events:none;user-select:none;opacity:0;transition:opacity 200ms var(--ease-out);z-index:5}   /* 72px and on every screen (15 Nov, Edison: "a little bit larger", "everywhere"); above the dock's fade, under menus and sheets */
 .home-fox.on{opacity:1}
+html.big .home-fox{height:72px}   /* 15 Nov, Edison on the laptop: 72px is "a little bit big", so it is 56px there and 72px only on a big display, where he asked for it larger */
