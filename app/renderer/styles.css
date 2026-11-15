@@ -1345,9 +1345,13 @@ html.glass[data-stone]:not([data-theme="night"]) :is(.home2 .h-field,#session .c
 .side-end .upd:hover{color:var(--color-ink)}
 .side-end .upd svg.i{width:15px;height:15px}
 .side-end .upd.busy{cursor:default}
-.side-end .upd.busy svg.i{animation:upd-turn 1.2s linear infinite}
-@keyframes upd-turn{to{rotate:360deg}}
-@media (prefers-reduced-motion:reduce){.side-end .upd.busy svg.i{animation:none}}
+.side-end .upd-ring{width:16px;height:16px;rotate:-90deg;overflow:visible}   /* the fill starts at twelve o'clock */
+.side-end .upd-ring circle{fill:none;stroke-width:2;stroke-linecap:round}
+.side-end .upd-ring .t{stroke:var(--color-line-strong)}
+.side-end .upd-ring .f{stroke:var(--color-ink-2);stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset 250ms linear}
+.side-end .upd.spin .upd-ring{animation:upd-turn 1s linear infinite}
+@keyframes upd-turn{from{rotate:-90deg}to{rotate:270deg}}
+@media (prefers-reduced-motion:reduce){.side-end .upd.spin .upd-ring{animation:none}.side-end .upd-ring .f{transition:none}}
 .window.icons .side-end{flex-direction:column;align-items:flex-start}
 .window.icons .side-end .upd{width:48px;height:30px}
 /* the send button on a stone (10 Nov, Edison picked C of three: "I like C the most", on Home's field too): a faint circle
