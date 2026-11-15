@@ -189,6 +189,17 @@ def place_images(texts, embeds, paste_ids):
     return leftover
 
 
+# Claude Code 2.1 wraps a pasted message in these tags (the closing one repeats
+# the id). The tutor needs nothing from them and Hok matches your message by its
+# words, so the log shows the words alone (14 Nov: the tags showed in the thread,
+# and Hok kept a second copy of the message because the two never matched).
+PASTE_TAG = re.compile(r"^[ \t]*</?pasted_content\b[^>]*>[ \t]*\n?", re.M)
+
+
+def unwrap_paste(text):
+    return PASTE_TAG.sub("", text).strip()
+
+
 def read_transcript(path, vault=None):
     """Read the transcript into log entries.
 
@@ -200,6 +211,10 @@ def read_transcript(path, vault=None):
     entries, question_ids, seen = [], set(), set()
     metadata = {}
     reply_id, reply_keys = None, []   # the text entries of the latest Claude reply
+    # Your message's entries, by the row it answers. Claude Code can send the same
+    # message twice under one parent, and the first copy then gets no reply
+    # (14 Nov, 16:43 and 16:44); only the copy it answered stays.
+    prompt_keys = {}
     if not path or not Path(path).is_file():
         return entries, metadata
     with Path(path).open() as handle:
@@ -234,10 +249,17 @@ def read_transcript(path, vault=None):
                 effort = row.get("effort")
                 if effort:
                     metadata["effort"] = effort
+            parent = row.get("parentUuid")
+            if kind == "user" and parent and parent in prompt_keys and is_prompt(content):
+                dropped = prompt_keys.pop(parent)
+                entries = [item for item in entries if item["key"] not in dropped]
+            before = len(entries)
             if isinstance(content, str):
                 text = user_text(content) if kind == "user" else content
                 if text:
                     entries.append(entry(key, "You" if kind == "user" else "Claude", text, stamp))
+                if kind == "user" and parent and len(entries) > before:
+                    prompt_keys[parent] = {item["key"] for item in entries[before:]}
                 continue
             texts, embeds = [], []
             for index, block in enumerate(content):
@@ -283,7 +305,17 @@ def read_transcript(path, vault=None):
                 leftover = place_images(texts, [embed for _, embed in embeds], row.get("imagePasteIds") or [])
                 for index, embed in [pair for pair in embeds if pair[1] in leftover]:
                     entries.append(entry(f"{key}-{index}", "You", embed, stamp))
+            if kind == "user" and parent and is_prompt(content) and len(entries) > before:
+                prompt_keys[parent] = {item["key"] for item in entries[before:]}
     return entries, metadata
+
+
+def is_prompt(content):
+    """A message you sent, not a tool result Claude Code files as a user row."""
+    if isinstance(content, str):
+        return bool(user_text(content))
+    return any(block.get("type") in ("text", "image") for block in content) and not any(
+        block.get("type") == "tool_result" for block in content)
 
 
 def read_clocks(runtime):
@@ -720,7 +752,9 @@ def entry_lines(items):
         elif role == NOTICE_ROLE:
             lines.extend(callout(text, "warning", "Probe check" + suffix) + [""])
         else:
-            lines.extend(callout(text, "quote", "You" + suffix) + [""])
+            text = unwrap_paste(text)
+            if text:
+                lines.extend(callout(text, "quote", "You" + suffix) + [""])
     return lines
 
 
