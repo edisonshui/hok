@@ -7,6 +7,7 @@
 const { esc, inline, renderMd, typeset } = window.MD;
 const F = window.flash;
 if (F.onZoom) F.onZoom((z) => { document.documentElement.style.setProperty("--z", z); document.documentElement.classList.toggle("zoomed", z !== 1); });   // main.js fitZoom: what lines up with the traffic lights divides by it
+if (F.onDisplay) F.onDisplay((d) => document.documentElement.classList.toggle("big", !!(d && d.big)));   // main.js fitZoom: what lines up with the traffic lights divides by it
 const $ = (id) => document.getElementById(id);
 
 // ---------- state ----------
@@ -243,7 +244,7 @@ function render() {
   if (window.Wall) Wall.route(route.name);
   if (route.slug && !subj(route.slug)) route.slug = defaultSlug();
   paintShell(); paintSide(); paintIslands();
-  $("homeFox").classList.toggle("on", route.name === "home");   // the fox keeps Home's empty corner (12 Nov)
+  requestAnimationFrame(placeFox);
   const inSession = route.name === "session";
   $("session").classList.toggle("hidden", !inSession);
   $("screen").classList.toggle("hidden", inSession);
@@ -1400,7 +1401,7 @@ function paintMap() {
       ${s.nodes.map((n) => { const c = discClass(n, s); return `<div class="node ${c === "not" ? "not" : ""} ${c === "up" ? "upn" : ""}" data-id="${n.id}" style="left:${pos[n.id].x}px;top:${pos[n.id].y}px${line(n) ? `;min-height:${H}px` : ""}" title="${STATUS_WORD[n.status] || ""}">${GLASS ? brick(n) : discEl(n, s, "md")}<div><b>${md(n.name)}</b><span>${line(n)}</span></div></div>`; }).join("")}
     </div></div>
     <div class="card float mapctl">
-      <button class="btn text" data-act="zoom" data-arg="in" aria-label="Zoom in" data-tip="${key("=")}" data-tip-side="up">+</button><button class="btn text" data-act="zoom" data-arg="out" aria-label="Zoom out" data-tip="${key("-")}" data-tip-side="up">−</button><button class="btn text" data-act="zoom" data-arg="fit" data-tip="${key("0")}" data-tip-side="up">Fit</button>
+      <button class="btn text" data-act="zoom" data-arg="in" aria-label="Zoom in">+</button><button class="btn text" data-act="zoom" data-arg="out" aria-label="Zoom out">−</button><button class="btn text" data-act="zoom" data-arg="fit" aria-label="Fit the map">Fit</button>
       <button class="btn sm" data-act="ink" data-tip="${key("↩")}" data-tip-side="up">${s.status === "done" ? "Practice" : "Resume"}</button>
     </div>`)) return;
   const wrap = $("mapwrap");
@@ -1607,7 +1608,7 @@ function paintSystem() {
     </div></div>
     <div class="map-search">${icon("search", "sm")}<input id="mapq" placeholder="Search ${total} skills" autocomplete="off" spellcheck="false" aria-label="Search skills"><span class="cap" id="mapqn"></span></div>
     <div class="card float mapctl">
-      <button class="btn text" data-act="zoom" data-arg="in" aria-label="Zoom in" data-tip="${key("=")}" data-tip-side="up">+</button><button class="btn text" data-act="zoom" data-arg="out" aria-label="Zoom out" data-tip="${key("-")}" data-tip-side="up">−</button><button class="btn text" data-act="zoom" data-arg="fit" data-tip="${key("0")}" data-tip-side="up">Fit</button>
+      <button class="btn text" data-act="zoom" data-arg="in" aria-label="Zoom in">+</button><button class="btn text" data-act="zoom" data-arg="out" aria-label="Zoom out">−</button><button class="btn text" data-act="zoom" data-arg="fit" aria-label="Fit the map">Fit</button>
       <button class="btn sm" data-act="ink" data-tip="${key("↩")}" data-tip-side="up">${VERB[S.ranked[0].kind] || "Start"}</button>
     </div>`;
   if (!put(el, html)) return;
@@ -3296,12 +3297,26 @@ function afterWords(n) {
   };
   go();
 }
+// The fox sits in the bottom-right corner of every screen (15 Nov, Edison: "the fox should always be there like even in
+// sessions... like everywhere basically"). It steps up over a skill map's zoom buttons, and only a window too narrow to
+// keep it clear of the message box hides it.
+function placeFox() {
+  const fox = $("homeFox");
+  if (!fox) return;
+  const ctl = [...document.querySelectorAll("#panel .mapctl")].find((c) => c.offsetParent);
+  fox.style.bottom = ctl ? `${ctl.offsetHeight + 28}px` : "";
+  const box = route.name === "session" && document.querySelector("#session .composer");
+  let hit = false;
+  if (box) { const a = fox.getBoundingClientRect(), b = box.getBoundingClientRect(); hit = a.left < b.right + 16 && a.top < b.bottom; }
+  fox.classList.toggle("on", !hit);
+}
+new ResizeObserver(() => placeFox()).observe($("panel"));
 function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0; return h; }
 // ---------- scrolling a long thread ----------
 // Scrolling is native, so it follows the trackpad exactly. The thread moves on its
-// own only when you send: your message glides to 40px below the top, and a space
-// below it holds that place while the reply fills in, melting away as you scroll
-// up. Sent from far up, the thread dissolves to the bottom instead (spec, 1 Nov).
+// own only when you send: your message glides to just above the message box, and
+// the reply pushes it up as it writes, until you scroll (15 Nov, option 1). Sent from
+// far up, the thread dissolves to the bottom instead (spec, 1 Nov).
 const scroller = $("threadScroll");
 const spacer = document.createElement("div");
 spacer.className = "spacer";
@@ -3346,7 +3361,7 @@ scroller.addEventListener("keydown", (e) => { if (/^(Arrow|Page|Home|End| )/.tes
 // From far up (more than about a screen), the thread dissolves to its end first.
 async function sendGlide(item, from) {
   if (!item) return;
-  SC.follow = false;   // a send lands on your message, not the end
+  SC.follow = false;
   const far = !calm() && maxTop() - scroller.scrollTop > scroller.clientHeight * 0.75;
   if (far) {
     takeOver(); SC.moving = true; updatePill();
@@ -3359,10 +3374,11 @@ async function sendGlide(item, from) {
   const node = queueNode(item.id);
   if (!node) return;
   SC.seen = false;
-  SC.hold = nodeTop(node) - topInset() - 40;
-  fitSpacer();
+  // Your message stops just above the message box and the reply pushes it up as it writes (15 Nov, Edison picked
+  // option 1 of three filmed: before, a sent message rode to the top "which is kind of weird").
+  SC.follow = true;
   rise(item, from, "glide");   // on the thread's own glide, so it never overtakes the words above it
-  glideTo(SC.hold);
+  glideTo(endTop());
 }
 // A timed ease on the motion clock, for the dissolve's fixed 0.12 s and 0.16 s.
 function timed(sec, fn) {
@@ -4077,7 +4093,6 @@ F.onMenu((id) => {
     "toggle-panel": () => { if (route.name === "session") ACTIONS["toggle-panel"](); },
     "toggle-term": ACTIONS["toggle-term"], math: ACTIONS.math, dictate: dictateHere,
     "tab:note": () => { if (route.name !== "session") go("session"); ACTIONS["toggle-note"](); },
-    "zoom-in": () => ACTIONS.zoom("in"), "zoom-out": () => ACTIONS.zoom("out"), "zoom-fit": () => ACTIONS.zoom("fit"),
   };
   if (map[id]) map[id]();
 });

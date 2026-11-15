@@ -467,7 +467,7 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .menu-item:hover,.menu-item.hl{background:var(--color-selected)}
 .menu-item .lbl{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .menu-item kbd{margin-left:auto;font:var(--type-caption);color:var(--color-ink-3);padding-left:8px;white-space:nowrap}
-.sheet{position:absolute;left:50%;top:60px;transform:translateX(-50%);width:540px;max-width:calc(100vw - 40px);padding:22px 26px 24px;animation:pop var(--duration-base) var(--ease-out);max-height:calc(100vh - 100px);overflow:auto}
+.sheet{position:absolute;left:50%;top:60px;transform:translateX(-50%);width:680px;max-width:calc(100vw - 40px);padding:26px 32px 28px;animation:pop var(--duration-base) var(--ease-out);max-height:calc(100vh - 100px);overflow:auto}
 .sheet .sec{padding:16px 0;border-top:1px solid var(--color-line)}
 .sheet .sec:first-of-type{border-top:0}
 .field{height:32px;width:100%;padding:0 10px;border-radius:var(--radius-option);border:1px solid var(--color-line-strong);background:var(--color-surface);font:var(--type-ui);color:var(--color-ink);margin-top:8px}
@@ -1007,12 +1007,16 @@ html.glass .s-bond i{background:linear-gradient(180deg,rgba(255,255,255,.75),rgb
 html.glass[data-theme="night"] .s-bond i{background:linear-gradient(180deg,rgba(244,246,255,.58),rgba(232,236,248,.34));box-shadow:inset 0 1px 0 rgba(250,252,255,.95),inset 0 0 3px rgba(255,255,255,.35),inset 0 0 0 .5px rgba(248,250,255,.5),0 0 6px rgba(226,230,242,.2)}
 .s-bond i.due{background:#E2602A}
 html[data-theme="night"] .s-bond i.due{background:#FF8A3D}
-/* On a big display (main.js fitZoom draws the page at 1.08) the header grew less than the page around it read (14 Nov, Edison,
+/* On a big display (html.big: main.js fitZoom draws the page at 1.08) the header grew less than the page around it read (14 Nov, Edison,
    on his 27": "the header size is small compared to the rest of the screen"). The header alone steps up; the lesson stays. */
-html.zoomed .s-title{font-size:17px;height:34px;line-height:34px}
-html.zoomed :is(.s-due,.s-now,.s-count){font-size:14px;line-height:18px}
-html.zoomed .status-line{font-size:13.5px}
-html.zoomed .s-bond i{width:20px;height:7px}
+html.big .s-title{font-size:17px;height:34px;line-height:34px}
+html.big :is(.s-due,.s-now,.s-count){font-size:14px;line-height:18px}
+html.big .status-line{font-size:13.5px}
+html.big .s-bond i{width:20px;height:7px}
+/* the sidebar is the same frame as the header, so it steps up with it (15 Nov, Edison: "yes bigger sidebar") */
+html.big .nav-row{font-size:14.5px;height:32px}
+html.big .nav-row .n{font-size:13px}
+html.big :is(.side-label,.side-label.ix){font-size:13.5px;line-height:18px}
 html.glass .s-bond i.due{background:linear-gradient(180deg,#F08A52,#E2602A 55%,#CC5222);box-shadow:inset 0 1px 0 rgba(255,228,206,.85),inset 0 0 0 .5px rgba(255,200,170,.5),0 1px 2px rgba(120,40,10,.22)}
 html.glass[data-theme="night"] .s-bond i.due{background:linear-gradient(180deg,#FFB070,#FF8A3D 55%,#E8682A);box-shadow:inset 0 1px 0 rgba(255,238,214,.9),inset 0 0 0 .5px rgba(255,214,170,.6),0 0 10px rgba(255,138,61,.6)}
 .s-bond i.now,html.glass .s-bond i.now,html.glass[data-theme="night"] .s-bond i.now{background:transparent;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--color-ink) 62%,transparent)}
@@ -1314,8 +1318,8 @@ html.glass[data-stone] .sk-float .mk.mini u.laid{background:var(--stone-brick)}
 /* Settings: the eight stones as their own icons; the ring hugs the tile, not the icon's margin */
 .stones{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 8px;margin-top:10px}
 .stone{display:flex;flex-direction:column;align-items:center;gap:6px;padding:4px 0;border-radius:10px}
-.stone .st-tile{position:relative;width:46px;height:46px;border-radius:11px}
-.stone img{position:absolute;left:-5.5px;top:-5.5px;width:57px;height:57px}
+.stone .st-tile{position:relative;width:60px;height:60px;border-radius:14px}   /* 46 to 60 (15 Nov, Edison: the foxes "larger when you choose") */
+.stone img{position:absolute;left:-7px;top:-7px;width:74px;height:74px}
 .stone .lab{font:var(--type-caption);color:var(--color-ink-2)}
 .stone:hover .lab{color:var(--color-ink)}
 .stone.on .st-tile,.stone:focus-visible .st-tile{box-shadow:0 0 0 2px var(--color-surface),0 0 0 4px var(--color-action)}
@@ -1402,7 +1406,7 @@ html[data-theme="night"] #wall .wall-shade{background:rgba(6,8,12,.44)}
 html:not([data-wkind="stone"]) #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#2E9C96) 16%,transparent)}
 html[data-theme="night"]:not([data-wkind="stone"]) #wall .wall-tint{background:color-mix(in srgb,var(--stone-tone,#21807B) 20%,transparent)}
 /* Settings: the wallpaper choices */
-.walls{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:8px}
+.walls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:8px}   /* four across in the 680px sheet (15 Nov, "make the settings page a bit larger") */
 .wall-opt{display:flex;flex-direction:column;gap:4px;padding:0;border:0;background:none;text-align:left;cursor:pointer;color:var(--color-ink-2);font:var(--type-caption)}
 .wall-opt .wt{display:block;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:color-mix(in srgb,var(--stone-tone,#2E9C96) 40%,#0b0d10);box-shadow:inset 0 0 0 1px var(--color-line)}
 .wall-opt .wt img{width:100%;height:100%;object-fit:cover;display:block}
@@ -1494,5 +1498,5 @@ html.glass .sheet .seg button.on{background:color-mix(in srgb,var(--color-ink) 1
 
 /* Hok's fox (12 Nov 2026): a quiet detail in Home's empty bottom-right corner, in the stone and light you picked.
    Home only: on Session the composer owns that corner, and nothing sits behind text you read. */
-.home-fox{position:absolute;right:28px;bottom:24px;height:56px;width:auto;pointer-events:none;user-select:none;opacity:0;transition:opacity 200ms var(--ease-out);z-index:1}
+.home-fox{position:absolute;right:28px;bottom:24px;height:72px;width:auto;pointer-events:none;user-select:none;opacity:0;transition:opacity 200ms var(--ease-out);z-index:5}   /* 72px and on every screen (15 Nov, Edison: "a little bit larger", "everywhere"); above the dock's fade, under menus and sheets */
 .home-fox.on{opacity:1}
