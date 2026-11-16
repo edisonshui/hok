@@ -319,7 +319,7 @@ function updateBtn() {
   // full circles", and he asked to see how far it is). The markup never carries the percent, so the sidebar is not
   // redrawn on each step (that redraw restarted the spin four times a second); paintUpdateProgress moves the fill in place.
   const ring = `<svg class="upd-ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="t" cx="10" cy="10" r="7.5"/><circle class="f" cx="10" cy="10" r="7.5" pathLength="100"/></svg>`;
-  return `<button class="icon-btn upd${busyNow ? " busy" : ""}" data-act="update" aria-label="${words}"${busyNow ? ' aria-busy="true" aria-disabled="true"' : ""} data-tip="${words}" data-tip-side="up">${busyNow ? ring : icon("update")}</button>`;
+  return `<button class="icon-btn upd${busyNow ? " busy" : ""}" data-act="update" aria-label="${words}"${busyNow ? ' aria-busy="true" aria-disabled="true"' : ""} data-tip="${words}" data-tip-side="left-up">${busyNow ? ring : icon("update")}</button>`;
 }
 // The fill and the tip follow the download. With no size to go on (or while unpacking) the ring turns a quarter arc.
 function paintUpdateProgress() {

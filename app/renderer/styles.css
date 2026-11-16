@@ -147,6 +147,8 @@ svg.i.dn{width:13px;height:13px;color:var(--color-ink-3)}
 [data-tip-side="right"]::after{left:calc(100% + 8px);top:50%;transform:translateY(-50%)}
 [data-tip-side="up"]::after{top:auto;bottom:calc(100% + 6px)}
 [data-tip-side="left-down"]::after{left:auto;right:0;transform:none}
+/* Ends at the button's right edge and opens left, for a button at the sidebar's right edge whose tip would slide under the main pane (16 Nov, Edison: the update tip was "behind the main screen"). */
+[data-tip-side="left-up"]::after{left:auto;right:0;transform:none;top:auto;bottom:calc(100% + 6px)}
 
 /* ---------- discs and seals ---------- */
 .disc{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1.8px dashed var(--color-untaught);flex:none;color:var(--color-surface)}
