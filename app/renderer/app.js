@@ -313,10 +313,24 @@ function updateBtn() {
   const u = UPDATE;
   if (!u.version || u.state === "none") return "";
   const busyNow = u.state === "downloading" || u.state === "installing";
-  const pct = u.state === "downloading" && u.total ? ` ${Math.round((100 * u.got) / u.total)}%` : "";
-  const words = u.state === "downloading" ? `Downloading Hok ${u.version}${pct}` : u.state === "installing" ? "Restarting into the update"
+  const words = u.state === "downloading" ? `Downloading Hok ${u.version}` : u.state === "installing" ? "Restarting into the update"
     : u.inPlace ? `Update to Hok ${u.version} and restart` : `Hok ${u.version} is out. Open the download page`;
-  return `<button class="icon-btn upd${busyNow ? " busy" : ""}" data-act="update" aria-label="${words}"${busyNow ? ' aria-busy="true" aria-disabled="true"' : ""} data-tip="${words}" data-tip-side="up">${icon("update")}</button>`;
+  // While it downloads, the arrow becomes a ring that fills with the download (15 Nov, Edison: the spin "doesn't spin in
+  // full circles", and he asked to see how far it is). The markup never carries the percent, so the sidebar is not
+  // redrawn on each step (that redraw restarted the spin four times a second); paintUpdateProgress moves the fill in place.
+  const ring = `<svg class="upd-ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="t" cx="10" cy="10" r="7.5"/><circle class="f" cx="10" cy="10" r="7.5" pathLength="100"/></svg>`;
+  return `<button class="icon-btn upd${busyNow ? " busy" : ""}" data-act="update" aria-label="${words}"${busyNow ? ' aria-busy="true" aria-disabled="true"' : ""} data-tip="${words}" data-tip-side="up">${busyNow ? ring : icon("update")}</button>`;
+}
+// The fill and the tip follow the download. With no size to go on (or while unpacking) the ring turns a quarter arc.
+function paintUpdateProgress() {
+  const b = document.querySelector(".side-end .upd"), u = UPDATE;
+  if (!b) return;
+  const known = u.state === "downloading" && u.total > 0, pct = known ? Math.min(100, Math.round((100 * u.got) / u.total)) : 0;
+  b.classList.toggle("spin", (u.state === "downloading" || u.state === "installing") && !known);
+  const f = b.querySelector(".upd-ring .f");
+  if (f) f.style.strokeDashoffset = String(known ? 100 - pct : 75);
+  const words = known ? `Downloading Hok ${u.version}, ${pct}%` : b.getAttribute("aria-label");
+  if (b.dataset.tip !== words) b.dataset.tip = words;   // the tip is CSS (attr(data-tip)), so it follows while it shows
 }
 ACTIONS.update = async () => {
   if (!F.update || UPDATE.state === "downloading" || UPDATE.state === "installing") return;
@@ -327,7 +341,8 @@ if (F.update) {
   F.update.onState((st) => {
     if (st.state === "failed") toast(`The update didn't download: ${st.error}. Hok is still on this version.`);
     UPDATE = st.state === "failed" ? { ...st, state: "ready" } : st;
-    if (S) paintSide();
+    if (S) paintSide();   // put() skips the sidebar when only the progress changed
+    paintUpdateProgress();
   });
   F.update.status().then((st) => { if (st && st.state !== "none") { UPDATE = st; if (S) paintSide(); } });
 }
@@ -2244,6 +2259,11 @@ function caretAt(node, where) {
   else { range.setStartBefore(node); range.collapse(true); }
   sel.removeAllRanges(); sel.addRange(range);
 }
+// MathLive turns "theta" into θ anywhere but "rho" and "phi" only after nothing, a digit or a
+// bracket, so "drho" and an integral then "rho" stayed letters (15 Nov, Edison: he could only
+// type ρ and φ inside parentheses). These turn into the letter after anything. psi and xi keep
+// MathLive's rule, because "epsilon" and "x in" pass through them.
+const GREEK_ANYWHERE = Object.fromEntries(["rho", "phi", "Phi", "tau", "mu", "nu", "eta"].map((g) => [g, `\\${g}`]));
 // The field sits in a non-editable wrapper, so the box treats it as one unit.
 // (contenteditable="false" on the field itself stops MathLive taking keys.)
 function makeChip(latex, box = MSG) {
@@ -2255,6 +2275,7 @@ function makeChip(latex, box = MSG) {
   chip.append(mf);
   mf.mathVirtualKeyboardPolicy = "manual";
   mf.defaultMode = "inline-math";
+  mf.addEventListener("mount", () => { mf.inlineShortcuts = { ...mf.inlineShortcuts, ...GREEK_ANYWHERE }; }, { once: true });   // the getter throws before mount
   mf.value = latex || "";
   mf.addEventListener("move-out", (e) => {
     e.preventDefault();
