@@ -2259,6 +2259,11 @@ function caretAt(node, where) {
   else { range.setStartBefore(node); range.collapse(true); }
   sel.removeAllRanges(); sel.addRange(range);
 }
+// MathLive turns "theta" into θ anywhere but "rho" and "phi" only after nothing, a digit or a
+// bracket, so "drho" and an integral then "rho" stayed letters (15 Nov, Edison: he could only
+// type ρ and φ inside parentheses). These turn into the letter after anything. psi and xi keep
+// MathLive's rule, because "epsilon" and "x in" pass through them.
+const GREEK_ANYWHERE = Object.fromEntries(["rho", "phi", "Phi", "tau", "mu", "nu", "eta"].map((g) => [g, `\\${g}`]));
 // The field sits in a non-editable wrapper, so the box treats it as one unit.
 // (contenteditable="false" on the field itself stops MathLive taking keys.)
 function makeChip(latex, box = MSG) {
@@ -2270,6 +2275,7 @@ function makeChip(latex, box = MSG) {
   chip.append(mf);
   mf.mathVirtualKeyboardPolicy = "manual";
   mf.defaultMode = "inline-math";
+  mf.addEventListener("mount", () => { mf.inlineShortcuts = { ...mf.inlineShortcuts, ...GREEK_ANYWHERE }; }, { once: true });   // the getter throws before mount
   mf.value = latex || "";
   mf.addEventListener("move-out", (e) => {
     e.preventDefault();
