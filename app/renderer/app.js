@@ -2144,7 +2144,7 @@ function paintSend() {
   const send = $("send");
   if (!send) return;
   const stop = busy() && msgEmpty() && !ATT.length;
-  const resume = !stop && composerIdle && !T.running && !T.starting && msgEmpty() && !ATT.length;
+  const resume = !stop && composerIdle && !T.running && !T.starting && msgEmpty() && !ATT.length && !QUOTE.text;   // a pinned quote waits for your words
   send.classList.toggle("resume", !!resume);
   if (resume) {
     send.dataset.act = "ink"; send.setAttribute("aria-label", composerIdle); send.dataset.tip = `${composerIdle}  ${key("↩")}`; send.dataset.tipSide = "up";
@@ -2158,7 +2158,7 @@ function paintSend() {
 }
 ACTIONS.send = () => {
   const text = msgValue().trim();
-  if (!text && !ATT.length) { if (composerIdle && !T.running && !T.starting) ACTIONS.ink(); return; }   // ↩ in an empty box resumes
+  if (msgEmpty() && !ATT.length) { if (!QUOTE.text && composerIdle && !T.running && !T.starting) ACTIONS.ink(); return; }   // ↩ in an empty box resumes
   const message = ATT.length ? { text, images: ATT.splice(0) } : text;
   if (message.images) rememberSent(text, message.images);
   paintAttach();
@@ -2216,7 +2216,110 @@ const plainLatex = (v) => v.replace(/\\differentialD(?![A-Za-z])/g, "\\mathrm{d}
 // A check card's answer field is the same kind of box (15 Nov, Edison: "can't type math into the check cards"),
 // so every helper below takes the box it works in; the message box is the default.
 const boxOf = (node) => (node && node.closest && node.closest(".mbox")) || MSG;
-function msgValue() { return boxValue(MSG); }
+// ---------- asking about part of a reply ----------
+// Select words in a tutor reply and an "Ask about this" button floats above them (15 Nov, Edison: "reply to specific
+// sections of the tutors chat to talk about it more"). Pressing it, or ⌘L, pins the words above the message box; the
+// message then starts with them as a Markdown quote ("> …"), which the tutor reads as the part you mean, the log keeps
+// as one nested quote, and your bubble shows as a quiet quote over what you wrote. Math in the words goes as its LaTeX.
+const QUOTE = { text: "" };
+const QUOTE_MAX = 1200;
+const quoteLines = (t) => String(t).split("\n").map((l) => (l.trim() ? `> ${l}` : ">")).join("\n");
+function splitQuote(text) {
+  const t = String(text || ""), m = /^(?:>[^\n]*(?:\n|$))+/.exec(t);
+  if (!m) return null;
+  const quote = m[0].split("\n").filter((l) => l.startsWith(">")).map((l) => l.replace(/^> ?/, "")).join("\n").trim();
+  return quote ? { quote, rest: t.slice(m[0].length).replace(/^\s*\n/, "") } : null;
+}
+// The selection as text, if it sits in tutor replies: a formula it touches comes whole, as $LaTeX$ from KaTeX's own copy
+// of its source, so "the $\rho^2\sin\phi$ part" reaches the tutor as math and not as a jumble of glyphs.
+function selectedQuote() {
+  const sel = getSelection();
+  if (!sel.rangeCount || sel.isCollapsed) return "";
+  const r = sel.getRangeAt(0), thread = $("thread");
+  const el = (n) => (n.nodeType === 1 ? n : n.parentElement);
+  const inReply = (n) => { const e = el(n); return !!(e && thread.contains(e) && e.closest(".tutor")); };
+  if (!inReply(r.startContainer) || !inReply(r.endContainer)) return "";
+  const range = r.cloneRange(), kx = (n) => { const e = el(n); return e && (e.closest(".katex-display") || e.closest(".katex")); };
+  const a = kx(range.startContainer), b = kx(range.endContainer);
+  if (a) range.setStartBefore(a);
+  if (b) range.setEndAfter(b);
+  const frag = range.cloneContents();
+  const tex = (k) => { const n = k.querySelector('annotation[encoding="application/x-tex"]'); return n ? `$${n.textContent.trim()}$` : ""; };
+  frag.querySelectorAll(".katex-display").forEach((k) => k.replaceWith(tex(k)));
+  frag.querySelectorAll(".katex").forEach((k) => k.replaceWith(tex(k)));
+  frag.querySelectorAll("svg, img, button, .mermaid").forEach((n) => n.remove());
+  let out = "";
+  const walk = (node) => {
+    for (const n of node.childNodes) {
+      if (n.nodeType === 3) out += n.nodeValue;
+      else if (n.nodeType === 1 && n.tagName === "BR") out += "\n";
+      else if (n.nodeType === 1) {
+        const block = /^(P|LI|DIV|PRE|H[1-6]|TR|BLOCKQUOTE|UL|OL|TABLE)$/.test(n.tagName);
+        if (block && out && !out.endsWith("\n")) out += "\n";
+        walk(n);
+        if (block && !out.endsWith("\n")) out += "\n";
+      }
+    }
+  };
+  walk(frag);
+  const text = out.split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
+  return text.length > QUOTE_MAX ? `${text.slice(0, QUOTE_MAX).trimEnd()}…` : text;
+}
+function paintQuote() {
+  const el = $("quote");
+  if (!el) return;
+  el.classList.toggle("on", !!QUOTE.text);
+  el.innerHTML = QUOTE.text ? `<span class="q-t">${yourMath(esc(QUOTE.text))}</span><button class="icon-btn" data-act="unquote" aria-label="Remove the quote" data-tip="Remove  Esc" data-tip-side="up">${icon("x", "sm")}</button>` : "";
+  if (QUOTE.text) typeset(el);
+}
+ACTIONS.unquote = () => { QUOTE.text = ""; paintQuote(); saveDraftSoon(); paintSend(); focusMsg(); };
+// The last words the button was offered for, so ⌘K's "Ask about the selected words" still has them after the
+// palette's search box takes the selection away.
+const ASK = { el: null, last: "", at: 0 };
+ACTIONS["ask-sel"] = () => {
+  const text = selectedQuote() || (Date.now() - ASK.at < 60000 ? ASK.last : "");
+  if (!text) return toast("Select words in a tutor reply first, then ask about them.");
+  if (route.name !== "session") go("session");
+  QUOTE.text = text; ASK.last = ""; ASK.at = 0;
+  paintQuote();
+  getSelection().removeAllRanges(); hideAsk();
+  MSG.focus({ preventScroll: true }); caretAt(MSG, "end");
+  saveDraftSoon(); paintSend();
+};
+function hideAsk() { if (ASK.el) ASK.el.classList.remove("on"); }
+function placeAsk() {
+  const text = route.name === "session" ? selectedQuote() : "";
+  if (!text) return hideAsk();
+  ASK.last = text; ASK.at = Date.now();
+  if (!ASK.el) {
+    ASK.el = document.createElement("button");
+    ASK.el.className = "ask-sel";
+    ASK.el.dataset.act = "ask-sel"; ASK.el.dataset.tip = `Ask about this  ${key("L")}`; ASK.el.dataset.tipSide = "up";
+    ASK.el.innerHTML = `${icon("hint", "sm")}Ask about this`;
+    ASK.el.addEventListener("mousedown", (e) => e.preventDefault());   // pressing it keeps the words selected
+    document.body.append(ASK.el);
+  }
+  const rects = [...getSelection().getRangeAt(0).getClientRects()].filter((x) => x.width > 0);
+  const box = $("threadScroll").getBoundingClientRect();
+  if (!rects.length) return hideAsk();
+  const first = rects[0], last = rects[rects.length - 1];
+  const w = ASK.el.offsetWidth || 130, h = ASK.el.offsetHeight || 28;
+  // Above the first line, or under the last when the first is near the top; never off the thread.
+  let top = first.top - h - 8;
+  if (top < box.top + 4) top = last.bottom + 8;
+  if (top + h > box.bottom - 4 || last.bottom < box.top || first.top > box.bottom) return hideAsk();
+  const mid = (Math.min(...rects.map((x) => x.left)) + Math.max(...rects.map((x) => x.right))) / 2;
+  const left = Math.max(box.left + 8, Math.min(mid - w / 2, box.right - w - 8));
+  ASK.el.style.left = `${Math.round(left)}px`; ASK.el.style.top = `${Math.round(top)}px`;
+  if (!ASK.el.classList.contains("on")) { ASK.el.classList.add("on"); }
+}
+// Offered once the words are chosen, not while the drag is still going.
+$("threadScroll").addEventListener("mouseup", () => setTimeout(placeAsk, 0));
+document.addEventListener("keyup", (e) => { if (e.shiftKey && route.name === "session") placeAsk(); });
+document.addEventListener("selectionchange", () => { if (ASK.el && ASK.el.classList.contains("on") && !selectedQuote()) hideAsk(); });
+$("threadScroll").addEventListener("scroll", () => { if (ASK.el && (ASK.el.classList.contains("on") || ASK.at)) requestAnimationFrame(() => { if (selectedQuote()) placeAsk(); }); }, { passive: true });
+// A quoted part of a tutor reply rides above the box and goes first in the message, as a Markdown quote (see QUOTE).
+function msgValue() { const body = boxValue(MSG); return QUOTE.text ? `${quoteLines(QUOTE.text)}\n\n${body}` : body; }
 function boxValue(box) {
   let out = "";
   const walk = (node) => {
@@ -2230,9 +2333,14 @@ function boxValue(box) {
   walk(box);
   return out.replace(/\u200b/g, "").replace(/\u00a0/g, " ");
 }
-const msgEmpty = () => !msgValue().trim();
-// A message with $…$ in it comes back as text and chips.
-function setMsg(text) { setBox(MSG, text); afterMsgInput(); }
+// A quote alone is not a message: you still say what you want to know about it.
+const msgEmpty = () => !boxValue(MSG).trim();
+// A message with $…$ in it comes back as text and chips, and a leading quote goes back above the box.
+function setMsg(text) {
+  const q = splitQuote(text);
+  QUOTE.text = q ? q.quote : "";
+  setBox(MSG, q ? q.rest : text); paintQuote(); afterMsgInput();
+}
 function setBox(box, text) {
   box.textContent = "";
   String(text || "").split(/(\$[^$\n]+\$)/).forEach((part) => {
@@ -2453,6 +2561,7 @@ MSG.addEventListener("keydown", (e) => {
   if (composing(e)) return;   // Chinese or Japanese input: Return confirms the characters, never sends
   if (e.key === "Enter" && e.shiftKey && !mod && !e.altKey) { if (continueList()) e.preventDefault(); }
   else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ACTIONS.send(); }
+  else if (e.key === "Escape" && QUOTE.text && msgEmpty()) { e.preventDefault(); ACTIONS.unquote(); }   // Esc drops the quote before it leaves the session
   else if (e.key === "Escape") { if (escapeSession()) e.preventDefault(); }
   else if (e.key === "ArrowUp" && !e.shiftKey && !mod && !e.altKey && msgEmpty() && !ATT.length) { if (editLast()) e.preventDefault(); }
   else if (mod && !e.shiftKey && e.key.toLowerCase() === "z" && lastDeleted() && (msgEmpty() || lastDeleted().when > lastTyped)) { if (undoDelete()) e.preventDefault(); }
@@ -3254,8 +3363,11 @@ function youText(t) {
     const i = n++, url = sent && ((sent.urls && sent.urls[i]) || (sent.names[i] && `vault-file:///${encodeURIComponent(sent.names[i])}`));
     return url ? `<img class="shot" alt="Screenshot you sent" src="${url}">` : `<span class="shot-chip">${icon("note", "xs")}Screenshot</span>`;
   };
-  return yourMath(esc(t)).replace(/\[Image #\d+\]\s*/g, () => shot()).replace(/!\[\[([^\]|]+?\.(?:png|jpe?g|gif|webp))(?:\|\d+)?\]\]/gi,
+  const body = (x) => yourMath(esc(x)).replace(/\[Image #\d+\]\s*/g, () => shot()).replace(/!\[\[([^\]|]+?\.(?:png|jpe?g|gif|webp))(?:\|\d+)?\]\]/gi,
     (_, p) => `<img class="shot" alt="Screenshot you sent" src="vault-file:///${encodeURIComponent(p.replace(/&amp;/g, "&").split("/").pop())}">`).trim();
+  // A message that asks about part of a reply opens with that part, quoted (see QUOTE).
+  const q = splitQuote(t);
+  return q ? `<span class="said">${body(q.quote)}</span>${body(q.rest)}` : body(t);
 }
 function threadEmpty() {
   const s = subj(route.slug);
@@ -3655,6 +3767,7 @@ function openPalette() {
     { label: "Start a review", ic: "review", run: ACTIONS.review, keys: key("R") },
     { label: "Check me", ic: "checkme", run: ACTIONS.check, keys: key("J") },
     { label: "Ask for a hint", ic: "hint", run: ACTIONS.hint, keys: key("/") },
+    { label: "Ask about the selected words", ic: "hint", run: ACTIONS["ask-sel"], keys: key("L"), more: true },
     { label: "Take a break", ic: "pause", run: ACTIONS.break, keys: key("B") },
     { label: "End and save the session", ic: "end", run: ACTIONS.end, keys: keyShift("E") },
     { label: "Start a subject", ic: "plus", run: ACTIONS.start, keys: key("N") },
@@ -4168,7 +4281,7 @@ F.onMenu((id) => {
     review: ACTIONS.review, check: ACTIONS.check, hint: ACTIONS.hint, break: ACTIONS.break, end: ACTIONS.end,
     start: ACTIONS.start, restart: ACTIONS.restart, "toggle-side": ACTIONS["toggle-side"], "hide-side": ACTIONS["hide-side"],
     "toggle-panel": () => { if (route.name === "session") ACTIONS["toggle-panel"](); },
-    "toggle-term": ACTIONS["toggle-term"], math: ACTIONS.math, dictate: dictateHere,
+    "toggle-term": ACTIONS["toggle-term"], math: ACTIONS.math, dictate: dictateHere, "ask-sel": ACTIONS["ask-sel"],
     "tab:note": () => { if (route.name !== "session") go("session"); ACTIONS["toggle-note"](); },
   };
   if (map[id]) map[id]();

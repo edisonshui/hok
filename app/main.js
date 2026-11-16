@@ -488,6 +488,7 @@ function buildMenu() {
       { label: "Start a Review", accelerator: a("R"), click: cmd("review") },
       { label: "Check Me", accelerator: a("J"), click: cmd("check") },
       { label: "Ask for a Hint", accelerator: a("/"), click: cmd("hint") },
+      { label: "Ask About Selection", accelerator: a("L"), click: cmd("ask-sel") },
       { label: "Take a Break", accelerator: a("B"), click: cmd("break") },
       { label: "End and Save", accelerator: isMac ? "Shift+Cmd+E" : "Ctrl+Shift+Alt+E", click: cmd("end") },
       { label: "Start a Subject…", accelerator: a("N"), click: cmd("start") },
