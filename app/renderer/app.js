@@ -2209,6 +2209,39 @@ const MSG = $("msg");
 if (window.MathLive) {
   MathLive.MathfieldElement.soundsDirectory = null;
   MathLive.MathfieldElement.plonkSound = null;
+  const own = MathLive.MathfieldElement.createHTML;
+  MathLive.MathfieldElement.createHTML = (html) => own(mathSteps(html));
+}
+// Long math goes onto a new line before an = (16 Nov, Edison: a Green's answer ran off the check card's right edge
+// and was cut off). MathLive never breaks a line, so each render's markup is cut into steps that start at a top-level
+// =, < or ≤ and the like; the chip's style lets lines break between steps only, the way a chain is written on paper.
+// One step wider than the box can't fit whole, so then the chip breaks anywhere between symbols (fitSteps).
+const MATH_REL = new Set([..."=<>≤≥≠≈≡∼≃≅∝→⇒⇔↔"]);
+function mathSteps(html) {
+  if (typeof html !== "string" || !html.includes("ML__base")) return html;
+  const t = document.createElement("template");
+  t.innerHTML = html;
+  const base = t.content.querySelector(".ML__latex > .ML__base");
+  if (!base) return html;
+  let step = null;
+  for (const k of [...base.childNodes]) {
+    const rel = k.nodeType === 1 && !k.firstElementChild && MATH_REL.has(k.textContent.trim());
+    if (!step || (rel && step.childNodes.length)) { step = document.createElement("span"); step.className = "hok-step"; base.append(step); }
+    step.append(k);
+  }
+  return t.innerHTML;
+}
+const CHIP_WRAP_CSS = `.ML__latex,.ML__base{white-space:normal!important;width:auto!important}.ML__base{display:inline!important}
+  .hok-step{display:inline-block;white-space:nowrap}:host(.long-step) .hok-step{white-space:normal}:host(.wrapped) .hok-step{margin-block:.18em}`;
+function fitSteps(mf) {
+  const math = mf.shadowRoot && mf.shadowRoot.querySelector("[part=container]");
+  if (!math) return;
+  mf.classList.remove("long-step");
+  const cs = getComputedStyle(mf), room = mf.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + 1;
+  if (math.getBoundingClientRect().width > room) mf.classList.add("long-step");   // its widest step still sticks out
+  // Wrapped lines get room between them, so one line's limits don't touch the next line's; one line keeps the 12 Nov size.
+  const tops = new Set([...math.querySelectorAll(".hok-step")].map((s) => Math.round(s.offsetTop)));
+  mf.classList.toggle("wrapped", tops.size > 1 || mf.classList.contains("long-step"));
 }
 // MathLive's own commands become plain LaTeX, so the tutor and every other reader see ordinary math (see MATH_MACROS).
 const plainLatex = (v) => v.replace(/\\differentialD(?![A-Za-z])/g, "\\mathrm{d}").replace(/\\exponentialE(?![A-Za-z])/g, "e")
@@ -2383,7 +2416,15 @@ function makeChip(latex, box = MSG) {
   chip.append(mf);
   mf.mathVirtualKeyboardPolicy = "manual";
   mf.defaultMode = "inline-math";
-  mf.addEventListener("mount", () => { mf.inlineShortcuts = { ...mf.inlineShortcuts, ...GREEK_ANYWHERE }; }, { once: true });   // the getter throws before mount
+  mf.addEventListener("mount", () => {
+    mf.inlineShortcuts = { ...mf.inlineShortcuts, ...GREEK_ANYWHERE };   // the getter throws before mount
+    const css = document.createElement("style");
+    css.textContent = CHIP_WRAP_CSS;
+    mf.shadowRoot.append(css);
+    new MutationObserver(() => fitSteps(mf)).observe(mf.shadowRoot, { childList: true, subtree: true });   // after each render, before it paints
+    new ResizeObserver(() => fitSteps(mf)).observe(boxOf(chip));   // a window resize changes the room
+    fitSteps(mf);
+  }, { once: true });
   mf.value = latex || "";
   mf.addEventListener("move-out", (e) => {
     e.preventDefault();
