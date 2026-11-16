@@ -1523,3 +1523,19 @@ html.glass #session .seg-thumb{background:color-mix(in srgb,var(--color-ink) 13%
 .home-fox{position:absolute;right:28px;bottom:24px;height:56px;width:auto;pointer-events:none;user-select:none;opacity:0;transition:opacity 200ms var(--ease-out);z-index:5}   /* 72px and on every screen (15 Nov, Edison: "a little bit larger", "everywhere"); above the dock's fade, under menus and sheets */
 .home-fox.on{opacity:1}
 html.big .home-fox{height:72px}   /* 15 Nov, Edison on the laptop: 72px is "a little bit big", so it is 56px there and 72px only on a big display, where he asked for it larger */
+
+/* Asking about part of a reply (15 Nov): the button over the selected words, the quote above the box, the quote in your bubble */
+.ask-sel{position:fixed;z-index:60;display:none;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:var(--radius-button);font:var(--type-ui-strong);font-weight:500;white-space:nowrap;background:var(--color-surface);color:var(--color-ink-2);border:1px solid var(--color-line-strong);box-shadow:var(--shadow-float);transition:background var(--duration-fast) var(--ease-out),color var(--duration-fast) var(--ease-out),transform var(--duration-fast) var(--ease-out)}
+.ask-sel.on{display:inline-flex;animation:fade var(--duration-fast) var(--ease-out)}
+.ask-sel:hover{background:var(--color-selected);color:var(--color-ink)}
+.ask-sel:active{transform:scale(.98)}
+.ask-sel:focus-visible{outline:2px solid var(--color-action);outline-offset:2px}
+.ask-sel svg.i{width:15px;height:15px;color:var(--color-ink-3)}
+html.glass .ask-sel{background:var(--glass-float);-webkit-backdrop-filter:blur(30px) saturate(1.4);backdrop-filter:blur(30px) saturate(1.4);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 10px 28px -12px rgba(0,0,0,.35)}
+html.glass .ask-sel:hover{background:linear-gradient(var(--color-selected),var(--color-selected)),var(--glass-float)}
+@media (prefers-reduced-motion:reduce){.ask-sel.on{animation:none}}
+.ask-quote{display:none;align-items:flex-start;gap:6px}
+.ask-quote.on{display:flex}
+.ask-quote .q-t{flex:1;min-width:0;border-left:2px solid color-mix(in srgb,var(--color-ink-3) 55%,transparent);padding-left:10px;font:var(--type-ui);color:var(--color-ink-2);white-space:pre-wrap;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ask-quote .icon-btn{width:24px;height:24px;flex:none;margin:-3px -4px 0 0}
+.bubble .said{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;border-left:2px solid color-mix(in srgb,var(--color-ink-3) 55%,transparent);padding-left:10px;margin:2px 0 6px;color:var(--color-ink-2);font-size:14px;line-height:21px}
