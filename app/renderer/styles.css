@@ -388,10 +388,11 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .composer .msg:empty::before{content:attr(data-placeholder);color:var(--color-ink-3);pointer-events:none}
 /* Math chips in the message box: MathLive fields drawn like inline code, without its menu or keyboard toggles. */
 /* Baseline, not middle (12 Nov, Edison: the 1/2 sat wrong): the math's baseline is the words' baseline, so x sits on the line with them. */
-:is(.composer,.cc-field) .chip-wrap{display:inline-block;vertical-align:baseline}
+/* A chip is never wider than its box: long math wraps inside it before an = (mathSteps in app.js; 16 Nov). */
+:is(.composer,.cc-field) .chip-wrap{display:inline-block;vertical-align:baseline;max-width:100%}
 /* 12 Nov: at rest a chip is a soft tint with no edge, so math reads as part of the line; the edge comes back
    while you type in it. The sqrt you type under keeps the ink (MathLive drew it blue). */
-:is(.composer,.cc-field) math-field{display:inline-block;vertical-align:baseline;min-width:22px;margin:0 1px;padding:2px 7px;border-radius:6px;border:1px solid transparent;background:var(--color-action-soft);color:var(--color-ink);font-size:21px;outline:none;
+:is(.composer,.cc-field) math-field{display:inline-block;vertical-align:baseline;min-width:22px;margin:0 1px;padding:2px 7px;border-radius:6px;border:1px solid transparent;background:var(--color-action-soft);color:var(--color-ink);font-size:21px;outline:none;max-width:100%;box-sizing:border-box;
   --caret-color:var(--color-ink);--selection-background-color:var(--color-selected);--selection-color:var(--color-ink);--contains-highlight-background-color:transparent;--contains-highlight-color:var(--color-ink);--placeholder-color:var(--color-ink-3);--primary:var(--color-ink);--smart-fence-color:var(--color-ink-3)}
 :is(.composer,.cc-field) math-field:focus-within{border-color:var(--color-line-strong)}
 :is(.composer,.cc-field) math-field::part(menu-toggle),:is(.composer,.cc-field) math-field::part(virtual-keyboard-toggle){display:none}
