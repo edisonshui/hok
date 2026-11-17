@@ -393,6 +393,40 @@ eq("it arrives on the next prompt, which does reach context",
 eq("the queue is drained once delivered", clocks()[K8]["pending"], [])
 eq("and it is not repeated on the following turn", turn("and again"), "")
 
+section("clock — the break offer counts from the last break (the 86-minute defect)")
+fresh(); note("oop", "s20")
+K20 = "oop/s20"
+turn("/learn-resume oop"); turn("start")
+outs = []
+for _ in range(4):
+    rewind(K20, 12 * 60); outs.append(turn("working"))
+eq("48 minutes of work offers a break, with no since-the-break wording before any break",
+   ("48 minutes of active working time, away" in outs[-1], any(outs[:-1])), (True, False))
+rewind(K20, 30 * 60); turn("back from a long break")
+eq("a break past 15 minutes starts the block over", round(clocks()[K20]["block"]), 0)
+for _ in range(3):
+    rewind(K20, 12 * 60); turn("working")
+eq("36 minutes after the break offers nothing, though the session total is 84",
+   (clocks()[K20].get("pending", []), round(clocks()[K20]["active"] / 60)), ([], 84))
+rewind(K20, 12 * 60); out = turn("more")
+eq("at 48 minutes after the break the offer names that block, not the session total",
+   ("48 minutes of active working time since the last break (96 in the whole session)" in out), True)
+
+section("clock — a short break checkpointed with /learn-end break counts as a break")
+fresh(); note("oop", "s21")
+K21 = "oop/s21"
+turn("/learn-resume oop"); turn("start")
+for _ in range(4):
+    rewind(K21, 11 * 60); turn("working")
+path21 = VAULT / "learn/subjects/oop/sessions/s21.md"
+path21.write_text(path21.read_text().replace("paused:\n", 'paused: "10:44"\n'))
+rewind(K21, 7 * 60); turn("back after 7 minutes")
+eq("the 7-minute gap after the pause is away time, not work",
+   (round(clocks()[K21]["active"] / 60), round(clocks()[K21]["idle"] / 60)), (44, 7))
+eq("and the block starts over", round(clocks()[K21]["block"]), 0)
+rewind(K21, 5 * 60); turn("next")
+eq("the same pause stamp is a break only once", round(clocks()[K21]["block"] / 60), 5)
+
 section("clock — an away gap is announced on a turn that can deliver it")
 fresh(); note("oop", "s09")
 turn("/learn-resume oop"); turn("start")

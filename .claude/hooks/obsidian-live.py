@@ -347,15 +347,16 @@ def prune_clocks(notes):
 def away_notice(gap, active, idle):
     return ("Clock: %d minutes since the learner's previous message, so they stepped away. "
             "Recap where you left off in at most two lines before asking anything new. That "
-            "gap does not count toward the working block. Active time so far: %d minutes "
+            "gap does not count toward the working block, which starts over now. Active time in the session so far: %d minutes "
             "(away: %d minutes in total)."
             % (minutes(gap), minutes(active), minutes(idle)))
 
 
-def break_notice(active):
-    return ("Clock: %d minutes of active working time, away time excluded. Say so, offer a "
+def break_notice(block, active):
+    since = (" since the last break (%d in the whole session)" % minutes(active)) if active - block >= 60 else ""
+    return ("Clock: %d minutes of active working time%s, away time excluded. Say so, offer a "
             "5-10 minute break, and checkpoint with /learn-end break before pausing."
-            % minutes(active))
+            % (minutes(block), since))
 
 
 def update_clock(vault, runtime, state, kind):
@@ -384,6 +385,14 @@ def update_clock(vault, runtime, state, kind):
     mark while answering a picker therefore lost the announcement outright. Now
     accumulation always happens and delivery waits for a turn that reaches the
     learner.
+
+    Third, the break offer times the block since the last break, not the whole
+    note (16 Nov 2026, math241-exam3-review s05: back from a break, the tutor said
+    "You've been working 86 minutes", the session's total). A break is either a
+    gap past IDLE_SECONDS or a new `paused:` stamp from /learn-end break: the 5-10
+    minute break the tutor offers is shorter than IDLE_SECONDS, so without the
+    stamp it was billed as work. `active` stays the whole-note total that
+    /learn-end records; `block` is only what the offer counts.
     """
     subject = state.get("subject")
     if not subject:
@@ -391,7 +400,7 @@ def update_clock(vault, runtime, state, kind):
     found = open_session_note(vault, subject)
     if not found:
         return ""                    # between sessions: the note is closed
-    note_path, _ = found
+    note_path, fields = found
     key = "%s/%s" % (subject, note_path.stem)
     stamp = datetime.now(timezone.utc)
     notice = ""
@@ -403,9 +412,20 @@ def update_clock(vault, runtime, state, kind):
         clock = notes.setdefault(key, {})
         previous = parse_time(clock.get("last_user"))
         gap = (stamp - previous).total_seconds() if previous else 0.0
+        paused = str(fields.get("paused") or "").strip()
+        took_break = bool(paused) and paused != clock.get("paused_seen", "")   # /learn-end break ran since the last turn
+        if paused:
+            clock["paused_seen"] = paused
         away = gap > IDLE_SECONDS
+        if "block" not in clock:   # a clock from before blocks: one that has had a break starts its block fresh
+            clock["block"], clock["block_announced"] = (0.0, 0) if clock.get("idle") else (clock.get("active", 0.0), clock.get("announced", 0))
         if previous:
-            clock["idle" if away else "active"] = clock.get("idle" if away else "active", 0.0) + gap
+            gone = away or took_break
+            clock["idle" if gone else "active"] = clock.get("idle" if gone else "active", 0.0) + gap
+            if gone:
+                clock["block"], clock["block_announced"] = 0.0, 0
+            else:
+                clock["block"] += gap
         clock["last_user"] = stamp.isoformat()
         clock.setdefault("first_user", clock["last_user"])
         clock["note"] = str(note_path.relative_to(vault))
@@ -413,10 +433,11 @@ def update_clock(vault, runtime, state, kind):
         pending = clock.setdefault("pending", [])
         if away:
             pending.append(away_notice(gap, active, clock.get("idle", 0.0)))
-        announced = clock.get("announced", 0)
-        if active >= BREAK_SECONDS + announced * REMIND_SECONDS:
-            clock["announced"] = announced + 1
-            pending.append(break_notice(active))
+        block, announced = clock["block"], clock["block_announced"]
+        if block >= BREAK_SECONDS + announced * REMIND_SECONDS:
+            clock["block_announced"] = announced + 1
+            clock["announced"] = clock.get("announced", 0) + 1
+            pending.append(break_notice(block, active))
         del pending[:-PENDING_KEEP]
         if kind == "prompt" and pending:
             # UserPromptSubmit is one of the two events whose stdout reaches context.
