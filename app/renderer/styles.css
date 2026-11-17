@@ -597,20 +597,22 @@ a.lnk{color:var(--color-ink);text-decoration:underline;text-decoration-thickness
 .window.opening.turning .sidebar :is(.lbl,.nav-row .n,.side-label,.nav-row.ix){transition-delay:0ms;transition-duration:var(--duration-fold-fade)}
 .window.opening .side-scroll{width:calc(var(--sidebar) - 32px)}
 /* Screen changes cross-fade the panel only; the sidebar and plan never move. */
-.sidebar{view-transition-name:sidebar}
-.panel{view-transition-name:panel}
-.plan{view-transition-name:plan}
+/* The names exist only while a view transition runs (html.vt, set by swap()): a named element is a backdrop root, so
+   a standing name on the panel kept the message box's blur from seeing the wallpaper (16 Nov, measured). */
+html.vt .sidebar{view-transition-name:sidebar}
+html.vt .panel{view-transition-name:panel}
+html.vt .plan{view-transition-name:plan}
 ::view-transition-group(*){animation-duration:var(--duration-base);animation-timing-function:var(--ease-out)}
 ::view-transition-old(panel){animation:vt-out 180ms ease both}
-.islands{view-transition-name:islands}
+html.vt .islands{view-transition-name:islands}
 ::view-transition-old(islands){display:none}
 ::view-transition-new(islands){animation:vt-in 220ms ease 140ms both}
 ::view-transition-new(panel){animation:vt-in 180ms ease both}
 /* The glide, in order (5 Nov, Edison: "it just gets darker", and Home's rows showed beside the session's words). The
    two glass sheets crossfade evenly (the browser adds them), so the tint never doubles; Home's words lift out first;
    the thread and the header arrive once they are gone. Only the glide uses a view transition. */
-#threadScroll{view-transition-name:thread}
-#acts{view-transition-name:acts}
+html.vt #threadScroll{view-transition-name:thread}
+html.vt #acts{view-transition-name:acts}
 ::view-transition-new(thread){animation:vt-in 220ms ease 200ms both}   /* once the field is past most of the thread */
 ::view-transition-old(thread){animation:vt-out 160ms ease both}
 ::view-transition-new(acts){animation:vt-in 180ms ease 290ms both}     /* after the field has gone by them */
@@ -898,7 +900,13 @@ html.glass #session,html.glass .islands,html.glass .mapwrap,html.glass .mapctl,h
 html.glass[data-theme="night"] #session,html.glass[data-theme="night"] .islands,html.glass[data-theme="night"] .mapwrap,html.glass[data-theme="night"] .mapctl,html.glass[data-theme="night"] :is(.palette,.menu,.sheet,.quit-card,.plan){--color-ink:#EAE9E6;--color-read:#EAE9E6;--color-ink-2:rgba(234,233,230,.72);--color-ink-3:rgba(234,233,230,.6)}
 html.glass .session::before,html.glass .dock::before{display:none}
 html.glass .dock{background:transparent}
-html.glass #threadScroll{-webkit-mask-image:linear-gradient(transparent 56px,#000 calc(56px + var(--mt)),#000 calc(100% - var(--dock-h,0px) - var(--mb)),transparent calc(100% - var(--dock-h,0px) - var(--ms)));mask-image:linear-gradient(transparent 56px,#000 calc(56px + var(--mt)),#000 calc(100% - var(--dock-h,0px) - var(--mb)),transparent calc(100% - var(--dock-h,0px) - var(--ms)))}
+/* Text runs on under the message box and the box's glass blurs it, instead of the thread fading out above the box
+   (16 Nov, Edison: the faded text "completely blends in with the background"; "the chatbox should just blur what's
+   behind it"). The blur is a layer behind the dock whose top 28px ramps in, so a line goes soft as it slides under,
+   with no hard edge. The pill frosts what is behind it the same way. The thread still fades under the header. */
+html.glass .dock::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;-webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);-webkit-mask-image:linear-gradient(transparent,#000 28px);mask-image:linear-gradient(transparent,#000 28px)}
+html.glass .newpill{-webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3)}
+html.glass #threadScroll{-webkit-mask-image:linear-gradient(transparent 56px,#000 calc(56px + var(--mt)));mask-image:linear-gradient(transparent 56px,#000 calc(56px + var(--mt)))}
 html.glass #session .composer,html.glass .island,html.glass .newpill,html.glass #session .question,html.glass #session .check-card{background:var(--glass-field);border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 8px 24px -12px rgba(0,0,0,.18)}
 html.glass .island{box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 .5px var(--glass-rim),0 4px 14px -8px rgba(0,0,0,.16)}
 html.glass #session .composer:focus-within{border-color:transparent;box-shadow:inset 0 1px 0 var(--glass-edge),inset 0 0 0 1px color-mix(in srgb,var(--color-ink) 22%,transparent),0 8px 24px -12px rgba(0,0,0,.18)}
@@ -949,9 +957,9 @@ html.glass[data-theme="night"] .nav-row.on{background:rgba(255,255,255,.10);box-
    subject from Home, the browser glides the field from the middle of the window down to where it lives in every
    subject, and back the other way. Home's column lifts and blurs out as it goes (exit faster than the glide). Motion
    on screen: a strong ease-in-out, 420 ms. Reduce motion: swap() skips the transition, so pages simply change. */
-.home2 .h-field{view-transition-name:field}
-#session .composer{view-transition-name:field}
-.home2 .h-col{view-transition-name:home-col}
+html.vt .home2 .h-field{view-transition-name:field}
+html.vt #session .composer{view-transition-name:field}
+html.vt .home2 .h-col{view-transition-name:home-col}
 ::view-transition-group(field){animation-duration:360ms;animation-timing-function:cubic-bezier(0.77,0,0.175,1)}   /* down into a session: 360 ms (Edison, 5 Nov: could be a bit faster) */
 html[data-glide="home"]::view-transition-group(field){animation-duration:480ms;animation-timing-function:var(--ease-fold)}   /* back up to Home: the fold's spring, which moves from the first frame and settles softly (Edison, 5 Nov: 420 in-out too fast, 540 in-out lagged) */
 /* the two fields cross with a light blur, so their words never read on top of each other (Emil: blur masks a crossfade) */
@@ -1142,9 +1150,10 @@ html.glass:not([data-theme="night"]) .prog2 .pg-tip{background:#FBFBFA}
 .q-thread{padding-bottom:32px}
 .q-err{margin:10px 0;font:var(--type-ui);color:var(--color-ink-2)}
 .q-dock{flex:none;padding:8px 24px 18px}
-.q-field{max-width:var(--reading-max);margin:0 auto;gap:10px;padding:12px 12px 12px 20px;border-radius:14px;view-transition-name:field}   /* Home's field glides into it, as into a session's (styles.css "share one view-transition name") */
+.q-field{max-width:var(--reading-max);margin:0 auto;gap:10px;padding:12px 12px 12px 20px;border-radius:14px}
+html.vt .q-field{view-transition-name:field}   /* Home's field glides into it, as into a session's (styles.css "share one view-transition name") */
 .q-row{display:flex;align-items:flex-end;gap:10px}
-.q-scroll{view-transition-name:q-thread}   /* its own name: the session's hidden thread still holds "thread" */
+html.vt .q-scroll{view-transition-name:q-thread}   /* its own name: the session's hidden thread still holds "thread" */
 ::view-transition-new(q-thread){animation:vt-in 220ms ease 200ms both}
 ::view-transition-old(q-thread){animation:vt-out 160ms ease both}
 .q-field .attach{padding-top:2px}
