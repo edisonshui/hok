@@ -122,8 +122,15 @@ SKIP_COMMANDS = {"end", "close", "start", "review"}   # replies shaped by a skil
 # two-question and verdict checks flagged good replies ("4 for 4, ..." as no
 # verdict, a confidence question as a second question). `reply-check.py report`
 # counts the log, to tune a check before it joins HOLD.
+#
+# `questions` joined HOLD on 17 Nov 2026 (Edison: one question per message,
+# after a four-question CS 124 reply on 14 Oct). Its old false alarms were the
+# follow-ups tutor.md asks for with every check, "how sure are you?" and "why or
+# why not?", which now count as part of the question (ATTACHED). Replayed over
+# 1,175 real tutoring replies it would hold 134 (11%), almost all a check plus a
+# second check or a logistics question.
 KINDS = ("length", "questions", "verdict", "nudge", "machinery", "report", "drawing")
-HOLD = {"machinery", "report"}
+HOLD = {"machinery", "report", "questions"}
 
 # The closing lines of an engineering report: Where, Your check, On you, and a
 # Skills followed paragraph. They come from the global rules for coding work,
@@ -171,6 +178,14 @@ def unasked(match):
     return match.group(0).replace("?", "")
 
 
+# A follow-up that belongs to the check before it: the confidence ask
+# (tutor.md, *Confidence on every check*) and the one-line reason.
+ATTACHED = re.compile(
+    r"\b(how (sure|confident|likely)|confidence)\b"
+    r"|^\W*(and |but |so )?(why|why not|why or why not|how do you know|how did you get (it|that)|"
+    r"what makes you say that)\W*$", re.I)
+
+
 def questions(text):
     """Question sentences aimed at the learner.
 
@@ -179,7 +194,7 @@ def questions(text):
     question of one or two words ("Why?") is a rhetorical beat, not a probe.
     """
     body = QUOTED.sub(unasked, CODE_SPAN.sub(unasked, prose(text)))
-    body = "\n".join(line for line in body.splitlines() if not line.lstrip().startswith(">"))
+    body = "\n".join(line for line in body.splitlines() if not line.lstrip().startswith((">", "|")))
     found = []
     for sentence in sentences(body):
         if sentence.endswith("?") and len(WORD.findall(sentence)) >= 3:
@@ -392,7 +407,7 @@ def reply_findings(reply, asked=(), learner=None, command=""):
             problems.append(("length", "Prose is %d words; tutor.md (Reply shape) keeps it under about 120. "
                             "Keep one idea and the check, and move the rest to the next message."
                             % words))
-    asked_questions = questions(text)
+    asked_questions = [question for question in questions(text) if not ATTACHED.search(question)]
     if len(asked_questions) > 1:
         problems.append(("questions", "Two questions to the learner (\"%s\" and \"%s\"); tutor.md (Reply shape) allows "
                         "one. Keep one and hold the other for the next message."

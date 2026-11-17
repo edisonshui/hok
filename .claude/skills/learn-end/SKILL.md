@@ -27,7 +27,7 @@ Run `date`. Fill `nodes:` in the frontmatter. Fill `active_minutes:` and `idle_m
 - Evidence log: confirm every check from this session is there. Every line from a check ends with its transition marker.
 - *What works for this learner in this subject*: add or refine lines only with evidence, and mark each as *enjoyed* or *demonstrated*.
 - Sessions list: add this session's line and link.
-- Frontmatter: `last_session`, `sessions`, `status`, and `next` (one line: the first thing the next session does). If this session met the goal, set `status: done` and `goal_met:` to today.
+- Frontmatter: `last_session`, `sessions`, `status`, and `next` (one line: the first thing the next session does). If this session met the goal, set `status: done` and `goal_met:` to today. The goal is met only when `python3 .claude/hooks/learn-status.py --goal --subject <slug>` exits 0, every success criterion having a clean `[final N]` check (`records.md`, *Evidence rule*). If it lists an open criterion, leave `status` and `goal_met:` as they are, make `next` that criterion's final check, and name the criterion in the closing in plain words.
 
 ## 3. `plan.md`
 

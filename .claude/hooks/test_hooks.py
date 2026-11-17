@@ -1108,6 +1108,38 @@ for record in sorted((VAULT_ROOT / "learn/subjects").glob("*/record.md")):
     if fields.get("status") == "done":
         eq("%s is done and has goal_met:" % record.parent.name, bool(fields.get("goal_met")), True)
 
+section("goal_met needs a clean [final N] check for every success criterion")
+GOAL_RECORD = """## Success criteria
+
+1. Trace lo/hi/mid to a found index.
+2. Explain why an unsorted array breaks the halving step.
+
+## Evidence log
+
+- 2026-11-17 s02: [final 1] trace target 24 → midpoints 3, 5, 4; index 4 → correct → n1 solid
+- 2026-11-17 s02: [final 2] why sortedness → said it only saves steps; after a hint, said values left are at most 18 → partial, then corrected with help → n2 checked
+"""
+eq("a helped final check leaves its criterion open, and the goal not met",
+   [(n, passed) for n, _, _, passed in status.goal_status(GOAL_RECORD)], [(1, True), (2, False)])
+eq("--goal says not met while one criterion is open", status.goal_report(GOAL_RECORD)[0], False)
+fixed = GOAL_RECORD + ("- 2026-11-17 s02: [gen] [final 2] unsorted 9, 2, 7, 4, 8, target 9 → drops the left half, "
+                       "loses the 9 → correct, confidence 90% → n2 checked\n")
+eq("a later clean final check, after [gen], meets the goal", status.goal_report(fixed)[0], True)
+eq("a later helped final check reopens a criterion",
+   status.goal_report(fixed + "- 2026-11-18 s03: [final 1] trace → index 4 → correct after a hint → n1 checked\n")[0], False)
+eq("an untagged pass counts for no criterion",
+   status.goal_report(GOAL_RECORD.replace("[final 1] ", ""))[1][1].startswith("1 open"), True)
+eq("a record with no numbered success criteria cannot meet its goal", status.goal_report("## Goal\n\nx\n")[0], False)
+eq("goal_met: from 18 Nov on, without the checks, is reported",
+   len(status.goal_warnings("s", {"goal_met": "2026-11-18"}, GOAL_RECORD)), 1)
+eq("goal_met: from before the tag existed is not reported",
+   status.goal_warnings("s", {"goal_met": "2026-11-10"}, GOAL_RECORD), [])
+eq("goal_met: backed by clean final checks is not reported",
+   status.goal_warnings("s", {"goal_met": "2026-11-20"}, fixed), [])
+for host in (".claude", ".agents"):
+    eq("%s/learn-end runs --goal before setting goal_met:" % host,
+       "learn-status.py --goal --subject" in (VAULT_ROOT / host / "skills/learn-end/SKILL.md").read_text(), True)
+
 # ------------------------------------------------------------------ J1 / J3 (PLAN-2026-09-22.md Phase 4)
 
 # Nothing below touches the network. Every Jev-backed function takes an `ask_fn`,
@@ -3648,7 +3680,15 @@ eq("the hook fails open on an unreadable transcript",
 rc.HOLD = DEFAULT_HOLD
 
 section("reply-check: only machinery holds by default; the rest log what they would hold")
-eq("the default holds the machinery and report checks", rc.HOLD, {"machinery", "report"})
+eq("the default holds the machinery, report and two-question checks", rc.HOLD, {"machinery", "report", "questions"})
+eq("a confidence follow-up is part of the check, not a second question",
+   [kind for kind, _ in rc.reply_findings(["Which indexes can you drop for target 13? How sure are you (0, 30, 50, 70, 90, or 100)?"])], [])
+eq("a why-or-why-not follow-up is part of the check",
+   [kind for kind, _ in rc.reply_findings(["Is `ba` a string over the alphabet `{a}`? Why or why not?"])], [])
+eq("a break offer plus a check is two questions",
+   [kind for kind, _ in rc.reply_findings(["Want a 5 to 10 minute break now? If you keep going, what is mid for lo = 2 and hi = 9?"])], ["questions"])
+eq("a question mark in a table row is not a question",
+   rc.questions("| Symbol | Has its own rule? |\n| --- | --- |\nWhich symbol is a terminal here?"), ["Which symbol is a terminal here?"])
 fresh(); subject("oop")
 turn("/learn-resume oop")
 eq("a long reply goes through",
@@ -3661,13 +3701,14 @@ eq("the same reply at the next Stop is not logged twice",
 decision = reply_stop(RESUME, ASKED, ANSWER, ("assistant", [{"type": "text", "text":
                       "The pointer still holds x. That closes n4. Does that make sense? What does line 3 print?"}]))
 eq("a node id still holds the reply", blocked(decision), "block")
-eq("the reason names only the held check", "n4" in decision["reason"] and "verdict" not in decision["reason"]
-   and "Two questions" not in decision["reason"], True)
-eq("the verdict and two-question checks were logged for it",
-   sorted(row["kind"] for row in map(json.loads, rc.log_path(VAULT).read_text().splitlines()))[-4:],
-   ["length", "questions", "verdict", "verdict"])
+eq("the reason names only the held checks, the node id and the two questions",
+   "n4" in decision["reason"] and "verdict" not in decision["reason"]
+   and "Two questions" in decision["reason"], True)
+eq("the verdict check was logged for it, and the held two-question check was not",
+   sorted(row["kind"] for row in map(json.loads, rc.log_path(VAULT).read_text().splitlines()))[-3:],
+   ["length", "verdict", "verdict"])
 report = rc.log_report(VAULT)
-eq("report counts each logged check", "questions: 1" in report and "verdict: 2" in report and "length: 1" in report, True)
+eq("report counts each logged check", "questions:" not in report and "verdict: 2" in report and "length: 1" in report, True)
 eq("report on an empty log says so", rc.log_report(VAULT / "nowhere"), "No would-hold entries yet.")
 
 section("reply-check: session start asks for a review after a week")
