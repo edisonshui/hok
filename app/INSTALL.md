@@ -1,74 +1,90 @@
 # Installing Hok
 
-Hok (學) is Cantonese for "learn". It was called Obsidian Learning until November 2026.
+Hok (學) is Cantonese for "learn". It used to be called Obsidian Learning.
 
-Hok is a tutor that runs on your own Claude Code or Codex account. You pick something to learn. It finds where you're starting from, builds a plan, teaches one step at a time, and brings old skills back for review so they stick. Everything it records stays in a folder on your computer.
+Hok is a tutor app. You tell it what you want to learn. It figures out what you already know, makes a plan, teaches you one step at a time, and quizzes you on old topics later so they stick. It runs on your own Claude or ChatGPT account, and everything it saves stays in a folder on your computer.
 
-**Tested so far:** Macs with Apple chips. The Intel Mac, Windows and Linux builds have not been opened on a real machine yet. If you try one, tell me what happened, even if it's "it worked".
+So far Hok has only been tested on Macs with Apple chips. The Intel Mac, Windows and Linux versions haven't been tried on a real computer yet. If you try one, please tell me how it went, even if it just worked.
 
-## 1. Get the two things it needs
+## Step 1: Install the tutor and Python
 
-**A tutor, signed in.** Pick one:
+Hok needs two programs on your computer first.
 
-- **Claude Code**, with a Claude Pro or Max plan. Install it:
-  - Mac or Linux, in Terminal: `curl -fsSL https://claude.ai/install.sh | bash`
-  - Windows, in PowerShell: `irm https://claude.ai/install.ps1 | iex`
+### The tutor
 
-  Then run `claude` once and sign in.
-- **Codex**, with a ChatGPT plan. Install [Node.js](https://nodejs.org), then run `npm install -g @openai/codex` and `codex login`.
+Pick one. You'll need a paid plan for either.
 
-**Python 3.8 or newer.**
+**Claude Code** (needs Claude Pro or Max)
 
-- Mac: run `python3 --version` in Terminal. If macOS offers to install the command line developer tools, say yes.
-- Windows: install **Python 3** from the Microsoft Store. That version adds the `python3` command the tutor's helpers use. The python.org installer does not.
-- Linux: it is almost always there already. If not, `sudo apt install python3`.
+- On a Mac or Linux, open Terminal, paste this line, and press Return:
+  `curl -fsSL https://claude.ai/install.sh | bash`
+- On Windows, open PowerShell, paste this line, and press Enter:
+  `irm https://claude.ai/install.ps1 | iex`
 
-## 2. Install the app
+When it finishes, type `claude`, press Return, and sign in.
 
-Download the file for your computer from the [latest release](https://github.com/edisonshui/hok/releases/latest).
+**Codex** (needs a ChatGPT plan)
 
-**Mac** (`.dmg`, one file for Apple and Intel chips)
+Install [Node.js](https://nodejs.org) first. Then in Terminal (or PowerShell on Windows), run `npm install -g @openai/codex`, and after that run `codex login` to sign in.
 
-1. Open the `.dmg` and drag Hok into Applications.
-2. Open it. macOS says it can't check the app, because it isn't notarized by Apple. Click **Done**.
-3. Open System Settings, then Privacy & Security. Scroll down, click **Open Anyway** next to Hok, and confirm.
-4. Open the app again. From now on it opens normally.
+### Python
 
-**Windows** (`.exe`)
+You need Python 3.8 or newer.
 
-1. Run the installer. Windows SmartScreen says it protected your PC, because the app isn't signed. Click **More info**, then **Run anyway**.
+- **Mac:** in Terminal, type `python3 --version` and press Return. If your Mac offers to install developer tools, say yes.
+- **Windows:** get **Python 3** from the Microsoft Store. Use the Store version, not the one from python.org, because only the Store version sets things up the way Hok expects.
+- **Linux:** you almost certainly have it already. If not, run `sudo apt install python3`.
+
+## Step 2: Install Hok
+
+Download the file for your computer from the [latest release page](https://github.com/edisonshui/hok/releases/latest).
+
+Your computer will warn you the first time you open Hok. That's because I haven't paid Apple or Microsoft to verify it, not because anything is wrong. Here's how to get past the warning.
+
+**Mac** (the `.dmg` file, which works on both Apple and Intel chips)
+
+1. Open the `.dmg` file and drag Hok into your Applications folder.
+2. Open Hok. Your Mac says it can't check the app. Click **Done**.
+3. Open System Settings and go to Privacy & Security. Scroll down, click **Open Anyway** next to Hok, and confirm.
+4. Open Hok again. From now on it opens normally.
+
+**Windows** (the `.exe` file)
+
+1. Run the installer. If Windows says it protected your PC, click **More info**, then **Run anyway**.
 2. Open Hok from the Start menu.
 
-**Linux** (`.deb` or `.AppImage`)
+**Linux** (the `.deb` or `.AppImage` file)
 
-- Debian or Ubuntu: `sudo apt install ./Hok-*.deb`, then open it from your apps.
-- Anything else: `chmod +x Hok-*.AppImage`, then run it. If it won't start, it needs FUSE 2: `sudo apt install libfuse2` (`libfuse2t64` on Ubuntu 24.04).
+- On Debian or Ubuntu, run `sudo apt install ./Hok-*.deb`, then open Hok from your apps.
+- On anything else, run `chmod +x Hok-*.AppImage`, then open the file. If it won't start, run `sudo apt install libfuse2` (on Ubuntu 24.04, it's `libfuse2t64` instead) and try again.
 
-## 3. First run
+## Step 3: Set it up
 
-1. Under *Your learning vault*, pick where it goes: Documents (the default), Desktop, or **Other folder…**. The line under your choice shows the exact folder. Click **Make a new vault** and the app makes a folder called *Learning vault* there.
-2. Under *Your tutor*, pick Claude Code or Codex. The app checks that it and Python are installed and that you're signed in, and says what to do if not. After you fix something, click **Check again**.
-3. Home asks what you want to learn. Type a topic and what it's for, like "How vaccines work, for Friday's bio exam", and press Return. The tutor asks a few questions, then builds a plan.
-4. The first time the tutor opens your vault, it asks whether you trust the folder. Say yes. It's the folder the app just made.
+1. Choose where to keep your learning folder: Documents, Desktop, or another folder. Click **Make a new vault**, and Hok makes a folder called *Learning vault* there.
+2. Choose your tutor, Claude Code or Codex. Hok checks that everything from step 1 is installed and signed in. If something's missing, it tells you what to do. Once you've fixed it, click **Check again**.
+3. On the Home screen, type what you want to learn and why, like "How vaccines work, for Friday's bio exam", and press Return. The tutor asks you a few questions and then makes a plan.
+4. The first time, the tutor asks if you trust the folder. Say yes. It's the folder Hok just made.
 
-## What it costs and where your data goes
+## Cost and privacy
 
-- The tutor runs on your own subscription, the same way it does in a terminal. Questions from Home run as short one-off requests on that account.
-- Your subjects, plans and progress are plain files in your vault folder. Nothing is sent anywhere except to Claude or ChatGPT, as with any chat you have with them.
-- On a Mac, an Aerial wallpaper you pick that isn't on your Mac yet downloads once from Apple.
-- Dictation (the microphone beside each text box) turns your voice into text on your computer with Whisper, an open-source speech model. The model downloads once from Hugging Face the first time you use it, 80 to 140 MB. Your voice is never sent anywhere. Settings > Dictation removes it.
-- The first time you dictate, your computer asks whether the app may use the microphone.
+- Hok is free. The tutor uses your own Claude or ChatGPT plan, the same as if you used it directly.
+- Your subjects, plans and progress are saved as files in your learning folder. The only thing sent anywhere is your conversation with the tutor, which goes to Claude or ChatGPT like any other chat.
+- On a Mac, if you pick a moving wallpaper you don't already have, it downloads once from Apple.
+- You can talk instead of typing by pressing the microphone next to any text box. Your voice is turned into text on your own computer and never leaves it. The first time, Hok downloads the speech model (80 to 140 MB) and your computer asks if Hok can use the microphone. You can delete the model in Settings > Dictation.
 
 ## Updating
 
-From 0.2.0 on, a small round arrow shows beside **Settings** at the bottom of the sidebar when a newer Hok is out. On a Mac, press it: Hok downloads the update, restarts, and opens the new version, with your vault and settings as they were. On Windows and Linux it opens this page, and you install the new file over the old one.
+When a new version is out, a small round arrow shows up next to **Settings** at the bottom of the sidebar.
 
-If you have 0.1.0 (it was called Flash), install this version once by hand. After that, updates come through the arrow.
+- On a Mac, click it. Hok downloads the update and restarts. Your learning folder and settings stay the same.
+- On Windows and Linux, clicking it opens the download page. Download the new file and install it over the old one.
+
+If you have version 0.1.0 (back when it was called Flash), you'll need to install the new version by hand once. After that, updates come through the arrow.
 
 ## If something goes wrong
 
-- **"Claude Code isn't signed in" or "Codex isn't signed in":** run `claude` (or `codex login`) in a terminal, sign in, then click **Check again**.
-- **"Python 3 is not installed":** follow step 1 for your system, then click **Check again**.
-- **"The claude command is not installed" right after installing it:** click **Check again**. If it still says so, quit the app and open it again.
-- **The tutor seems stuck:** open the terminal from the header (the box icon) to see what it's doing.
-- **Anything else:** [open an issue](https://github.com/edisonshui/hok/issues) and say which system you're on.
+- **It says Claude Code or Codex isn't signed in.** Run `claude` (or `codex login`) in Terminal, sign in, then click **Check again** in Hok.
+- **It says Python 3 isn't installed.** Follow the Python part of step 1, then click **Check again**.
+- **It says the claude command isn't installed, even though you just installed it.** Click **Check again**. If that doesn't work, quit Hok and open it again.
+- **The tutor seems stuck.** Click the box icon at the top of the window to see what the tutor is doing.
+- **Something else.** [Open an issue](https://github.com/edisonshui/hok/issues) and say what kind of computer you're on.

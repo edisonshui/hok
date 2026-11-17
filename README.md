@@ -1,86 +1,83 @@
 # Hok, a learning vault
 
-A one-to-one AI tutor that runs in Claude Code or Codex. You chat with it in the terminal. Everything it learns about you, such as what you have been taught, what you got right, and what to do next session, is saved as Markdown notes that you read in Obsidian. A new session picks up where the last one stopped, because the notes carry the state, not the chat history.
+Hok is an AI tutor that teaches you one-on-one. It runs on Claude Code or Codex. It keeps notes on what it's taught you, what you got right, and what to do next time, so each session picks up where the last one left off. Those notes are plain files on your computer that you can open and read.
 
 ## Get the app
 
-The easiest way in is the desktop app, Hok. It runs the same tutor in one window, makes your vault for you, and needs no Obsidian or git.
+The easiest way to use Hok is the desktop app. It sets everything up for you.
 
-1. Install [Claude Code](https://claude.com/claude-code) (or Codex) and sign in, and make sure you have Python 3.
-2. Download the installer for your Mac, Windows PC or Linux machine from the [latest release](https://github.com/edisonshui/hok/releases/latest).
-3. Open it, click **Make a new vault**, and start a subject.
+1. Install [Claude Code](https://claude.com/claude-code) (or Codex) and sign in. You'll also need Python 3.
+2. Download Hok for Mac, Windows or Linux from the [latest release](https://github.com/edisonshui/hok/releases/latest).
+3. Open it, click **Make a new vault**, and pick something to learn.
 
-[The install guide](app/INSTALL.md) has every step, including how to get past the "unverified app" warning. The app is tested on Macs with Apple chips; the Intel Mac, Windows and Linux builds are new and untested, so tell me what you find.
+The [install guide](app/INSTALL.md) walks through every step, including how to get past the warning your computer shows the first time. So far the app has only been tested on Macs with Apple chips. The Intel Mac, Windows and Linux versions are new and untested, so please tell me how they go.
 
-## Set it up by hand
+## What you can ask it to do
 
-This is the terminal and Obsidian route, without the app.
-
-
-You need [Claude Code](https://claude.com/claude-code) with your own Claude account, [Obsidian](https://obsidian.md), Python 3, and git.
-
-1. Clone this repo: `git clone https://github.com/edisonshui/hok.git`
-2. In Obsidian, choose **Open folder as vault** and pick the cloned folder. When Obsidian asks, trust the vault so its `learn-live` plugin can run.
-3. Install **Dataview** from **Settings > Community plugins > Browse**.
-4. In a terminal, `cd` into the folder and run `claude`. Accept the trust prompt when Claude Code asks, so the project hooks can run. They keep the live log, the session clock, and the dashboard up to date.
-5. The first session copies a preferences template to `learn/me/preferences.md` and asks how you like to learn.
-6. Start a subject with `/learn-start <topic>`.
-
-Obsidian is optional, but without it you lose the diagrams, the math rendering, the live log, and the **Run** button for code.
-
-## Commands
-
-In Codex, type `$` instead of `/`, for example `$learn-start`.
+These are the commands you can give the tutor. In Codex, type `$` instead of `/`, like `$learn-start`.
 
 | Command | What it does |
 | --- | --- |
-| `/learn-start <topic>` | Starts a new subject. Asks what done looks like and when it is due, tests what you already know, builds a lesson plan, and waits for your OK before teaching. |
-| `/learn-resume <topic>` | Continues a subject. Recaps where you are, re-checks the last topics to see what stuck, then keeps teaching from the plan. |
-| `/learn-check` | Quizzes you on the topics from this session plus one older one. The tutor also runs a check on its own every 2 to 3 topics. |
-| `/learn-practice <topic>` | Gives you problems on topics you have already been taught, without saying which idea each one needs. Gives hints one step at a time and retests every miss. You can point it at an old exam or a problem set. |
-| `/learn-review` | Quizzes you across all subjects on the topics that have gone longest without a check. Use it to keep finished subjects fresh. |
-| `/learn-end` | Saves the session: updates your notes, writes the hand-off for next time, and prints a plain-English summary. Use `/learn-end break` if you are coming back the same day. |
+| `/learn-start <topic>` | Starts a new subject. It asks what you're aiming for and when it's due, checks what you already know, and makes a lesson plan. It waits for your OK before teaching. |
+| `/learn-resume <topic>` | Picks a subject back up. It reminds you where you left off, checks whether the last few topics stuck, and keeps going. |
+| `/learn-check` | Quizzes you on today's topics plus one older one. The tutor also does this on its own every 2 or 3 topics. |
+| `/learn-practice <topic>` | Gives you practice problems on things you've already learned, without telling you which idea each one needs. It gives hints one at a time and has you redo anything you missed. You can give it an old exam or homework to work from. |
+| `/learn-review` | Quizzes you across all your subjects on whatever you haven't been checked on in the longest time. Good for keeping old subjects fresh. |
+| `/learn-end` | Saves the session and gives you a short summary. Use `/learn-end break` if you're coming back later the same day. |
 
-When you open the vault, the tutor shows what it recommends doing next and asks before it starts anything.
+When you open Hok, the tutor suggests what to do next and asks before starting anything.
 
 ## How a session works
 
-`/learn-start` first asks up to three questions about your goal. It then gives you one problem that represents the goal and asks a few short follow-up questions to find where your knowledge stops. From that, it writes a lesson plan as a graph of small topics, each resting on the ones before it. Two helper agents read the plan before you see it. `fact-checker` checks its facts against sources, and `plan-reviewer` looks for steps that are too big or that skip something you have not shown you know.
+When you start a subject, the tutor asks up to three questions about your goal. Then it gives you one problem like the ones you're aiming to solve, plus a few short follow-ups, to find out what you already know. From that, it makes a lesson plan made of small topics, where each one builds on the ones before it. Before you see the plan, two helpers check it. One checks the facts. The other looks for steps that are too big or that assume something you haven't learned yet.
 
-Teaching goes one topic at a time and one reasoning step per message, with a question after each step. Every topic gets written into the session note before the next one starts. After about 45 minutes of active time, the tutor suggests a break.
+The tutor teaches one topic at a time, one idea per message, and asks you a question after each one. After about 45 minutes, it suggests a break.
 
-The tutor marks a topic as known only after you answer a question about it. Each topic moves through these stages:
+A topic only counts as learned once you've answered a question about it. Each topic goes through these stages:
 
-| Stage | Meaning |
+| Stage | What it means |
 | --- | --- |
-| Introduced | Taught, but you have not passed a check on it yet. |
-| Passed | You answered a check right without a hint, in the session it was taught. |
+| Introduced | You've been taught it but haven't passed a question on it yet. |
+| Passed | You got a question right without a hint, the same day you learned it. |
 | Remembered on a later day | You got it right again in a later session. |
-| Slipped | You missed it in a later session. The tutor re-teaches it briefly. |
+| Slipped | You missed it in a later session, so the tutor goes over it again. |
 
-What you enjoyed and what you actually got right are kept separate, and the tutor teaches from the second.
+The tutor keeps track of what you enjoyed separately from what you actually got right, and it plans your lessons around what you got right.
 
-## What you see in Obsidian
+## Set it up without the app
 
-- `learn/Home.md` shows what to do now.
-- `learn/Dashboard.md` lists every subject with its progress.
+This part is for people comfortable with a terminal and git. You'll need [Claude Code](https://claude.com/claude-code) with your own Claude account, [Obsidian](https://obsidian.md) (a free notes app), Python 3, and git.
+
+1. Download this project: `git clone https://github.com/edisonshui/hok.git`
+2. In Obsidian, choose **Open folder as vault** and pick the folder you just downloaded. When Obsidian asks if you trust it, say yes, so the live-chat plugin can run.
+3. In Obsidian, go to **Settings > Community plugins > Browse** and install **Dataview**.
+4. In a terminal, go into the folder and run `claude`. When Claude Code asks if you trust the folder, say yes. That lets it keep the live chat, the session timer, and the dashboard up to date.
+5. In your first session, the tutor asks how you like to learn and saves your answers to `learn/me/preferences.md`.
+6. Start a subject with `/learn-start <topic>`.
+
+You can skip Obsidian, but then you won't see the diagrams, the math, the live chat, or the **Run** button for code.
+
+### What you'll see in Obsidian
+
+- `learn/Home.md` shows what to do next.
+- `learn/Dashboard.md` lists all your subjects and how far along each one is.
 - `learn/subjects/<topic>/progress.md` shows a skill tree for one subject.
-- `learn/subjects/<topic>/log.md` is the live chat. Keep it open while you work, and it updates as the tutor types.
-- Session notes in `learn/subjects/<topic>/sessions/` hold each lesson, its diagrams, and quiz results.
-- Code exercises get a **Run** button. It opens a code pane where you edit, run, and press **Send to tutor**.
+- `learn/subjects/<topic>/log.md` is the live chat. Keep it open while you work, and it fills in as the tutor types.
+- `learn/subjects/<topic>/sessions/` has a note for each lesson, with its diagrams and quiz results.
+- Code exercises have a **Run** button. It opens a panel where you can edit the code, run it, and click **Send to tutor**.
 
-Home, the dashboard, the progress pages, and the logs are rebuilt from your notes, so don't edit them by hand.
+Home, the dashboard, the progress pages and the chat logs are rebuilt from your notes automatically, so don't edit them yourself.
 
-## Where things live
+### Where things are
 
-| Folder | What is in it |
+| Folder | What's in it |
 | --- | --- |
 | `learn/system/` | How the tutor teaches. Edit `tutor.md` to change its style. |
-| `learn/me/preferences.md` | How you like to learn. You edit the *Stated* section. The tutor adds to *Observed* only when it has seen something twice. |
-| `learn/subjects/<topic>/` | One subject: `record.md` (what you know, with evidence), `plan.md` (the lesson graph), `resume.md` (the hand-off), and `sessions/`. |
-| `learn/reviews/` | Notes from `/learn-review` passes. |
-| `.claude/` | Claude Code skills, helper agents, and hooks. Codex uses `.agents/` and `.codex/`. |
+| `learn/me/preferences.md` | How you like to learn. You write the *Stated* part. The tutor only adds to the *Observed* part, and only after it's noticed something twice. |
+| `learn/subjects/<topic>/` | Everything about one subject: `record.md` (what you know, and how it knows), `plan.md` (the lesson plan), `resume.md` (where to pick up next time), and `sessions/` (one note per lesson). |
+| `learn/reviews/` | Notes from `/learn-review`. |
+| `.claude/` | The tutor's commands, helpers and background scripts for Claude Code. Codex uses `.agents/` and `.codex/`. |
 
-Your subjects, preferences, reviews, and chat logs stay on your computer. `.gitignore` keeps them out of git.
+Your subjects, preferences, reviews and chat logs stay on your computer. Git is set to ignore them, so they never get pushed anywhere.
 
-For why it is built this way, see [how the learning system fits together](learn/README.md).
+To read about why it's built this way, see [how the learning system fits together](learn/README.md).
