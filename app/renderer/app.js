@@ -185,8 +185,10 @@ function swap(paint, glide = false) {
   // The browser skips the update when it aborts a transition, so paint once either way.
   let done = false;
   const once = () => { if (!done) { done = true; paint(); } };
+  // The names are on only for the transition (styles.css, html.vt): a standing name blocks the message box's blur.
+  const root = document.documentElement; root.classList.add("vt");
   const t = document.startViewTransition(once);
-  t.ready.catch(() => {}); t.finished.catch(() => {}); t.updateCallbackDone.catch(() => {});
+  t.ready.catch(() => {}); t.finished.catch(() => {}).finally(() => root.classList.remove("vt")); t.updateCallbackDone.catch(() => {});
   setTimeout(once, 300);
 }
 // The subjects you opened last, newest first, for the subject menu (Edison, 5 Nov: "the last five opened subjects").
