@@ -3902,7 +3902,7 @@ async function openSettings() {
       <input id="nameIn" class="field" value="${esc(firstName())}" placeholder="Your first name" aria-label="Your first name"></div>
     <div class="sec"><div class="t-sec">Tutor</div>
       <div class="cap" style="margin-top:2px">The command this app runs in your vault. It uses your own sign-in.</div>
-      <div class="seg" style="margin-top:8px" role="radiogroup">${[["claude", "Claude Code"], ["codex", "Codex"]].map(([v, l]) => `<button class="${cfg.host === v ? "on" : ""}" role="radio" aria-checked="${cfg.host === v}" data-act="set-host" data-arg="${v}">${l}</button>`).join("")}</div></div>
+      <div class="seg" style="margin-top:8px" role="radiogroup">${[["claude", "Claude Code"], ["codex", "Codex"]].map(([v, l]) => `<button class="${cfg.host === v ? "on" : ""}" role="radio" aria-checked="${cfg.host === v}" data-act="set-host" data-arg="${v}">${l}</button>`).join("")}</div>${modelRow()}</div>
     <div class="sec"><div class="t-sec">Rewards ${S && S.rewards_on ? "on" : "off"}</div>
       <div class="cap" style="margin-top:2px">Badges and the review streak. Ask the tutor to turn them ${S && S.rewards_on ? "off" : "on"}; it is the <span class="mono">rewards:</span> line in learn/me/preferences.md.</div></div>
     <div class="sec"><div style="display:flex;align-items:center;gap:12px"><div style="min-width:0;flex:1"><div class="t-sec">Vault folder</div><div class="cap mono selectable" style="margin-top:2px;word-break:break-all">${esc(cfg.vault || "None")}</div></div><button class="btn neutral" style="flex:none" data-act="choose-vault" data-tip="${key("O")}">Change…</button></div></div>
@@ -4016,6 +4016,20 @@ ACTIONS["set-host"] = async (h) => {
   await setCfg({ host: h });
   closeOverlay();
   boot();
+};
+// Settings > Tutor > Model (18 Nov): which Claude model the tutor runs on. Sonnet is the default because it costs half
+// of Opus on every token and taught best in the 17 Nov tutor test. Codex keeps its own model, so the row is Claude's only.
+const MODEL_OPTS = [["sonnet", "Sonnet"], ["opus", "Opus"], ["default", "Claude Code's choice"]];
+function modelRow() {
+  if (cfg.host !== "claude") return "";
+  const m = cfg.model || "sonnet";
+  return `<div class="t-sec" style="margin-top:14px">Model</div>
+      <div class="cap" style="margin-top:2px">Sonnet uses about half as much of your plan as Opus and taught best in our tests. Changes start next session.</div>
+      <div class="seg" style="margin-top:8px" role="radiogroup" aria-label="Model">${MODEL_OPTS.map(([v, l]) => `<button class="${m === v ? "on" : ""}" role="radio" aria-checked="${m === v}" data-act="set-model" data-arg="${v}">${l}</button>`).join("")}</div>`;
+}
+ACTIONS["set-model"] = async (v) => {
+  await setCfg({ model: v });
+  document.querySelectorAll('#scrim [data-act="set-model"]').forEach((b) => { const on = b.dataset.arg === v; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
 };
 ACTIONS["choose-vault"] = () => chooseVault();
 function closeOverlay() {

@@ -28,7 +28,7 @@ const CONFIG = path.join(app.getPath("userData"), "config.json");
 // The first run under the new name starts from Flash's settings (the vault folder, the theme), so setup does not ask
 // again. Flash keeps its own copy and still runs as before.
 try { const old = path.join(app.getPath("appData"), "Flash", "config.json"); if (!fs.existsSync(CONFIG) && fs.existsSync(old)) { fs.mkdirSync(path.dirname(CONFIG), { recursive: true }); fs.copyFileSync(old, CONFIG); } } catch {}
-const DEFAULTS = { vault: null, host: "claude", theme: "system", sidebar: true, sidebarMode: "full", panel: true, panelWidth: 400 };
+const DEFAULTS = { vault: null, host: "claude", model: "sonnet", theme: "system", sidebar: true, sidebarMode: "full", panel: true, panelWidth: 400 };
 let config = { ...DEFAULTS };
 try { config = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONFIG, "utf8")) }; } catch { /* first run */ }
 function saveConfig() {
@@ -140,10 +140,14 @@ function tutorEnv() {
 function tutorCommand(cmd) {
   return isWin ? { file: env.loginShell(), args: ["/d", "/s", "/c", `"${cmd}"`], verbatim: true } : { file: env.loginShell(), args: ["-ilc", `exec ${cmd}`], verbatim: false };
 }
+// Which Claude model the tutor runs on (Settings > Tutor). Sonnet is the default: it costs half of Opus on every token
+// and taught best in the 17 Nov tutor test. "default" leaves Claude Code's own choice. Codex keeps its own model.
+const MODELS = ["sonnet", "opus"];
+const modelArgs = () => (config.host === "claude" && MODELS.includes(config.model) ? ["--model", config.model] : []);
 function startTerminal({ cols, rows, prompt }) {
   if (term) return { running: true };
   if (!pty) pty = require("node-pty");
-  const command = [config.host, ...(prompt ? [quote(prompt)] : [])].join(" ");
+  const command = [config.host, ...modelArgs(), ...(prompt ? [quote(prompt)] : [])].join(" ");
   const run = tutorCommand(command);
   term = pty.spawn(run.file, run.verbatim ? run.args.join(" ") : run.args, {   // node-pty passes a string to Windows as it is
     name: "xterm-256color",
@@ -404,6 +408,7 @@ const Q = questions({
     return tutorCommand([host === "codex" ? "codex" : "claude", ...args.map(quote)].join(" "));
   },
   host: () => config.host,
+  model: modelArgs,
   env: tutorEnv,
   prompt: questionPrompt,
   send,
