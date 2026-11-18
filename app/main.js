@@ -144,10 +144,15 @@ function tutorCommand(cmd) {
 // and taught best in the 17 Nov tutor test. "default" leaves Claude Code's own choice. Codex keeps its own model.
 const MODELS = ["sonnet", "opus"];
 const modelArgs = () => (config.host === "claude" && MODELS.includes(config.model) ? ["--model", config.model] : []);
+// The tutor starts without the learner's connectors and MCP servers (Gmail, Drive, a course server...). A lesson never
+// needs them, and each one's tool names and instructions are re-read on every call: Edison's nine claude.ai connectors
+// and one local server were about 7k tokens a call (measured 18 Nov). --strict-mcp-config drops claude.ai connectors
+// too (measured). Codex: its ChatGPT apps, under 1k tokens (measured).
+const leanArgs = () => (config.host === "codex" ? ["-c", "features.apps=false"] : ["--strict-mcp-config"]);
 function startTerminal({ cols, rows, prompt }) {
   if (term) return { running: true };
   if (!pty) pty = require("node-pty");
-  const command = [config.host, ...modelArgs(), ...(prompt ? [quote(prompt)] : [])].join(" ");
+  const command = [config.host, ...modelArgs(), ...leanArgs(), ...(prompt ? [quote(prompt)] : [])].join(" ");
   const run = tutorCommand(command);
   term = pty.spawn(run.file, run.verbatim ? run.args.join(" ") : run.args, {   // node-pty passes a string to Windows as it is
     name: "xterm-256color",
