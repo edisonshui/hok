@@ -4020,7 +4020,7 @@ ACTIONS["set-host"] = async (h) => {
 };
 // Settings > Tutor > Model (18 Nov): which model the tutor runs on. Always the learner's pick (Edison: "it's our job to
 // provide them with information that will help them make the best choice"), so each choice says what it costs and how it
-// taught in our tutor tests. Sonnet is the default. The buttons are the models the learner's account has (19 Nov,
+// taught in our tutor tests (17 and 19 Nov 2026; Sol's line is GPT-6.2 Sol's). Sonnet is the default. The buttons are the models the learner's account has (19 Nov,
 // lib/models.js), fetched each time Settings opens; a family we haven't tested shows Codex's own description.
 let modelsAvail = { claude: null, codex: null };
 const CODEX_FAMILIES = ["sol", "astra", "terra", "luna"];
@@ -4029,9 +4029,9 @@ const MODEL_OPTS = {
   claude: { key: "model", fallback: "sonnet", lines: {
     sonnet: ["Sonnet", "Recommended. It taught best in our tests and uses about half as much of your plan as Opus."],
     opus: ["Opus", "The strongest model, and it uses about twice as much of your plan as Sonnet. In our tests it often explained the answer instead of letting you work it out."],
-    haiku: ["Haiku", "Uses the least of your plan, about a fifth of Sonnet per lesson. In our tests it taught less well and showed the learner its private notes."] } },
+    haiku: ["Haiku", "Uses the least of your plan, about a third of Sonnet per lesson. In our tests it taught less well and showed the learner its private notes."] } },
   codex: { key: "codexModel", fallback: "sol", lines: {
-    sol: ["Sol", "Recommended for Codex. It taught a little less well than Sonnet in our tests, and one lesson used up to a quarter of a Plus plan's 5-hour limit."],
+    sol: ["Sol", "Recommended for Codex. In our tests it taught about as well as Sonnet, and one lesson used about a tenth of a Plus plan's 5-hour limit."],
     astra: ["Astra", null],
     terra: ["Terra", null],
     luna: ["Luna", "About a tenth of what Sol costs at API prices. In our tests it never fixed the learner's deeper mistake."] } },
