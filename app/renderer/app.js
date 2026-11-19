@@ -3875,6 +3875,7 @@ ACTIONS.palette = () => openPalette();
 // ---------- settings ----------
 async function openSettings() {
   pal = null;
+  try { modelsAvail[cfg.host] = await F.models(cfg.host); } catch { /* the built-in list stands */ }
   const scrim = $("scrim");
   scrim.classList.remove("clear");
   scrim.classList.add("on");
@@ -4019,22 +4020,37 @@ ACTIONS["set-host"] = async (h) => {
 };
 // Settings > Tutor > Model (18 Nov): which model the tutor runs on. Always the learner's pick (Edison: "it's our job to
 // provide them with information that will help them make the best choice"), so each choice says what it costs and how it
-// taught in the 17 Nov tutor test. Sonnet is the default.
+// taught in our tutor tests. Sonnet is the default. The buttons are the models the learner's account has (19 Nov,
+// lib/models.js), fetched each time Settings opens; a family we haven't tested shows Codex's own description.
+let modelsAvail = { claude: null, codex: null };
+const CODEX_FAMILIES = ["sol", "astra", "terra", "luna"];
+const codexFamily = (v) => CODEX_FAMILIES.find((f) => v === f || String(v || "").endsWith(`-${f}`)) || "sol";
 const MODEL_OPTS = {
-  claude: { key: "model", fallback: "sonnet", opts: [
-    ["sonnet", "Sonnet", "Recommended. It taught best in our tests and uses about half as much of your plan as Opus."],
-    ["opus", "Opus", "The strongest model, and it uses about twice as much of your plan as Sonnet. In our tests it often explained the answer instead of letting you work it out."],
-    ["haiku", "Haiku", "Uses the least of your plan, about a fifth of Sonnet per lesson. In our tests it taught less well and showed the learner its private notes."]] },
-  codex: { key: "codexModel", fallback: "gpt-6.1-sol", opts: [
-    ["gpt-6.1-sol", "Sol", "Recommended for Codex. It taught a little less well than Sonnet in our tests, and one lesson used up to a quarter of a Plus plan's 5-hour limit."],
-    ["gpt-6-luna", "Luna", "About a tenth of what Sol costs at API prices. In our tests it never fixed the learner's deeper mistake."]] },
+  claude: { key: "model", fallback: "sonnet", lines: {
+    sonnet: ["Sonnet", "Recommended. It taught best in our tests and uses about half as much of your plan as Opus."],
+    opus: ["Opus", "The strongest model, and it uses about twice as much of your plan as Sonnet. In our tests it often explained the answer instead of letting you work it out."],
+    haiku: ["Haiku", "Uses the least of your plan, about a fifth of Sonnet per lesson. In our tests it taught less well and showed the learner its private notes."] } },
+  codex: { key: "codexModel", fallback: "sol", lines: {
+    sol: ["Sol", "Recommended for Codex. It taught a little less well than Sonnet in our tests, and one lesson used up to a quarter of a Plus plan's 5-hour limit."],
+    astra: ["Astra", null],
+    terra: ["Terra", null],
+    luna: ["Luna", "About a tenth of what Sol costs at API prices. In our tests it never fixed the learner's deeper mistake."] } },
 };
-const modelInfo = (host) => { const m = MODEL_OPTS[host] || MODEL_OPTS.claude, v = cfg[m.key] || m.fallback; return { m, v, line: (m.opts.find(([k]) => k === v) || m.opts[0])[2] }; };
+function modelInfo(host) {
+  const m = MODEL_OPTS[host] || MODEL_OPTS.claude;
+  const list = (modelsAvail[host] || Object.keys(m.lines).map((id) => ({ id }))).filter((x) => m.lines[x.id]);
+  const saved = host === "codex" ? codexFamily(cfg[m.key]) : cfg[m.key];
+  const v = (list.find((x) => x.id === saved) || list.find((x) => x.id === m.fallback) || list[0] || { id: m.fallback }).id;
+  const pick = list.find((x) => x.id === v) || {};
+  const said = m.lines[v]?.[1] || `Not tested as a tutor yet.${pick.description ? ` Codex calls it "${pick.description.replace(/^Our /, "our ").replace(/\.$/, "")}."` : ""}`;
+  const line = pick.name ? `${pick.name}. ${said}` : said;   // Codex: which model of the family this is, e.g. GPT-6.2-Sol
+  return { m, v, list, line };
+}
 function modelRow() {
-  const { m, v, line } = modelInfo(cfg.host);
+  const { m, v, list, line } = modelInfo(cfg.host);
   return `<div class="t-sec" style="margin-top:14px">Model</div>
-      <div class="seg" style="margin-top:8px" role="radiogroup" aria-label="Model">${m.opts.map(([k, l]) => `<button class="${v === k ? "on" : ""}" role="radio" aria-checked="${v === k}" data-act="set-model" data-arg="${k}">${l}</button>`).join("")}</div>
-      <div class="cap" id="modelInfo" style="margin-top:8px;color:var(--color-ink-2)">${esc(line)}</div>
+      <div class="seg" style="margin-top:8px" role="radiogroup" aria-label="Model">${list.map(({ id }) => `<button class="${v === id ? "on" : ""}" role="radio" aria-checked="${v === id}" data-act="set-model" data-arg="${id}">${m.lines[id][0]}</button>`).join("")}</div>
+      <div class="cap" id="modelInfo" style="margin-top:8px;color:var(--color-ink-2);text-wrap:pretty">${esc(line)}</div>
       <div class="cap" style="margin-top:4px">Changes start with your next session.</div>`;
 }
 ACTIONS["set-model"] = async (v) => {

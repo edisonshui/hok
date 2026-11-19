@@ -13,6 +13,7 @@ const { questions } = require("./lib/questions");
 const wallpaper = require("./lib/wallpaper");
 const dictation = require("./lib/dictation");
 const update = require("./lib/update");
+const models = require("./lib/models");
 
 const APP_NAME = "Hok";   // 學, "learn" in Cantonese (Edison, 11 Nov 2026); it was Obsidian Learning until then
 app.setName(APP_NAME);
@@ -28,7 +29,7 @@ const CONFIG = path.join(app.getPath("userData"), "config.json");
 // The first run under the new name starts from Flash's settings (the vault folder, the theme), so setup does not ask
 // again. Flash keeps its own copy and still runs as before.
 try { const old = path.join(app.getPath("appData"), "Flash", "config.json"); if (!fs.existsSync(CONFIG) && fs.existsSync(old)) { fs.mkdirSync(path.dirname(CONFIG), { recursive: true }); fs.copyFileSync(old, CONFIG); } } catch {}
-const DEFAULTS = { vault: null, host: "claude", model: "sonnet", codexModel: "gpt-6.1-sol", theme: "system", sidebar: true, sidebarMode: "full", panel: true, panelWidth: 400 };
+const DEFAULTS = { vault: null, host: "claude", model: "sonnet", codexModel: "sol", theme: "system", sidebar: true, sidebarMode: "full", panel: true, panelWidth: 400 };
 let config = { ...DEFAULTS };
 try { config = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONFIG, "utf8")) }; } catch { /* first run */ }
 function saveConfig() {
@@ -141,12 +142,21 @@ function tutorCommand(cmd) {
   return isWin ? { file: env.loginShell(), args: ["/d", "/s", "/c", `"${cmd}"`], verbatim: true } : { file: env.loginShell(), args: ["-ilc", `exec ${cmd}`], verbatim: false };
 }
 // Which model the tutor runs on (Settings > Tutor > Model). The learner always picks; Settings says what each costs
-// and how it taught in the 17 Nov tutor test. Sonnet is the default: half of Opus on every token, and it taught best.
-// Codex: the two models that test ran.
-const MODELS = { claude: ["sonnet", "opus", "haiku"], codex: ["gpt-6.1-sol", "gpt-6-luna"] };
-const modelOf = (host) => (host === "codex" ? (MODELS.codex.includes(config.codexModel) ? config.codexModel : "gpt-6.1-sol")
-  : (MODELS.claude.includes(config.model) ? config.model : "sonnet"));
+// and how it taught in our tutor tests. Sonnet is the default: half of Opus on every token, and it taught best.
+// The choices are the ones the learner's account has (lib/models.js): Claude Code's families minus any an
+// availableModels or deniedModels setting rules out, and the newest model of each family Codex lists for the account.
+// A saved choice the account no longer has falls back to Sonnet or Sol.
+const modelList = (host) => (host === "codex" ? models.codexModels() : models.claudeModels());
+function modelOf(host) {
+  const list = modelList(host);
+  if (host === "codex") {
+    const want = models.codexChoice(config.codexModel);
+    return (list.find((m) => m.id === want) || list.find((m) => m.id === "sol") || list[0] || { slug: "gpt-6.2-sol" }).slug;
+  }
+  return (list.find((m) => m.id === config.model) || list.find((m) => m.id === "sonnet") || list[0] || { id: "sonnet" }).id;
+}
 const modelArgs = () => (config.host === "codex" ? ["-m", modelOf("codex")] : ["--model", modelOf("claude")]);
+ipcMain.handle("models:list", (_e, host) => modelList(host === "codex" ? "codex" : "claude"));
 // The tutor starts without the learner's connectors and MCP servers (Gmail, Drive, a course server...). A lesson never
 // needs them, and each one's tool names and instructions are re-read on every call: Edison's nine claude.ai connectors
 // and one local server were about 7k tokens a call (measured 18 Nov). --strict-mcp-config drops claude.ai connectors
