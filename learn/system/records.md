@@ -50,7 +50,7 @@ A practice problem (`/learn-practice`, `learn/system/practice.md`) carries the p
 
 ## The save note
 
-Mid-lesson writes go in one hidden block at the end of the reply, and the Stop hook writes them when the reply ends (`.claude/hooks/save_note.py`, for both hosts). Each separate write used to cost a whole model call that re-read the conversation: over 61 lessons, 919 of 3,139 calls and 31% of the tutor's cost (18 Nov 2026). Hok and `log.md` hide the block. The raw terminal shows it, and Edison accepted that (18 Nov).
+Mid-lesson writes go in one hidden block at the end of the reply, and the Stop hook writes them when the reply ends (`.claude/hooks/save_note.py`). **Use it only when the session start says "Save notes are on".** Claude Code's and Codex's hooks print that line. A host that runs no hooks, such as Antigravity, never prints it, so there you write every line with a tool as before, and a save note would be lost. Each separate write used to cost a whole model call that re-read the conversation: over 61 lessons, 919 of 3,139 calls and 31% of the tutor's cost (18 Nov 2026). Hok and `log.md` hide the block. The raw terminal shows it, and Edison accepted that (18 Nov).
 
 ```
 <!-- save

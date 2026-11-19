@@ -64,6 +64,10 @@ def reply_check_due(vault, now=None):
             "`python3 .claude/hooks/reply-check.py snooze`." % (len(times), first.strftime("%d %b")))
 
 
+SAVE_NOTES_ON = ("Save notes are on: this host's Stop hook writes each reply's save note "
+                 "(learn/system/records.md, *The save note*).")
+
+
 def start_context(vault, subject=None, host="claude", log_warning=""):
     status = Path(__file__).with_name("learn-status.py")
     command = [sys.executable, str(status), "--vault", str(vault)]
@@ -71,6 +75,9 @@ def start_context(vault, subject=None, host="claude", log_warning=""):
                              capture_output=True, check=False)
     lines = ["## Learning vault session start", "Now: " + datetime.now().astimezone().strftime(
         "%A %Y-%m-%d %H:%M %Z"), ""]
+    # Only a host whose Stop hook writes save notes prints this, and the rules use the save note only when it is
+    # printed. Antigravity reads the same rules but runs no hooks, so there the tutor writes with a tool as before.
+    lines += [SAVE_NOTES_ON, ""]
     if refresh.returncode:
         lines += ["Dashboard refresh failed: " + refresh.stderr.strip()[:300], ""]
     # The one block the agent shows the learner as it stands; everything after

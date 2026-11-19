@@ -3993,6 +3993,9 @@ codex.hook(VAULT, {"hook_event_name": "UserPromptSubmit", "session_id": "cx1", "
 codex.hook(VAULT, {"hook_event_name": "Stop", "session_id": "cx1", "turn_id": "t1", "last_assistant_message": REPLY})
 eq("Codex's Stop hook writes the same note", "| n2 | Discard half | checked |" in (d / "plan.md").read_text(), True)
 eq("and its log hides it", "<!-- save" in (d / "codex-log.md").read_text(), False)
+import session_context  # noqa: E402
+eq("a hooked host's session start says save notes are on (Antigravity, with no hooks, never sees it)",
+   session_context.SAVE_NOTES_ON in session_context.start_context(VAULT), True)
 shutil.rmtree(VAULT)
 
 section("look-figure: one allowed command checks a drawing and renders it inside the vault")
