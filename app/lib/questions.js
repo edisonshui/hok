@@ -177,6 +177,7 @@ function questions({ root, command, env, prompt, send, host = () => "claude", mo
       fs.writeFileSync(file, `# ${c.title}\n\nA question the learner asked before this became a lesson. What it covered, oldest first:\n\n` +
         c.messages.map((m) => `**${m.role === "you" ? "Learner" : "Tutor"}:** ${m.text || m.error || ""}${m.images ? ` (with ${m.images.length} screenshot${m.images.length > 1 ? "s" : ""})` : ""}`).join("\n\n") + "\n");
     }
+    if (patch.slug && /^[a-z0-9][a-z0-9-]*$/.test(patch.slug)) c.slug = patch.slug;   // the subject the lesson became
     if (patch.offer === "no") c.offer = "no";
     if (patch.moved && /^[a-z0-9][a-z0-9-]*$/.test(patch.moved)) { c.moved = patch.moved; c.archived = true; }
     save(c); changed(id);

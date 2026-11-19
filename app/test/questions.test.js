@@ -119,10 +119,13 @@ test("archive, a lesson, a move, and Not now", async () => {
   assert.deepStrictEqual([Q.list().length, Q.list(true).length, Q.list(true)[0].archived], [0, 1, true]);
   Q.ask(id, "one more"); await done(id);
   assert.strictEqual(Q.list().length, 1, "writing to an archived chat brings it back");
-  const { file } = Q.mark(id, { lesson: "MATH 241 polar integrals" });
+  const { file } = Q.mark(id, { lesson: "MATH 241 polar integrals", slug: "math241-polar-integrals-2" });
   assert.strictEqual(file, path.join(root, "handoff", `${id}.md`));
   assert.match(fs.readFileSync(file, "utf8"), /\*\*Learner:\*\* Polar integrals\?\n\n\*\*Tutor:\*\* Hello there\./);
   assert.deepStrictEqual([Q.list().length, Q.list(true)[0].lesson], [0, "MATH 241 polar integrals"]);
+  assert.strictEqual(Q.get(id).slug, "math241-polar-integrals-2", "the chat keeps the subject it became, not one named like it");
+  Q.mark(id, { slug: "../etc" });
+  assert.strictEqual(Q.get(id).slug, "math241-polar-integrals-2", "a slug names a subject, nothing else");
   Q.ask(id, "still here?"); await done(id);
   assert.strictEqual(Q.list().length, 0, "a chat that became a lesson stays archived");
   const other = Q.ask(null, "Recursion?"); await done(other.id);
