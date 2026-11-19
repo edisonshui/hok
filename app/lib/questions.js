@@ -42,7 +42,7 @@ const EXT = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "imag
 const TYPE = Object.fromEntries(Object.entries(EXT).map(([t, e]) => [e, t]));
 const FILE = /^[0-9]+-[0-9]+\.(png|jpg|gif|webp)$/;
 
-function questions({ root, command, env, prompt, send, host = () => "claude" }) {
+function questions({ root, command, env, prompt, send, host = () => "claude", model = () => [] }) {
   const chats = path.join(root, "chats"), run = path.join(root, "run"), files = path.join(root, "files");
   // A screenshot you pasted, by chat and file name, for the page to show (main.js serves it as q-file:).
   const imagePath = (id, name) => (ID.test(id || "") && FILE.test(name || "") ? path.join(files, id, name) : null);
@@ -98,7 +98,7 @@ function questions({ root, command, env, prompt, send, host = () => "claude" }) 
     if (codex) return start(c, codexArgs(c, images), c.codexId ? `<app_instructions>\n${prompt()}\n</app_instructions>\n\n${text}` : text);
     // Claude Code takes the message as its own stream-json, so screenshots travel as images, not as file paths.
     const content = [...images.map((f) => ({ type: "image", source: { type: "base64", media_type: TYPE[f.split(".").pop()], data: fs.readFileSync(f).toString("base64") } })), { type: "text", text }];
-    const args = ["-p", "--safe-mode", "--tools", "", "--disable-slash-commands",
+    const args = ["-p", ...model(), "--safe-mode", "--tools", "", "--disable-slash-commands",
       "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages",
       c.started ? "--resume" : "--session-id", c.id, "--append-system-prompt", prompt(),
       // Fresh instructions on every message, so a chat begun before a change (the lesson card, the subject list) still
@@ -110,7 +110,7 @@ function questions({ root, command, env, prompt, send, host = () => "claude" }) 
   // carries the instructions as developer instructions, and a resumed one repeats them with the message, since Codex
   // keeps a conversation's first instructions (measured 8 Nov, codex-cli 0.166.0).
   function codexArgs(c, images) {
-    const common = ["--json", "--skip-git-repo-check", "--ignore-user-config", ...images.flatMap((f) => ["-i", f])];
+    const common = ["--json", "--skip-git-repo-check", "--ignore-user-config", ...model(), ...images.flatMap((f) => ["-i", f])];
     return c.codexId ? ["exec", "resume", c.codexId, ...common, "-"]
       : ["exec", ...common, "-s", "read-only", "-C", run, "-c", `developer_instructions=${JSON.stringify(prompt())}`, "-"];
   }

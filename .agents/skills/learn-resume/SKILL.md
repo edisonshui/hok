@@ -44,4 +44,4 @@ One retrieval question on each of the last one or two nodes with status `checked
 
 ## 5. Continue
 
-Enter the teach loop (Phase 2 of `workflow.md`) at the next `planned` node in `plan.md`. Write each node to the session note as it is taught. Call the 45-minute mark.
+Enter the teach loop (Phase 2 of `workflow.md`) at the next `planned` node in `plan.md`. Write each node to the session note as it is taught, through the reply's save note (`learn/system/records.md`, *The save note*). Call the 45-minute mark.

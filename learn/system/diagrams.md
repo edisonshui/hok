@@ -2,6 +2,10 @@
 
 Obsidian renders mermaid blocks, LaTeX, and embedded SVG files natively, so a diagram written into a note is a diagram the learner sees. Mermaid draws structure: steps, decisions, dependencies. An SVG figure draws math: curves, vectors, angles, regions, surfaces. A diagram earns its place when the *shape* of an idea is the point: a dependency order, a decision, a flow, a two-axis tradeoff. It does not earn its place as decoration. A diagram makes a plan inspectable; it does not make it correct, so it never replaces a check question.
 
+## Demos: show the thing, not a description of it
+
+When a reply or check asks the learner to judge or notice something visual (a screen, a layout, a chart, a page of type), show the thing itself: brief the `demo-builder` subagent and embed the file it returns. A sentence describing two screens tests reading; the picture tests seeing. The brief, the craft rules and the done list are in `learn/system/demos.md`.
+
 ## When to draw which
 
 | The idea is about… | Draw | Mermaid type |
@@ -14,6 +18,7 @@ Obsidian renders mermaid blocks, LaTeX, and embedded SVG files natively, so a di
 | Order of events between parties | Sequence diagram | `sequenceDiagram` |
 | A state that changes on events | State diagram | `stateDiagram-v2` |
 | A math picture: curves, level curves, vectors, angles, regions, a surface | SVG figure | none; see *Math pictures as SVG figures* |
+| The object itself: a screen, a layout, a chart, a page to judge | Demo | none; see *Demos* above |
 
 If a type fails to render in Obsidian (its bundled mermaid can lag the newest release), fall back to `flowchart`, which always renders.
 
@@ -55,10 +60,11 @@ SVG figures replaced text sketches on 2026-10-23. A text sketch of a geometric i
 
 - **File.** Write the figure to `learn/subjects/<slug>/figures/<slug>-<topic>.svg`, starting from `learn/system/templates/figure.svg`. Name it by topic, never by node number: `math241-lagrange-gradient-perpendicular.svg`. Obsidian finds an embed by file name across the whole vault, so the subject slug keeps names unique.
 - **Embed.** Put `![[<file name>.svg]]` on its own line in the reply and in the session note's `**Diagram.**` line. The terminal shows that one line, and the subject's `log.md` shows the picture. Reuse a figure that already exists before drawing a new one.
-- **Check.** Run `xmllint --noout <file>` after writing. A malformed SVG renders as a broken image.
+- **Check.** Run `python3 .claude/hooks/look-figure.py <file>` after writing. It checks the XML (a malformed SVG renders as a broken image) and renders a PNG to read back, so you see the figure before the learner does.
 - **Geometry.** Compute coordinates from the math instead of placing them by eye. Take each point from the curve's formula, check a right angle with a dot product, and write the formula in an XML comment next to the shape it draws. SVG's y-axis points down, so flip the sign of y.
-- **Ink only.** Figures follow the `vault-design` skill's color jobs, so they use no green, gold, ember, indigo, or subject color: each of those already means something in the record. Ink only has been the rule since 2026-10-23. Emphasis comes from weight and shade. The one thing the reply is about is `key`: Ink, stroke 3, with a bold label. The object it sits on is `main`: Ink 2, stroke 2. Everything else is `other`: Ink 3, stroke 1.5. A wrong or rejected option is `rejected`: Ink 3, dashed, with an Ink 3 label. Draw with the template's classes, never a raw color, so night mode works.
-- **Night.** The template's `prefers-color-scheme: dark` block swaps each class to its night token. All six ink colors pass 4.5:1 on their paper, light and night, checked with the brand-guideline skill's `contrast.py` on 2026-10-23.
+- **Ink only.** Figures follow the `vault-design` skill's color jobs, so they use no green, gold, ember, indigo, or subject color: each of those already means something in the record. Ink only was chosen on 2026-10-23. Emphasis comes from weight and shade. The one thing the reply is about is `key`: Ink, stroke 3, with a bold label. The object it sits on is `main`: Ink 2, stroke 2. Everything else is `other`: Ink 3, stroke 1.5. A wrong or rejected option is `rejected`: Ink 3, dashed, with an Ink 3 label. Draw with the template's classes, never a raw color, so night mode works.
+- **Night.** The template's `prefers-color-scheme: dark` block swaps each class to its night token. All six ink colors pass 4.5:1 on the vault's paper, light and night, checked with the brand-guideline skill's `contrast.py` on 2026-10-23.
+- **No background.** A figure has no paper rect behind it: it sits on the app's glass or the Obsidian note, and its ink follows that surface's light or night (10 Nov: a solid plate looked odd on the glass).
 - **Shape and text.** Set a stroke width that differs from the class with `style="stroke-width:2.5"`, because a class beats a plain `stroke-width` attribute. Arrowheads come from the template's markers, one per class. Labels are 14 to 17 px, set beside the thing they name. One caption line at the bottom states the idea in words. At most about six labels.
 - **Size.** `viewBox="0 0 760 470"`, the template's default, or narrower. Keep every label inside the box.
 - **Not in probes.** A question-picker probe cannot show an image, so a figure a probe depends on stays a text sketch inside the question, as above.

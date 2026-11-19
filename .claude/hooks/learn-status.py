@@ -280,6 +280,71 @@ def generation_pass(line):
     return bool(PASS_VERDICT.match(verdict)) and not HELPED_VERDICT.search(verdict)
 
 
+# A final check tests one numbered success criterion in record.md (`records.md`,
+# *Evidence rule*). Its tag sits where `[gen]` does, after `[gen]` when both are
+# there. The goal is met only when every criterion's latest final-check line is
+# a clean pass, the same allow-list a generation check uses. On 17 Nov 2026 a
+# test tutor set `goal_met` while the learner still thought binary search works
+# on an unsorted array: it counted a sorted-array question as the sortedness
+# check, and nothing tied the claim to a line in the log.
+FINAL_TAGGED = re.compile(r"^- \d{4}-\d{2}-\d{2}\b[^:→]*:\s*(?:\[gen\]\s*)?\[final (\d+)\]")
+CRITERION = re.compile(r"^\s*(\d+)[.)]\s+(.+)$")
+# goal_met set before this date predates the tag, so it is not reported.
+GOAL_CHECK_SINCE = "2026-11-18"
+
+
+def clean_pass(line):
+    segments = line.split("→")
+    if len(segments) < 3:
+        return False
+    verdict = segments[-2].strip()
+    return bool(PASS_VERDICT.match(verdict)) and not HELPED_VERDICT.search(verdict)
+
+
+def goal_status(record_text):
+    """[(number, criterion, latest final-check line or None, passed)] for each
+    numbered item under *Success criteria* in record.md."""
+    criteria = [(int(m.group(1)), m.group(2).strip()) for m in
+                (CRITERION.match(line) for line in section(record_text, "Success criteria").splitlines()) if m]
+    latest = {}
+    for line in section(record_text, "Evidence log").splitlines():
+        tag = FINAL_TAGGED.match(line.strip())
+        if tag:
+            latest[int(tag.group(1))] = line.strip()
+    return [(n, text, latest.get(n), bool(latest.get(n)) and clean_pass(latest[n])) for n, text in criteria]
+
+
+def goal_report(record_text):
+    """(met, lines): what --goal prints, one line per success criterion."""
+    rows = goal_status(record_text)
+    if not rows:
+        return False, ["not met: record.md has no numbered *Success criteria*, so no goal can be shown met"]
+    lines = []
+    for n, text, line, passed in rows:
+        if passed:
+            lines.append("%d passed: %s\n   %s" % (n, text, line))
+        elif line:
+            lines.append("%d open: %s\n   latest final check was not a clean pass: %s" % (n, text, line))
+        else:
+            lines.append("%d open: %s\n   no evidence line tagged [final %d]" % (n, text, n))
+    met = all(passed for *_, passed in rows)
+    return met, ["goal met: every success criterion has a clean final check" if met else
+                 "goal not met: leave status and goal_met: as they are"] + lines
+
+
+def goal_warnings(slug, fields, record_text):
+    goal = str(fields.get("goal_met") or "").strip("\"'")
+    if not goal or goal < GOAL_CHECK_SINCE:
+        return []
+    open_ = [str(n) for n, _, _, passed in goal_status(record_text) if not passed]
+    if goal_status(record_text) and not open_:
+        return []
+    return ["%s: goal_met: is %s, but success criteri%s %s ha%s no clean [final N] check "
+            "(learn-status.py --goal --subject %s)"
+            % (slug, goal, "on" if len(open_) == 1 else "a", ", ".join(open_) or "(none listed)",
+               "s" if len(open_) == 1 else "ve", slug)]
+
+
 def note_starts(folder):
     """{(date, "sNN" or "rNN"): start time} for a subject's session notes and the
     vault's review notes, the notes an evidence line can name."""
@@ -1410,7 +1475,7 @@ def home(ranked, subjects, state, rewards_on, today):
         out.append("> Nothing you've passed is due for review.")
         upcoming = next_review(subjects)
         if upcoming:
-            out.append("> The next review is *%s* on %s." % (upcoming[0], short_date(upcoming[1])))
+            out.append("> *%s* comes due on %s." % (upcoming[0], short_date(upcoming[1])))
         out += [">", "> Curious about something new? `learn-start`"]
     else:
         # A Deadline welcome is a whole clause ("Calc's deadline is ..."); the
@@ -1924,7 +1989,7 @@ def startup_block(subjects, notes, rewards_on, today, selected=None, host="claud
         if top["kind"] == "Start":
             upcoming = next_review(subjects)
             out.append("**Recommended:** Nothing you've passed is due for review.%s Curious about "
-                       "something new? `%s`" % (" The next review is *%s* on %s." % (
+                       "something new? `%s`" % (" *%s* comes due on %s." % (
                            upcoming[0], short_date(upcoming[1])) if upcoming else "",
                            command_form("learn-start", host)))
         else:
@@ -2382,6 +2447,9 @@ def main():
     parser.add_argument("--json", action="store_true", dest="as_json",
                         help="print everything the desktop app shows as JSON, and write "
                              "nothing (read-only); --host picks the command form")
+    parser.add_argument("--goal", action="store_true",
+                        help="with --subject, whether every success criterion has a clean "
+                             "[final N] check; exit 0 when the goal is met, 1 when not")
     parser.add_argument("--semantic", action="store_true",
                         help="also run Jev-backed semantic checks (Phase 4). Off by "
                              "default: session start must stay offline, fast, and "
@@ -2393,6 +2461,8 @@ def main():
         parser.error("--gen only applies to --due")
     if args.brief and not args.subject:
         parser.error("--brief needs --subject")
+    if args.goal and not args.subject:
+        parser.error("--goal needs --subject")
 
     vault = args.vault.resolve()
     stamp = datetime.now()
@@ -2429,6 +2499,17 @@ def main():
             return 1
         print(brief(chosen, loaded, stamp.date()), end="")
         return 0
+
+    if args.goal:
+        # Read-only. /learn-end runs it before setting goal_met:, and the exit
+        # code says whether it may: 0 met, 1 not.
+        chosen = next((s for s in loaded if s["slug"] == args.subject), None)
+        if chosen is None:
+            print("learn-status: no subject %s" % args.subject, file=sys.stderr)
+            return 1
+        met, lines = goal_report(chosen["record_text"])
+        print("\n".join(lines))
+        return 0 if met else 1
 
     if args.pace:
         rows, median = pace(loaded, course=args.course)
@@ -2477,6 +2558,7 @@ def main():
         plan_text, record_text = subject["plan_text"], subject["record_text"]
         sessions = [dict(note.fields, file=note.name) for note in subject["notes"]]
         warnings += consistency(nodes, plan_text, slug, fields, sessions, folder)
+        warnings += goal_warnings(slug, fields, record_text)
         if args.semantic:
             # Not gated on `jev.available()`: with no key each semantic check
             # falls back to its deterministic half rather than vanishing, which

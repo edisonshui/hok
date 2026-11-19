@@ -44,7 +44,38 @@ Every evidence line from a check that concerns a node ends with a transition mar
 
 A generation check (`tutor.md`, *Checks and quizzes*), including a re-derivation decay check, carries the generation tag `[gen]` right after the colon that ends the date and source: `2026-10-02 s06: [gen] predict … from <truth> → … → correct → n4 checked`. The tag anywhere else does not count, and it never goes among the markers, so the markers parse as they would without it. A fallback retrieval question for a node with no unconditional truth is untagged, and so is the re-check after re-establishing a decayed node. A generation question that covers several nodes gets one evidence line per node, each with its own verdict and its one marker: a tagged line with more than one marker passes no node. A tagged line passes its node only when the marker is `checked` or `solid` and the verdict, the segment just before the marker, starts with `correct` or `right` and names no help or doubt (no hint, rung, pointer, supplied, after, partial, but, though, or guess). `learn-status.py` lists a `checked` or `solid` node as *recall-only* on the dashboard when no tagged line passed it. A node whose *Rests on* cell in `plan.md` is empty, starts with a dash, or says it has no (new) unconditional truth is left out, since no generation check can be asked of it. Recall-only is a report, not a status: it changes no status, reward, or `--due` ranking.
 
+A final check tests one numbered item under *Success criteria* in `record.md` and carries the final tag `[final N]`, N being that item's number, in the same place as `[gen]` (after it when both are there): `2026-11-17 s02: [final 2] unsorted 9, 2, 7, 4, 8, target 9: mid is 7, 9 > 7 so the search drops the left half → said it loses the 9 because the halving step assumes order → correct, confidence 90% → n2 checked`. The check must test the criterion in its own words, on a case the lesson has not shown: a criterion about why an unsorted array breaks the search is checked on an unsorted array, never on another sorted one. The goal is met only when every criterion's latest `[final N]` line is a clean pass, by the same allow-list as a generation check. `python3 .claude/hooks/learn-status.py --goal --subject <slug>` prints each criterion as passed or open and exits 0 only when all have passed; `/learn-end` runs it before setting `goal_met:`, and the dashboard lists, under *Record inconsistencies*, a `goal_met:` from 18 Nov 2026 on that it does not back. On 17 Nov 2026 a test tutor set `goal_met:` while the learner still believed binary search works on an unsorted array, because a sorted-array question stood in for the sortedness check.
+
 A practice problem (`/learn-practice`, `learn/system/practice.md`) carries the practice tag `[practice]` in the same place, names its nodes in the text, and ends with no transition marker: `2026-10-25 s06: [practice] p3 n4 n6 · combine · new setting: … → … → wrong, rung 2, mix-up, confidence 70%`. Practice records evidence and moves no node (decided 2026-10-25), and a marker is what moves one. With no marker, the line changes no status, reward, *Last checked* date, or `--due` ranking.
+
+## The save note
+
+Mid-lesson writes go in one hidden block at the end of the reply, and the Stop hook writes them when the reply ends (`.claude/hooks/save_note.py`). **Use it only when the session start says "Save notes are on".** Claude Code's and Codex's hooks print that line. A host that runs no hooks, such as Antigravity, never prints it, so there you write every line with a tool as before, and a save note would be lost. Each separate write used to cost a whole model call that re-read the conversation: over 61 lessons, 919 of 3,139 calls and 31% of the tutor's cost (18 Nov 2026). Hok and `log.md` hide the block. The raw terminal shows it, and Edison accepted that (18 Nov).
+
+```
+<!-- save
+@evidence 2026-11-18 s03: which half is dropped for 9 in [1,3,5,7,9] → the left → right → n2 checked
+@node n2 checked | s03 dropped the correct half unaided
+@lesson
+### n2 — Discard half
+**Motivate.** …
+**Check.** Q: … / A: … / Verdict: …
+@misconception kept the right half once, then traced it and fixed it
+-->
+```
+
+An `@key` starts an item, and every line after it up to the next `@` line is that item's body:
+
+| Key | Where it is written |
+| --- | --- |
+| `@evidence` | One line, appended to `record.md` *Evidence log*. Same format as any evidence line, marker included. |
+| `@node` | `nN <status>`, optionally `\| <latest evidence>`. Sets the status in `record.md` *Nodes* and `plan.md`. A status of checked, solid or decayed also sets *Last checked* to today. Adds the node to the session note's `nodes:`. |
+| `@lesson` | The node entry, appended to the open session note's *Lesson* section. The template's placeholder entry goes away. |
+| `@retrieval`, `@misconception`, `@preference`, `@correction` | Appended to that section of the open session note. |
+
+- **Write with a tool only what the note can't carry**: opening a session note, `/learn-start`'s files, and every `/learn-end` write. A review's writes (`learn/reviews/`) and practice notes follow their own files.
+- **One note per reply, at the very end.** Write each line once. A reply that is held and sent again can repeat its note, and the hook skips lines it already wrote.
+- **A line that can't be written is never dropped silently.** The hook says so at the start of your next turn. Write it again in that reply's note, or edit the file directly.
 
 ## Update rules
 

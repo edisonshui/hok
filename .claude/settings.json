@@ -15,7 +15,9 @@
       "Bash(python3 .claude/hooks/jev.py*)",
       "Bash(python3 ./.claude/hooks/jev.py*)",
       "Bash(python3 .claude/hooks/write-check.py*)",
-      "Bash(python3 ./.claude/hooks/write-check.py*)"
+      "Bash(python3 ./.claude/hooks/write-check.py*)",
+      "Bash(python3 .claude/hooks/look-figure.py*)",
+      "Bash(python3 ./.claude/hooks/look-figure.py*)"
     ],
     "ask": [
       "Edit(/learn/system/**)",
@@ -97,7 +99,7 @@
             "timeout": 5
           }
         ],
-        "matcher": "AskUserQuestion"
+        "matcher": "AskUserQuestion|Agent|Task"
       }
     ],
     "PostToolUse": [
@@ -113,7 +115,7 @@
             "timeout": 5
           }
         ],
-        "matcher": "AskUserQuestion"
+        "matcher": "AskUserQuestion|Agent|Task"
       }
     ],
     "Stop": [
@@ -124,6 +126,15 @@
             "command": "python3",
             "args": [
               "${CLAUDE_PROJECT_DIR}/.claude/hooks/obsidian-live.py",
+              "hook"
+            ],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/reply-check.py",
               "hook"
             ],
             "timeout": 5

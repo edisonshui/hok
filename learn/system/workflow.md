@@ -37,6 +37,8 @@ For the current node, in order:
 3. **Connect** it to earlier nodes and, if it clarifies, to the learner's interests.
 4. **Check** with a retrieval or application question. Grade it. Log the question, the answer, and the verdict. Every evidence line ends with its transition marker (`records.md`, *Evidence rule*).
 5. **Log** the node to the session note *now*: the explanation as taught, the diagram, the check and result, any misconception candidates. Update the node's status in `record.md` (`planned → introduced → checked`).
+
+When the session start says "Save notes are on", steps 4 and 5 ride in the reply that grades the check, as its **save note** (`records.md`, *The save note*). The Stop hook writes them after the reply ends, so logging takes no tool call of its own. Don't also write those lines with a tool, or they are written twice.
 6. Every 2–3 nodes, run a mixed retrieval check (`/learn-check`) covering the current node and one earlier one. **This is a gate:** a fourth consecutive new node does not open until a check is logged. If you skip one deliberately, write the reason under *Retrieval checks*. An empty *Retrieval checks* section at `/learn-end` means the rule was broken, and `/learn-end` records that in the note rather than leaving it blank.
 
 Adaptation rules are in `tutor.md` under *Pacing*. If a check reveals a missing prerequisite the diagnosis missed, add a node to the plan, say so, and teach it before continuing.

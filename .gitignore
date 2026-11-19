@@ -58,3 +58,4 @@ CONTEXT.md
 
 # Vault app fonts inlined for Obsidian; rebuilt from .scratch/vault-brand/fonts.
 .obsidian/snippets/vault-fonts.css
+.claude/figure-looks/

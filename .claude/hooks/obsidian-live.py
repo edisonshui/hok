@@ -24,6 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from vaultlib import frontmatter, open_session_note, theme_of  # noqa: E402
+import save_note  # noqa: E402
 
 
 IDLE_SECONDS = 15 * 60      # a longer gap means the learner stepped away
@@ -36,6 +37,11 @@ FLAGGED_KEEP = 40           # probe digests remembered, so one is withdrawn once
 PROBE_BUDGET = 3.0          # seconds of Jev time per picker; the hook timeout is 5
 NOTICE_ROLE = "Tutor — notice"
 CODE_ROLE = "You — code"
+# While the demo-builder draws (one to three minutes, measured 89 to 157 s on 10 Nov), the log says so, so the
+# learner knows what the wait is for (Edison, 10 Nov). It lives only in `current` and only shows as the last entry.
+DRAW_ROLE = "Claude — drawing"
+DRAW_TEXT = "Drawing the picture. This usually takes one to three minutes."
+DRAW_TOOLS = ("Agent", "Task")
 SHARE_MAX_AGE = 6 * 3600    # a runner share older than this is stale, not a reply
 SHARE_CODE_CHARS = 20000
 SHARE_OUTPUT_CHARS = 8000
@@ -184,6 +190,17 @@ def place_images(texts, embeds, paste_ids):
     return leftover
 
 
+# Claude Code 2.1 wraps a pasted message in these tags (the closing one repeats
+# the id). The tutor needs nothing from them and Hok matches your message by its
+# words, so the log shows the words alone (14 Nov: the tags showed in the thread,
+# and Hok kept a second copy of the message because the two never matched).
+PASTE_TAG = re.compile(r"^[ \t]*</?pasted_content\b[^>]*>[ \t]*\n?", re.M)
+
+
+def unwrap_paste(text):
+    return PASTE_TAG.sub("", text).strip()
+
+
 def read_transcript(path, vault=None):
     """Read the transcript into log entries.
 
@@ -195,6 +212,10 @@ def read_transcript(path, vault=None):
     entries, question_ids, seen = [], set(), set()
     metadata = {}
     reply_id, reply_keys = None, []   # the text entries of the latest Claude reply
+    # Your message's entries, by the row it answers. Claude Code can send the same
+    # message twice under one parent, and the first copy then gets no reply
+    # (14 Nov, 16:43 and 16:44); only the copy it answered stays.
+    prompt_keys = {}
     if not path or not Path(path).is_file():
         return entries, metadata
     with Path(path).open() as handle:
@@ -229,10 +250,17 @@ def read_transcript(path, vault=None):
                 effort = row.get("effort")
                 if effort:
                     metadata["effort"] = effort
+            parent = row.get("parentUuid")
+            if kind == "user" and parent and parent in prompt_keys and is_prompt(content):
+                dropped = prompt_keys.pop(parent)
+                entries = [item for item in entries if item["key"] not in dropped]
+            before = len(entries)
             if isinstance(content, str):
                 text = user_text(content) if kind == "user" else content
                 if text:
                     entries.append(entry(key, "You" if kind == "user" else "Claude", text, stamp))
+                if kind == "user" and parent and len(entries) > before:
+                    prompt_keys[parent] = {item["key"] for item in entries[before:]}
                 continue
             texts, embeds = [], []
             for index, block in enumerate(content):
@@ -278,7 +306,17 @@ def read_transcript(path, vault=None):
                 leftover = place_images(texts, [embed for _, embed in embeds], row.get("imagePasteIds") or [])
                 for index, embed in [pair for pair in embeds if pair[1] in leftover]:
                     entries.append(entry(f"{key}-{index}", "You", embed, stamp))
+            if kind == "user" and parent and is_prompt(content) and len(entries) > before:
+                prompt_keys[parent] = {item["key"] for item in entries[before:]}
     return entries, metadata
+
+
+def is_prompt(content):
+    """A message you sent, not a tool result Claude Code files as a user row."""
+    if isinstance(content, str):
+        return bool(user_text(content))
+    return any(block.get("type") in ("text", "image") for block in content) and not any(
+        block.get("type") == "tool_result" for block in content)
 
 
 def read_clocks(runtime):
@@ -310,15 +348,16 @@ def prune_clocks(notes):
 def away_notice(gap, active, idle):
     return ("Clock: %d minutes since the learner's previous message, so they stepped away. "
             "Recap where you left off in at most two lines before asking anything new. That "
-            "gap does not count toward the working block. Active time so far: %d minutes "
+            "gap does not count toward the working block, which starts over now. Active time in the session so far: %d minutes "
             "(away: %d minutes in total)."
             % (minutes(gap), minutes(active), minutes(idle)))
 
 
-def break_notice(active):
-    return ("Clock: %d minutes of active working time, away time excluded. Say so, offer a "
+def break_notice(block, active):
+    since = (" since the last break (%d in the whole session)" % minutes(active)) if active - block >= 60 else ""
+    return ("Clock: %d minutes of active working time%s, away time excluded. Say so, offer a "
             "5-10 minute break, and checkpoint with /learn-end break before pausing."
-            % minutes(active))
+            % (minutes(block), since))
 
 
 def update_clock(vault, runtime, state, kind):
@@ -347,6 +386,14 @@ def update_clock(vault, runtime, state, kind):
     mark while answering a picker therefore lost the announcement outright. Now
     accumulation always happens and delivery waits for a turn that reaches the
     learner.
+
+    Third, the break offer times the block since the last break, not the whole
+    note (16 Nov 2026, math241-exam3-review s05: back from a break, the tutor said
+    "You've been working 86 minutes", the session's total). A break is either a
+    gap past IDLE_SECONDS or a new `paused:` stamp from /learn-end break: the 5-10
+    minute break the tutor offers is shorter than IDLE_SECONDS, so without the
+    stamp it was billed as work. `active` stays the whole-note total that
+    /learn-end records; `block` is only what the offer counts.
     """
     subject = state.get("subject")
     if not subject:
@@ -354,7 +401,7 @@ def update_clock(vault, runtime, state, kind):
     found = open_session_note(vault, subject)
     if not found:
         return ""                    # between sessions: the note is closed
-    note_path, _ = found
+    note_path, fields = found
     key = "%s/%s" % (subject, note_path.stem)
     stamp = datetime.now(timezone.utc)
     notice = ""
@@ -366,9 +413,20 @@ def update_clock(vault, runtime, state, kind):
         clock = notes.setdefault(key, {})
         previous = parse_time(clock.get("last_user"))
         gap = (stamp - previous).total_seconds() if previous else 0.0
+        paused = str(fields.get("paused") or "").strip()
+        took_break = bool(paused) and paused != clock.get("paused_seen", "")   # /learn-end break ran since the last turn
+        if paused:
+            clock["paused_seen"] = paused
         away = gap > IDLE_SECONDS
+        if "block" not in clock:   # a clock from before blocks: one that has had a break starts its block fresh
+            clock["block"], clock["block_announced"] = (0.0, 0) if clock.get("idle") else (clock.get("active", 0.0), clock.get("announced", 0))
         if previous:
-            clock["idle" if away else "active"] = clock.get("idle" if away else "active", 0.0) + gap
+            gone = away or took_break
+            clock["idle" if gone else "active"] = clock.get("idle" if gone else "active", 0.0) + gap
+            if gone:
+                clock["block"], clock["block_announced"] = 0.0, 0
+            else:
+                clock["block"] += gap
         clock["last_user"] = stamp.isoformat()
         clock.setdefault("first_user", clock["last_user"])
         clock["note"] = str(note_path.relative_to(vault))
@@ -376,10 +434,11 @@ def update_clock(vault, runtime, state, kind):
         pending = clock.setdefault("pending", [])
         if away:
             pending.append(away_notice(gap, active, clock.get("idle", 0.0)))
-        announced = clock.get("announced", 0)
-        if active >= BREAK_SECONDS + announced * REMIND_SECONDS:
-            clock["announced"] = announced + 1
-            pending.append(break_notice(active))
+        block, announced = clock["block"], clock["block_announced"]
+        if block >= BREAK_SECONDS + announced * REMIND_SECONDS:
+            clock["block_announced"] = announced + 1
+            clock["announced"] = clock.get("announced", 0) + 1
+            pending.append(break_notice(block, active))
         del pending[:-PENDING_KEEP]
         if kind == "prompt" and pending:
             # UserPromptSubmit is one of the two events whose stdout reaches context.
@@ -680,8 +739,12 @@ def entry_lines(items):
     the pacing information that makes a session reviewable afterwards.
     """
     lines, headings = [], set()
-    for item in items:
+    for index, item in enumerate(items):
+        if item["role"] == DRAW_ROLE and index != len(items) - 1:
+            continue   # the picture or the reply that follows it says the rest
         text = (item.get("display") or item.get("text") or "").strip()
+        if item["role"] == "Claude":
+            text = save_note.strip(text)   # the save note is for the hook, not the learner
         if not text:
             continue
         stamp = local_clock(item.get("time"))
@@ -702,6 +765,8 @@ def entry_lines(items):
             # Folded closed in practice: it holds the solution worked out before the problem was posed.
             lines.extend(callout(text, "thinking", "Thinking (shown in the terminal)",
                                  "-" if item.get("practice") else "+") + [""])
+        elif role == DRAW_ROLE:
+            lines.extend(callout(text, "drawing", "Drawing" + suffix) + [""])
         elif role == "Claude — questions":
             lines.extend(callout(text, "question", "Question" + suffix) + [""])
         elif role == "You — answers":
@@ -711,7 +776,9 @@ def entry_lines(items):
         elif role == NOTICE_ROLE:
             lines.extend(callout(text, "warning", "Probe check" + suffix) + [""])
         else:
-            lines.extend(callout(text, "quote", "You" + suffix) + [""])
+            text = unwrap_paste(text)
+            if text:
+                lines.extend(callout(text, "quote", "You" + suffix) + [""])
     return lines
 
 
@@ -910,6 +977,17 @@ def probe_guard(state, questions, tool_id, canonical=None):
     return " ".join(reasons + list(dict.fromkeys(repairs))) if reasons else ""
 
 
+def last_reply(canonical):
+    """Everything Claude wrote since the learner's last message: the turn a save note belongs to."""
+    texts = []
+    for item in reversed(canonical):
+        if item["role"] == "You":
+            break
+        if item["role"] == "Claude":
+            texts.append(item.get("text") or "")
+    return "\n\n".join(reversed(texts))
+
+
 def status_text(payload, state):
     model = payload.get("model", {})
     name = (model.get("display_name") if isinstance(model, dict) else model) or state.get("model") or "Model unknown"
@@ -959,6 +1037,8 @@ def process(vault, payload, mode="hook"):
         elif mode == "status":
             state.pop("effort", None)  # Never invent effort for a model that does not report it.
         if event in ("SessionStart", "UserPromptSubmit", "Stop", "SessionEnd"):
+            # A turn boundary means no drawing is under way; a stale line would also keep reconciliation from completing.
+            state["current"] = [item for item in state["current"] if item["role"] != DRAW_ROLE]
             reconciled = promote_or_reconcile(state, canonical)
             if event in ("SessionStart", "UserPromptSubmit"):
                 if not reconciled:
@@ -985,6 +1065,12 @@ def process(vault, payload, mode="hook"):
             stream["final"] = bool(payload.get("final"))
             text = "".join(stream["chunks"][index] for index in sorted(stream["chunks"], key=int))
             put_current(state, entry("stream-" + message_id, "Claude", text, stream["time"]))
+        elif payload.get("tool_name") in DRAW_TOOLS and (payload.get("tool_input") or {}).get("subagent_type") == "demo-builder":
+            key = "drawing-" + payload.get("tool_use_id", "demo")
+            if event == "PreToolUse":
+                put_current(state, entry(key, DRAW_ROLE, DRAW_TEXT))
+            else:
+                state["current"] = [item for item in state["current"] if item["key"] != key]
         elif payload.get("tool_name") == "AskUserQuestion":
             tool_id = payload.get("tool_use_id", "question")
             if event == "PreToolUse":
@@ -1012,6 +1098,23 @@ def process(vault, payload, mode="hook"):
         # open note. Timing the turn any earlier reads the previous turn's subject.
         if clock_event and mode != "status":
             notice = "\n\n".join(part for part in (notice, update_clock(vault, runtime, state, clock_event)) if part)
+        # The save note (save_note.py): what the tutor asked to have written this turn. Written once the reply ends,
+        # after write_subject_logs has resolved the subject; anything not written is told to the tutor next turn.
+        if event == "Stop" and mode != "status":
+            # The payload's last_assistant_message first: in `claude -p` the transcript can lack the final reply when
+            # Stop fires (18 Nov test: every save note in two lessons was missed, so the tutor wrote them by hand).
+            reply = payload.get("last_assistant_message") or ""
+            if "<!--" not in reply:
+                reply = last_reply(canonical)
+            if "<!--" in reply:
+                try:
+                    _, problems = save_note.apply(vault, state.get("subject"), reply, runtime)
+                except Exception as error:   # never let a bad note break the log
+                    problems = [f"the save hook failed ({error})"]
+                if problems:
+                    state["save_problems"] = (state.get("save_problems", []) + problems)[-10:]
+        if event == "UserPromptSubmit" and mode != "status" and state.get("save_problems"):
+            notice = "\n\n".join(part for part in (notice, save_note.notice(state.pop("save_problems"))) if part)
         content = render(state)
         archive = vault / "Claude outputs" / "Conversations" / f"{session_id}.md"
         atomic_write(archive, content)

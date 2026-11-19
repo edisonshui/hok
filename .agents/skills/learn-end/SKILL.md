@@ -3,7 +3,7 @@ name: learn-end
 description: End or checkpoint the current learning session — finalize the session note, update the learner record and plan, rewrite the resume summary, and print it. Use at the end of a session, before a break, or whenever the learner says stop, pause, checkpoint, or break.
 ---
 
-End or checkpoint the current session. If the user asks for a break, treat it as a same-day pause; otherwise end the session. Follow Phase 4 of `learn/system/workflow.md` and the update rules in `learn/system/records.md`.
+End or checkpoint the current session. If the user asks for a break, treat it as a same-day pause; otherwise end the session. Only the learner ends a session: run this when they typed it or asked to stop, never on your own clock. A hard stop coming up (an exam, the 45-minute mark) is a reason to suggest it in one line and wait (2026-10-08, dtx221: the tutor ran it unprompted and had to apologize). Follow Phase 4 of `learn/system/workflow.md` and the update rules in `learn/system/records.md`.
 
 Work in this order so that nothing depends on a file not yet updated. Do every step even for a `break`; the only difference is step 8.
 
@@ -25,7 +25,7 @@ Run `date`. Fill `nodes:` in the frontmatter. Fill `active_minutes:` and `idle_m
 - Evidence log: confirm every check from this session is there. Every line from a check ends with its transition marker.
 - *What works for this learner in this subject*: add or refine lines only with evidence, and mark each as *enjoyed* or *demonstrated*.
 - Sessions list: add this session's line and link.
-- Frontmatter: `last_session`, `sessions`, `status`, and `next` (one line: the first thing the next session does). If this session met the goal, set `status: done` and `goal_met:` to today.
+- Frontmatter: `last_session`, `sessions`, `status`, and `next` (one line: the first thing the next session does). If this session met the goal, set `status: done` and `goal_met:` to today. The goal is met only when `python3 .claude/hooks/learn-status.py --goal --subject <slug>` exits 0, every success criterion having a clean `[final N]` check (`records.md`, *Evidence rule*). If it lists an open criterion, leave `status` and `goal_met:` as they are, make `next` that criterion's final check, and name the criterion in the closing in plain words.
 
 ## 3. `plan.md`
 
@@ -102,6 +102,10 @@ Two limits, stated rather than papered over. The baseline is the start of this s
 
 A step that was skipped, blocked by a permission prompt, or not applicable is reported as such in plain words. Never report a write that did not happen: a record the learner believes exists and does not is worse than no record at all.
 
+## 7b. Check the closing block before it is sent
+
+Draft the step 8 closing block, then run the draft through `python3 .claude/hooks/reply-check.py closing -` on stdin (a heredoc) before sending it. It prints `closing block: clean`, or one line per hit: a question mark outside a quoted check, the strings `I followed`, `workflow`, `Jev`, `mc-preflight`, `learn-status`, `write-check`, and `semantic:`, and any node id. The reward lines from step 6b are exempt. On a hit, rewrite the block in plain English and check it again; send only a clean draft. The checker writes nothing.
+
 ## 8. Hand-off
 
-After every write and the verification pass are complete, send exactly one closing block. It contains the verification checklist from step 7, the preference-bar result from step 5, the reward lines from step 6b verbatim (if any), the resume summary exactly once, and one handoff line. For `break`, the handoff is "Back after break. Reopen this note with `$learn-resume <slug>`." For a `break` in a practice note (`kind: practice`), it is "Back after break. Pick the practice back up with `$learn-practice <slug>`.", because `$learn-resume` closes a paused practice note instead of reopening it. The closing block is in plain English, with no node ids, statuses, or names of scripts, checkers, or Jev. Otherwise, use the one-line next step. Progress updates before this block must not include a provisional checklist, session summary, or handoff. After the closing block, stop. Do not restate or paraphrase it.
+After every write, the verification pass, and the step 7b check are complete, send exactly one closing block. It contains the verification checklist from step 7, the preference-bar result from step 5, the reward lines from step 6b verbatim (if any), the resume summary exactly once, and one handoff line. For `break`, the handoff is "Back after break. Reopen this note with `$learn-resume <slug>`." For a `break` in a practice note (`kind: practice`), it is "Back after break. Pick the practice back up with `$learn-practice <slug>`.", because `$learn-resume` closes a paused practice note instead of reopening it. The closing block is in plain English, with no node ids, statuses, or names of scripts, checkers, or Jev. Otherwise, use the one-line next step. Progress updates before this block must not include a provisional checklist, session summary, or handoff. After the closing block, stop. Do not restate or paraphrase it.

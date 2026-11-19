@@ -3875,6 +3875,7 @@ ACTIONS.palette = () => openPalette();
 // ---------- settings ----------
 async function openSettings() {
   pal = null;
+  try { modelsAvail[cfg.host] = await F.models(cfg.host); } catch { /* the built-in list stands */ }
   const scrim = $("scrim");
   scrim.classList.remove("clear");
   scrim.classList.add("on");
@@ -3902,7 +3903,7 @@ async function openSettings() {
       <input id="nameIn" class="field" value="${esc(firstName())}" placeholder="Your first name" aria-label="Your first name"></div>
     <div class="sec"><div class="t-sec">Tutor</div>
       <div class="cap" style="margin-top:2px">The command this app runs in your vault. It uses your own sign-in.</div>
-      <div class="seg" style="margin-top:8px" role="radiogroup">${[["claude", "Claude Code"], ["codex", "Codex"]].map(([v, l]) => `<button class="${cfg.host === v ? "on" : ""}" role="radio" aria-checked="${cfg.host === v}" data-act="set-host" data-arg="${v}">${l}</button>`).join("")}</div></div>
+      <div class="seg" style="margin-top:8px" role="radiogroup">${[["claude", "Claude Code"], ["codex", "Codex"]].map(([v, l]) => `<button class="${cfg.host === v ? "on" : ""}" role="radio" aria-checked="${cfg.host === v}" data-act="set-host" data-arg="${v}">${l}</button>`).join("")}</div>${modelRow()}</div>
     <div class="sec"><div class="t-sec">Rewards ${S && S.rewards_on ? "on" : "off"}</div>
       <div class="cap" style="margin-top:2px">Badges and the review streak. Ask the tutor to turn them ${S && S.rewards_on ? "off" : "on"}; it is the <span class="mono">rewards:</span> line in learn/me/preferences.md.</div></div>
     <div class="sec"><div style="display:flex;align-items:center;gap:12px"><div style="min-width:0;flex:1"><div class="t-sec">Vault folder</div><div class="cap mono selectable" style="margin-top:2px;word-break:break-all">${esc(cfg.vault || "None")}</div></div><button class="btn neutral" style="flex:none" data-act="choose-vault" data-tip="${key("O")}">Change…</button></div></div>
@@ -4016,6 +4017,47 @@ ACTIONS["set-host"] = async (h) => {
   await setCfg({ host: h });
   closeOverlay();
   boot();
+};
+// Settings > Tutor > Model (18 Nov): which model the tutor runs on. Always the learner's pick (Edison: "it's our job to
+// provide them with information that will help them make the best choice"), so each choice says what it costs and how it
+// taught in our tutor tests (17 and 19 Nov 2026; Sol's line is GPT-6.2 Sol's). Sonnet is the default. The buttons are the models the learner's account has (19 Nov,
+// lib/models.js), fetched each time Settings opens; a family we haven't tested shows Codex's own description.
+let modelsAvail = { claude: null, codex: null };
+const CODEX_FAMILIES = ["sol", "astra", "terra", "luna"];
+const codexFamily = (v) => CODEX_FAMILIES.find((f) => v === f || String(v || "").endsWith(`-${f}`)) || "sol";
+const MODEL_OPTS = {
+  claude: { key: "model", fallback: "sonnet", lines: {
+    sonnet: ["Sonnet", "Recommended. It taught best in our tests and uses about half as much of your plan as Opus."],
+    opus: ["Opus", "The strongest model, and it uses about twice as much of your plan as Sonnet. In our tests it often explained the answer instead of letting you work it out."],
+    haiku: ["Haiku", "Uses the least of your plan, about a third of Sonnet per lesson. In our tests it taught less well and showed the learner its private notes."] } },
+  codex: { key: "codexModel", fallback: "sol", lines: {
+    sol: ["Sol", "Recommended for Codex. In our tests it taught about as well as Sonnet, and one lesson used about a tenth of a Plus plan's 5-hour limit."],
+    astra: ["Astra", null],
+    terra: ["Terra", null],
+    luna: ["Luna", "About a tenth of what Sol costs at API prices. In our tests it never fixed the learner's deeper mistake."] } },
+};
+function modelInfo(host) {
+  const m = MODEL_OPTS[host] || MODEL_OPTS.claude;
+  const list = (modelsAvail[host] || Object.keys(m.lines).map((id) => ({ id }))).filter((x) => m.lines[x.id]);
+  const saved = host === "codex" ? codexFamily(cfg[m.key]) : cfg[m.key];
+  const v = (list.find((x) => x.id === saved) || list.find((x) => x.id === m.fallback) || list[0] || { id: m.fallback }).id;
+  const pick = list.find((x) => x.id === v) || {};
+  const said = m.lines[v]?.[1] || `Not tested as a tutor yet.${pick.description ? ` Codex calls it "${pick.description.replace(/^Our /, "our ").replace(/\.$/, "")}."` : ""}`;
+  const line = pick.name ? `${pick.name}. ${said}` : said;   // Codex: which model of the family this is, e.g. GPT-6.2-Sol
+  return { m, v, list, line };
+}
+function modelRow() {
+  const { m, v, list, line } = modelInfo(cfg.host);
+  return `<div class="t-sec" style="margin-top:14px">Model</div>
+      <div class="seg" style="margin-top:8px" role="radiogroup" aria-label="Model">${list.map(({ id }) => `<button class="${v === id ? "on" : ""}" role="radio" aria-checked="${v === id}" data-act="set-model" data-arg="${id}">${m.lines[id][0]}</button>`).join("")}</div>
+      <div class="cap" id="modelInfo" style="margin-top:8px;color:var(--color-ink-2);text-wrap:pretty">${esc(line)}</div>
+      <div class="cap" style="margin-top:4px">Changes start with your next session.</div>`;
+}
+ACTIONS["set-model"] = async (v) => {
+  const m = (MODEL_OPTS[cfg.host] || MODEL_OPTS.claude);
+  await setCfg({ [m.key]: v });
+  document.querySelectorAll('#scrim [data-act="set-model"]').forEach((b) => { const on = b.dataset.arg === v; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+  if ($("modelInfo")) $("modelInfo").textContent = modelInfo(cfg.host).line;
 };
 ACTIONS["choose-vault"] = () => chooseVault();
 function closeOverlay() {
