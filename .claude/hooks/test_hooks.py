@@ -1098,15 +1098,13 @@ for plan in sorted((VAULT_ROOT / "learn/subjects").glob("*/plan.md")):
         and row.get("Node") and not row.get("Can do")], [])
 
 
-section("skill drift, both learn-end copies set goal_met:, and the done subjects carry it")
+section("skill drift: both learn-end copies set goal_met:")
+# Done subjects are not all required to carry goal_met: any more. /learn-close sets done and leaves goal_met: as it
+# is (its SKILL.md), so a subject closed out unmet is done without it. The old per-record check failed on 23 of them.
 for host in (".claude", ".agents"):
     eq("%s/learn-end sets goal_met: when the goal is met" % host,
        "set `status: done` and `goal_met:` to today" in (VAULT_ROOT / host / "skills/learn-end/SKILL.md").read_text(),
        True)
-for record in sorted((VAULT_ROOT / "learn/subjects").glob("*/record.md")):
-    fields = vaultlib.frontmatter(record)
-    if fields.get("status") == "done":
-        eq("%s is done and has goal_met:" % record.parent.name, bool(fields.get("goal_met")), True)
 
 section("goal_met needs a clean [final N] check for every success criterion")
 GOAL_RECORD = """## Success criteria
@@ -3675,6 +3673,24 @@ eq("a draft with two questions that was blocked and rewritten clean goes through
               ("assistant", [{"type": "text", "text": "Right. Does that make sense? What prints next?"}]),
               ("user", "Stop hook feedback:\nReply check: two questions.", {"isMeta": True}),
               ("assistant", [{"type": "text", "text": "Right. What prints after `p = &y`?"}])), "")
+
+section("reply-check: a transcript that lags the reply is read with the payload's reply")
+fresh(); subject("oop")
+turn("/learn-resume oop")
+# 19 Nov 2026: when Stop fires, the transcript can end at the learner's message. The reply is in the payload only.
+eq("a bad reply missing from the transcript is still held",
+   blocked(reply_stop(RESUME, ASKED, ANSWER, last_assistant_message=LONG + " Lagging.")), "block")
+eq("and the hold tells the tutor to keep the check out of the rewrite",
+   "must not mention this check" in reply_stop(RESUME, ASKED, ANSWER, last_assistant_message=LONG + " Lag two.")["reason"],
+   True)
+eq("a reply already in the transcript is not counted twice",
+   rc.with_final(["Right. What prints?"], "Right. What prints?"), ["Right. What prints?"])
+eq("text before a tool call keeps its place, and the final reply goes after it",
+   rc.with_final(["Checking first."], "Right."), ["Checking first.", "Right."])
+eq("the payload's save note is not part of the reply",
+   rc.with_final([], "Right.\n\n<!-- save\n@evidence x\n-->"), ["Right."])
+eq("a payload without the field leaves the transcript's reply",
+   rc.with_final(["Right."], None), ["Right."])
 eq("the hook fails open on an unreadable transcript",
    rc.process(VAULT, {"session_id": "conv-a", "hook_event_name": "Stop", "transcript_path": "/nowhere.jsonl"}), "")
 rc.HOLD = DEFAULT_HOLD
