@@ -3981,6 +3981,13 @@ eq("a second Stop on the same reply writes nothing twice",
    ((d / "record.md").read_text().count("which half for 9"), (d / "sessions/2026-11-18-s02.md").read_text().count("### n2 —")), (1, 1))
 
 d = save_vault()
+path = transcript(("user", "/learn-resume fx"), ("assistant", [{"type": "text", "text": "Thinking about it."}]))
+olive.process(VAULT, {"session_id": "conv-a", "hook_event_name": "Stop", "transcript_path": str(path),
+                      "last_assistant_message": REPLY})
+eq("the Stop payload's reply is used when the transcript does not have it yet",
+   "| n2 | Discard half | checked |" in (d / "plan.md").read_text(), True)
+
+d = save_vault()
 stop(transcript(("user", "/learn-resume fx"), ("assistant", [{"type": "text", "text": "Ok.\n<!-- save\n@node n9 checked\n-->"}])))
 eq("an item that cannot be written is told to the tutor at its next prompt",
    "n9" in (turn("next", sid="conv-a") or ""), True)

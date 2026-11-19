@@ -1101,7 +1101,11 @@ def process(vault, payload, mode="hook"):
         # The save note (save_note.py): what the tutor asked to have written this turn. Written once the reply ends,
         # after write_subject_logs has resolved the subject; anything not written is told to the tutor next turn.
         if event == "Stop" and mode != "status":
-            reply = last_reply(canonical)
+            # The payload's last_assistant_message first: in `claude -p` the transcript can lack the final reply when
+            # Stop fires (18 Nov test: every save note in two lessons was missed, so the tutor wrote them by hand).
+            reply = payload.get("last_assistant_message") or ""
+            if "<!--" not in reply:
+                reply = last_reply(canonical)
             if "<!--" in reply:
                 try:
                     _, problems = save_note.apply(vault, state.get("subject"), reply, runtime)
