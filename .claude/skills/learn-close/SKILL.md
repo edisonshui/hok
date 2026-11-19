@@ -12,7 +12,7 @@ Close out without teaching. Argument: `$ARGUMENTS`.
 
 The rule for open notes is in `learn/system/records.md`, under *Closing an open note*. This skill applies the *Finalizing an open note* paragraph of `/learn-resume` step 3 and nothing else: no recap, no decay check, no new note, no questions.
 
-Edison added this on 2026-10-27: a quiz that has already happened should not need a resume to settle it, and any subject he has stopped working on should be closable.
+Edison added this on 2026-10-27: a quiz that has already happened should not need a resume to settle it, and any subject they have stopped working on should be closable.
 
 ## 1. Find the notes
 

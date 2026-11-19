@@ -58,9 +58,9 @@ def reply_check_due(vault, now=None):
         return ""
     return ("Reply-check review due: %d logged since %s, and Edison asked to be reminded. In the start "
             "question, add one option after the recommended one: \"Review last week's reply checks (about 5 "
-            "minutes)\". If he picks it, run `python3 .claude/hooks/reply-check.py report` and go through it "
-            "with him in plain words, which checks were right and which flagged good replies, then run "
-            "`python3 .claude/hooks/reply-check.py reviewed`. If he says not now, run "
+            "minutes)\". If they pick it, run `python3 .claude/hooks/reply-check.py report` and go through it "
+            "with them in plain words, which checks were right and which flagged good replies, then run "
+            "`python3 .claude/hooks/reply-check.py reviewed`. If they say not now, run "
             "`python3 .claude/hooks/reply-check.py snooze`." % (len(times), first.strftime("%d %b")))
 
 
