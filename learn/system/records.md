@@ -48,6 +48,35 @@ A final check tests one numbered item under *Success criteria* in `record.md` an
 
 A practice problem (`/learn-practice`, `learn/system/practice.md`) carries the practice tag `[practice]` in the same place, names its nodes in the text, and ends with no transition marker: `2026-10-25 s06: [practice] p3 n4 n6 · combine · new setting: … → … → wrong, rung 2, mix-up, confidence 70%`. Practice records evidence and moves no node (the learner, 2026-10-25), and a marker is what moves one. With no marker, the line changes no status, reward, *Last checked* date, or `--due` ranking.
 
+## The save note
+
+Mid-lesson writes go in one hidden block at the end of the reply, and the Stop hook writes them when the reply ends (`.claude/hooks/save_note.py`, for both hosts). Each separate write used to cost a whole model call that re-read the conversation: over 61 lessons, 919 of 3,139 calls and 31% of the tutor's cost (18 Nov 2026). Hok and `log.md` hide the block. The raw terminal shows it, and Edison accepted that (18 Nov).
+
+```
+<!-- save
+@evidence 2026-11-18 s03: which half is dropped for 9 in [1,3,5,7,9] → the left → right → n2 checked
+@node n2 checked | s03 dropped the correct half unaided
+@lesson
+### n2 — Discard half
+**Motivate.** …
+**Check.** Q: … / A: … / Verdict: …
+@misconception kept the right half once, then traced it and fixed it
+-->
+```
+
+An `@key` starts an item, and every line after it up to the next `@` line is that item's body:
+
+| Key | Where it is written |
+| --- | --- |
+| `@evidence` | One line, appended to `record.md` *Evidence log*. Same format as any evidence line, marker included. |
+| `@node` | `nN <status>`, optionally `\| <latest evidence>`. Sets the status in `record.md` *Nodes* and `plan.md`. A status of checked, solid or decayed also sets *Last checked* to today. Adds the node to the session note's `nodes:`. |
+| `@lesson` | The node entry, appended to the open session note's *Lesson* section. The template's placeholder entry goes away. |
+| `@retrieval`, `@misconception`, `@preference`, `@correction` | Appended to that section of the open session note. |
+
+- **Write with a tool only what the note can't carry**: opening a session note, `/learn-start`'s files, and every `/learn-end` write. A review's writes (`learn/reviews/`) and practice notes follow their own files.
+- **One note per reply, at the very end.** Write each line once. A reply that is held and sent again can repeat its note, and the hook skips lines it already wrote.
+- **A line that can't be written is never dropped silently.** The hook says so at the start of your next turn. Write it again in that reply's note, or edit the file directly.
+
 ## Update rules
 
 - **Append, don't overwrite, evidence.** The history of how a node moved from `introduced` to `solid` is the point.

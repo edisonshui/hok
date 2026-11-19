@@ -297,7 +297,7 @@ def turns(path):
                 continue
             content = row.get("message", {}).get("content", [])
             if isinstance(content, str):
-                text = live.user_text(content) if kind == "user" else content
+                text = live.user_text(content) if kind == "user" else live.save_note.strip(content)
                 if text.strip():
                     items.append({"who": "learner" if kind == "user" else "tutor",
                                   "kind": "text", "text": text})
@@ -306,8 +306,8 @@ def turns(path):
                 block_type = block.get("type")
                 if block_type == "text":
                     text = block.get("text", "")
-                    if kind == "user":
-                        text = live.user_text(text)
+                    # The save note is for the hook (save_note.py), never shown in Hok or the log, so it is not checked.
+                    text = live.user_text(text) if kind == "user" else live.save_note.strip(text)
                     if text.strip():
                         items.append({"who": "learner" if kind == "user" else "tutor",
                                       "kind": "text", "text": text})

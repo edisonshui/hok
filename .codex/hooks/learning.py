@@ -142,7 +142,9 @@ def save_log(vault, rt, subject):
                 if item.get("turn") not in replied_turns:
                     lines += ["> [!warning] Reply not captured for this prompt", ""]
             else:
-                lines += [message, ""]
+                message = shared.save_note.strip(message)   # the save note is for the hook, not the learner
+                if message:
+                    lines += [message, ""]
     shared.atomic_write(folder / "codex-log.md", "\n".join(lines))
 
 
@@ -177,12 +179,23 @@ def hook(vault, payload):
                                          "time": stamp(), "subject": state.get("subject")})
                 if state.get("subject"):
                     notice = shared.update_clock(vault, rt, state, "prompt")
+                if state.get("save_problems"):
+                    notice = "\n\n".join(p for p in (notice, shared.save_note.notice(state.pop("save_problems"))) if p)
         elif event == "Stop":
             message = payload.get("last_assistant_message")
             turn = payload.get("turn_id") or "reply-" + str(len(state["entries"]))
             if message and not any(item.get("turn") == turn and item["role"] == "assistant" for item in state["entries"]):
                 state["entries"].append({"turn": turn, "role": "assistant", "text": message,
                                          "time": stamp(), "subject": state.get("subject")})
+            # The save note (.claude/hooks/save_note.py), shared with Claude Code. The last message is the turn's
+            # final reply, where the note goes; anything not written is told to the tutor at its next prompt.
+            if message and "<!--" in message:
+                try:
+                    _, problems = shared.save_note.apply(vault, state.get("subject"), message, rt)
+                except Exception as error:
+                    problems = [f"the save hook failed ({error})"]
+                if problems:
+                    state["save_problems"] = (state.get("save_problems", []) + problems)[-10:]
         shared.atomic_write(path, json.dumps(state, ensure_ascii=False))
         shared.atomic_write(rt / "active-session", sid)
         for subject in {previous_subject, state.get("subject")} - {None}:

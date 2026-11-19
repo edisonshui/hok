@@ -12,6 +12,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "hooks"))
+import save_note  # noqa: E402  the hidden save note is not learner-visible text
+
 PATTERNS = [
     ("working note", re.compile(r"^(Now|Next),? (the )?(record|plan|resume|session note|preferences)\b", re.I)),
     ("working note", re.compile(r"\b(Mirror nodes|from the templates?|plan reorder|State loaded|Both reviews are back|Applying (those|their) fixes|Trimming the resume|resume summary (is|ran)|200-word)\b", re.I)),
@@ -38,7 +41,7 @@ def visible_text(stream: Path):
             continue
         for block in ev.get("message", {}).get("content", []):
             if block.get("type") == "text":
-                yield block["text"]
+                yield save_note.strip(block["text"])
 
 
 def scan(stream: Path, label: str) -> int:

@@ -24,6 +24,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from vaultlib import frontmatter, open_session_note, theme_of  # noqa: E402
+import save_note  # noqa: E402
 
 
 IDLE_SECONDS = 15 * 60      # a longer gap means the learner stepped away
@@ -742,6 +743,8 @@ def entry_lines(items):
         if item["role"] == DRAW_ROLE and index != len(items) - 1:
             continue   # the picture or the reply that follows it says the rest
         text = (item.get("display") or item.get("text") or "").strip()
+        if item["role"] == "Claude":
+            text = save_note.strip(text)   # the save note is for the hook, not the learner
         if not text:
             continue
         stamp = local_clock(item.get("time"))
@@ -974,6 +977,17 @@ def probe_guard(state, questions, tool_id, canonical=None):
     return " ".join(reasons + list(dict.fromkeys(repairs))) if reasons else ""
 
 
+def last_reply(canonical):
+    """Everything Claude wrote since the learner's last message: the turn a save note belongs to."""
+    texts = []
+    for item in reversed(canonical):
+        if item["role"] == "You":
+            break
+        if item["role"] == "Claude":
+            texts.append(item.get("text") or "")
+    return "\n\n".join(reversed(texts))
+
+
 def status_text(payload, state):
     model = payload.get("model", {})
     name = (model.get("display_name") if isinstance(model, dict) else model) or state.get("model") or "Model unknown"
@@ -1084,6 +1098,19 @@ def process(vault, payload, mode="hook"):
         # open note. Timing the turn any earlier reads the previous turn's subject.
         if clock_event and mode != "status":
             notice = "\n\n".join(part for part in (notice, update_clock(vault, runtime, state, clock_event)) if part)
+        # The save note (save_note.py): what the tutor asked to have written this turn. Written once the reply ends,
+        # after write_subject_logs has resolved the subject; anything not written is told to the tutor next turn.
+        if event == "Stop" and mode != "status":
+            reply = last_reply(canonical)
+            if "<!--" in reply:
+                try:
+                    _, problems = save_note.apply(vault, state.get("subject"), reply, runtime)
+                except Exception as error:   # never let a bad note break the log
+                    problems = [f"the save hook failed ({error})"]
+                if problems:
+                    state["save_problems"] = (state.get("save_problems", []) + problems)[-10:]
+        if event == "UserPromptSubmit" and mode != "status" and state.get("save_problems"):
+            notice = "\n\n".join(part for part in (notice, save_note.notice(state.pop("save_problems"))) if part)
         content = render(state)
         archive = vault / "Claude outputs" / "Conversations" / f"{session_id}.md"
         atomic_write(archive, content)

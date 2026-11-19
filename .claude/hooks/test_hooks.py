@@ -3896,6 +3896,105 @@ draw("PreToolUse", "fact-checker")
 eq("other subagents add no line", "[!drawing]" in log(), False)
 shutil.rmtree(VAULT)
 
+section("save note: mid-lesson writes ride in the reply and the Stop hook writes them (save_note.py)")
+import save_note  # noqa: E402
+eq("strip removes a finished note", save_note.strip("Right.\n\n<!-- save\n@node n1 checked\n-->"), "Right.")
+eq("strip hides a note still streaming", save_note.strip("Right.\n<!-- save\n@node n1 ch"), "Right.")
+eq("strip leaves a reply with no note alone", save_note.strip("Plain <b>reply</b>."), "Plain <b>reply</b>.")
+items, probs = save_note.parse("<!-- save\nstray\n@node n1 checked\n@lesson\n### n1 — A\n**Check.** ok\n@bogus x\n-->")
+eq("parse reads single-line and multi-line items", items, [("node", "n1 checked"), ("lesson", "### n1 — A\n**Check.** ok")])
+eq("parse reports stray text and an unknown key", len(probs), 2)
+
+RECORD = """---
+subject: "fx"
+title: "fx"
+status: active
+---
+
+## Nodes
+
+| Node | Status | Last checked | Evidence (latest) |
+| --- | --- | --- | --- |
+| n1 Midpoint | checked | 2026-10-01 | s01 mid of 0..7 |
+| n2 Discard half | planned | — | — |
+
+## Evidence log
+
+*(Append-only.)*
+
+- 2026-10-01 s01: mid of 0..7 → 3 → right → n1 checked
+
+## Sessions
+"""
+PLAN = "| Id | Node | Status |\n| --- | --- | --- |\n| n1 | Midpoint | checked |\n| n2 | Discard half | planned |\n"
+NOTE = """---
+subject: "fx"
+session: "02"
+date: "2026-11-18"
+start: "10:00"
+end:
+nodes: []
+---
+
+# fx — session 02
+
+## Lesson
+
+*(Appended node by node.)*
+
+### {{node id}} — {{node name}}
+
+**Motivate.**
+
+## Retrieval checks
+
+## Misconception candidates
+
+## Corrections
+"""
+def save_vault():
+    fresh()
+    d = VAULT / "learn/subjects/fx"; (d / "sessions").mkdir(parents=True)
+    (d / "record.md").write_text(RECORD); (d / "plan.md").write_text(PLAN); (d / "sessions/2026-11-18-s02.md").write_text(NOTE)
+    return d
+REPLY = ("Right: 9 is above the middle, so the left half goes.\n\n<!-- save\n"
+         "@evidence 2026-11-18 s02: which half for 9 in [1,3,5,7,9] → the left → right → n2 checked\n"
+         "@node n2 checked | s02 dropped the correct half unaided\n"
+         "@lesson\n### n2 — Discard half\n**Check.** Q: which half / A: left / Verdict: right\n"
+         "@misconception kept the wrong half once, then fixed it\n-->")
+d = save_vault()
+path = transcript(("user", "/learn-resume fx"), ("assistant", [{"type": "text", "text": REPLY}]))
+stop(path)
+rec, plan, note = (d / "record.md").read_text(), (d / "plan.md").read_text(), (d / "sessions/2026-11-18-s02.md").read_text()
+eq("the evidence line is appended to the Evidence log", "- 2026-11-18 s02: which half for 9 in [1,3,5,7,9] → the left → right → n2 checked\n" in rec, True)
+eq("record.md's node row takes the status, today and the latest evidence",
+   re.search(r"^\| n2 Discard half \| checked \| \d{4}-\d\d-\d\d \| s02 dropped the correct half unaided \|$", rec, re.M) is not None, True)
+eq("plan.md's row takes the status", "| n2 | Discard half | checked |" in plan, True)
+eq("the lesson entry lands in Lesson and the template placeholder is gone",
+   ("### n2 — Discard half" in note.split("## Retrieval checks")[0], "{{node id}}" in note), (True, False))
+eq("the misconception lands in its section", "kept the wrong half once" in note.split("## Misconception candidates")[1].split("## Corrections")[0], True)
+eq("the note's nodes list gains the node", "nodes: [n2]" in note, True)
+eq("the learner's log shows the reply without the note",
+   ("9 is above the middle" in subject_log("fx"), "<!-- save" in subject_log("fx"), "@node" in subject_log("fx")), (True, False, False))
+stop(path)
+eq("a second Stop on the same reply writes nothing twice",
+   ((d / "record.md").read_text().count("which half for 9"), (d / "sessions/2026-11-18-s02.md").read_text().count("### n2 —")), (1, 1))
+
+d = save_vault()
+stop(transcript(("user", "/learn-resume fx"), ("assistant", [{"type": "text", "text": "Ok.\n<!-- save\n@node n9 checked\n-->"}])))
+eq("an item that cannot be written is told to the tutor at its next prompt",
+   "n9" in (turn("next", sid="conv-a") or ""), True)
+eq("and only once", "n9" in (turn("again", sid="conv-a") or ""), False)
+
+d = save_vault()
+codex = load("codex_learning", "../../.codex/hooks/learning.py")
+crt = VAULT / "learn/.codex-runtime"; crt.mkdir(parents=True, exist_ok=True)
+codex.hook(VAULT, {"hook_event_name": "UserPromptSubmit", "session_id": "cx1", "turn_id": "t1", "prompt": "$learn-resume fx"})
+codex.hook(VAULT, {"hook_event_name": "Stop", "session_id": "cx1", "turn_id": "t1", "last_assistant_message": REPLY})
+eq("Codex's Stop hook writes the same note", "| n2 | Discard half | checked |" in (d / "plan.md").read_text(), True)
+eq("and its log hides it", "<!-- save" in (d / "codex-log.md").read_text(), False)
+shutil.rmtree(VAULT)
+
 section("look-figure: one allowed command checks a drawing and renders it inside the vault")
 LOOK = Path(tempfile.mkdtemp())
 (LOOK / ".claude/hooks").mkdir(parents=True)
