@@ -4017,19 +4017,31 @@ ACTIONS["set-host"] = async (h) => {
   closeOverlay();
   boot();
 };
-// Settings > Tutor > Model (18 Nov): which Claude model the tutor runs on. Sonnet is the default because it costs half
-// of Opus on every token and taught best in the 17 Nov tutor test. Codex keeps its own model, so the row is Claude's only.
-const MODEL_OPTS = [["sonnet", "Sonnet"], ["opus", "Opus"], ["default", "Claude Code's choice"]];
+// Settings > Tutor > Model (18 Nov): which model the tutor runs on. Always the learner's pick (Edison: "it's our job to
+// provide them with information that will help them make the best choice"), so each choice says what it costs and how it
+// taught in the 17 Nov tutor test. Sonnet is the default.
+const MODEL_OPTS = {
+  claude: { key: "model", fallback: "sonnet", opts: [
+    ["sonnet", "Sonnet", "Recommended. It taught best in our tests and uses about half as much of your plan as Opus."],
+    ["opus", "Opus", "The strongest model, and it uses about twice as much of your plan as Sonnet. In our tests it often explained the answer instead of letting you work it out."],
+    ["haiku", "Haiku", "Uses the least of your plan, about a fifth of Sonnet per lesson. In our tests it taught less well and showed the learner its private notes."]] },
+  codex: { key: "codexModel", fallback: "gpt-6.1-sol", opts: [
+    ["gpt-6.1-sol", "Sol", "Recommended for Codex. It taught a little less well than Sonnet in our tests, and one lesson used up to a quarter of a Plus plan's 5-hour limit."],
+    ["gpt-6-luna", "Luna", "About a tenth of what Sol costs at API prices. In our tests it never fixed the learner's deeper mistake."]] },
+};
+const modelInfo = (host) => { const m = MODEL_OPTS[host] || MODEL_OPTS.claude, v = cfg[m.key] || m.fallback; return { m, v, line: (m.opts.find(([k]) => k === v) || m.opts[0])[2] }; };
 function modelRow() {
-  if (cfg.host !== "claude") return "";
-  const m = cfg.model || "sonnet";
+  const { m, v, line } = modelInfo(cfg.host);
   return `<div class="t-sec" style="margin-top:14px">Model</div>
-      <div class="cap" style="margin-top:2px">Sonnet uses about half as much of your plan as Opus and taught best in our tests. Changes start next session.</div>
-      <div class="seg" style="margin-top:8px" role="radiogroup" aria-label="Model">${MODEL_OPTS.map(([v, l]) => `<button class="${m === v ? "on" : ""}" role="radio" aria-checked="${m === v}" data-act="set-model" data-arg="${v}">${l}</button>`).join("")}</div>`;
+      <div class="seg" style="margin-top:8px" role="radiogroup" aria-label="Model">${m.opts.map(([k, l]) => `<button class="${v === k ? "on" : ""}" role="radio" aria-checked="${v === k}" data-act="set-model" data-arg="${k}">${l}</button>`).join("")}</div>
+      <div class="cap" id="modelInfo" style="margin-top:8px;color:var(--color-ink-2)">${esc(line)}</div>
+      <div class="cap" style="margin-top:4px">Changes start with your next session.</div>`;
 }
 ACTIONS["set-model"] = async (v) => {
-  await setCfg({ model: v });
+  const m = (MODEL_OPTS[cfg.host] || MODEL_OPTS.claude);
+  await setCfg({ [m.key]: v });
   document.querySelectorAll('#scrim [data-act="set-model"]').forEach((b) => { const on = b.dataset.arg === v; b.classList.toggle("on", on); b.setAttribute("aria-checked", on); });
+  if ($("modelInfo")) $("modelInfo").textContent = modelInfo(cfg.host).line;
 };
 ACTIONS["choose-vault"] = () => chooseVault();
 function closeOverlay() {

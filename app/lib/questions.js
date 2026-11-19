@@ -110,7 +110,7 @@ function questions({ root, command, env, prompt, send, host = () => "claude", mo
   // carries the instructions as developer instructions, and a resumed one repeats them with the message, since Codex
   // keeps a conversation's first instructions (measured 8 Nov, codex-cli 0.166.0).
   function codexArgs(c, images) {
-    const common = ["--json", "--skip-git-repo-check", "--ignore-user-config", ...images.flatMap((f) => ["-i", f])];
+    const common = ["--json", "--skip-git-repo-check", "--ignore-user-config", ...model(), ...images.flatMap((f) => ["-i", f])];
     return c.codexId ? ["exec", "resume", c.codexId, ...common, "-"]
       : ["exec", ...common, "-s", "read-only", "-C", run, "-c", `developer_instructions=${JSON.stringify(prompt())}`, "-"];
   }

@@ -28,7 +28,7 @@ const CONFIG = path.join(app.getPath("userData"), "config.json");
 // The first run under the new name starts from Flash's settings (the vault folder, the theme), so setup does not ask
 // again. Flash keeps its own copy and still runs as before.
 try { const old = path.join(app.getPath("appData"), "Flash", "config.json"); if (!fs.existsSync(CONFIG) && fs.existsSync(old)) { fs.mkdirSync(path.dirname(CONFIG), { recursive: true }); fs.copyFileSync(old, CONFIG); } } catch {}
-const DEFAULTS = { vault: null, host: "claude", model: "sonnet", theme: "system", sidebar: true, sidebarMode: "full", panel: true, panelWidth: 400 };
+const DEFAULTS = { vault: null, host: "claude", model: "sonnet", codexModel: "gpt-6.1-sol", theme: "system", sidebar: true, sidebarMode: "full", panel: true, panelWidth: 400 };
 let config = { ...DEFAULTS };
 try { config = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONFIG, "utf8")) }; } catch { /* first run */ }
 function saveConfig() {
@@ -140,10 +140,13 @@ function tutorEnv() {
 function tutorCommand(cmd) {
   return isWin ? { file: env.loginShell(), args: ["/d", "/s", "/c", `"${cmd}"`], verbatim: true } : { file: env.loginShell(), args: ["-ilc", `exec ${cmd}`], verbatim: false };
 }
-// Which Claude model the tutor runs on (Settings > Tutor). Sonnet is the default: it costs half of Opus on every token
-// and taught best in the 17 Nov tutor test. "default" leaves Claude Code's own choice. Codex keeps its own model.
-const MODELS = ["sonnet", "opus"];
-const modelArgs = () => (config.host === "claude" && MODELS.includes(config.model) ? ["--model", config.model] : []);
+// Which model the tutor runs on (Settings > Tutor > Model). The learner always picks; Settings says what each costs
+// and how it taught in the 17 Nov tutor test. Sonnet is the default: half of Opus on every token, and it taught best.
+// Codex: the two models that test ran.
+const MODELS = { claude: ["sonnet", "opus", "haiku"], codex: ["gpt-6.1-sol", "gpt-6-luna"] };
+const modelOf = (host) => (host === "codex" ? (MODELS.codex.includes(config.codexModel) ? config.codexModel : "gpt-6.1-sol")
+  : (MODELS.claude.includes(config.model) ? config.model : "sonnet"));
+const modelArgs = () => (config.host === "codex" ? ["-m", modelOf("codex")] : ["--model", modelOf("claude")]);
 // The tutor starts without the learner's connectors and MCP servers (Gmail, Drive, a course server...). A lesson never
 // needs them, and each one's tool names and instructions are re-read on every call: Edison's nine claude.ai connectors
 // and one local server were about 7k tokens a call (measured 18 Nov). --strict-mcp-config drops claude.ai connectors
