@@ -556,7 +556,12 @@ function startSlug(text) {
   text = text.replace(/['’]s\b/g, "");   // "CS 124's quiz" is about the quiz, not an s
   const code = text.match(/\b([A-Za-z]{2,5})\s?(\d{2,3})\b/);
   const rest = (code ? text.replace(code[0], " ") : text).toLowerCase().replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).filter((w) => w && !START_FILLER.has(w));
-  let slug = `${code ? code[1].toLowerCase() + code[2] : "personal"}-${rest.slice(0, 3).join("-") || "topic"}`.replace(/-+/g, "-").slice(0, 60).replace(/-$/, "");
+  return freeSlug(`${code ? code[1].toLowerCase() + code[2] : "personal"}-${rest.slice(0, 3).join("-") || "topic"}`.replace(/-+/g, "-").slice(0, 60).replace(/-$/, ""));
+}
+// A new subject's name never reuses one that exists, finished or not: /learn-start on an existing name files the new
+// lesson under the old subject (19 Nov: "CS 100 weekly quiz prep" became last week's cs100-weekly-quiz-prep, and
+// the new quiz's first messages landed in that subject's chat).
+function freeSlug(slug) {
   for (let n = 2, base = slug; subj(slug); n++) slug = `${base}-${n}`;
   return slug;
 }
@@ -1046,11 +1051,11 @@ function lessonSlug(topic) {
 ACTIONS["question-lesson"] = async (topic) => {
   const id = Q.id; if (!id) return;
   topic = String(topic || Q.chat.title).trim();
-  const r = await F.questions.mark(id, { lesson: topic });
+  const slug = freeSlug(lessonSlug(topic));
+  const r = await F.questions.mark(id, { lesson: topic, slug });
   if (!r || !r.file) return toast("Couldn't hand this chat to the tutor.");
   // The tutor sets the subject up out of sight (Edison, 7 Nov: the terminal opening was unwanted). This page says so,
   // and once the new subject's folder exists the app goes to its Session, where the tutor's first questions show.
-  const slug = lessonSlug(topic);
   Q.pending = { id, slug, topic, at: Date.now(), known: new Set(S.subjects.map((x) => x.slug)) };
   sendCommand(`${command(`learn-start ${slug}`)} ${topic}. This started as a question I asked; read ${r.file} first and pick up from what it covered.`);
   if (qPage()) paintQuestion(false);
@@ -1065,6 +1070,7 @@ function lessonArrived() {
   // The session running is this one, so follow its name; otherwise your next message reads as another subject's and
   // Hok sends a /learn-resume into the middle of setup.
   if (T.running && T.route === p.slug && s.slug !== p.slug) { T.route = s.slug; if (route.name === "session") paintComposer(); }
+  if (p.id && s.slug !== p.slug) F.questions.mark(p.id, { slug: s.slug });   // the question chat's "Open it" follows the name
   noteActive(s.slug);
   if (p.home ? route.name === "home" : qPage() && Q.id === p.id) go("session", s.slug);
   else toast(`${shortTitle(s)} is ready.`, { label: "Open", act: "subject", arg: s.slug });
@@ -1100,7 +1106,7 @@ function paintQuestion(toEnd) {
         ? `<div class="q-setup slow">The tutor is still setting up ${esc(Q.pending.topic)}. <button class="btn text" data-act="toggle-term">See what it's doing</button></div>`
         : `<div class="q-setup"><i class="spin"></i>Setting up your lesson on ${esc(Q.pending.topic)}. It opens here when it's ready.</div>`)
         : c.moved && subj(c.moved) ? `<div class="cmd-line">Moved to ${esc(shortTitle(subj(c.moved)))} · <button class="btn text" data-act="subject" data-arg="${c.moved}">Open it</button></div>`
-        : c.lesson ? `<div class="cmd-line">Became a lesson: ${esc(c.lesson)}${(() => { const s = subj(lessonSlug(c.lesson)); return s ? ` · <button class="btn text" data-act="subject" data-arg="${s.slug}">Open it</button>` : ""; })()}</div>` : ""}
+        : c.lesson ? `<div class="cmd-line">Became a lesson: ${esc(c.lesson)}${(() => { const s = subj(c.slug || lessonSlug(c.lesson)); return s ? ` · <button class="btn text" data-act="subject" data-arg="${s.slug}">Open it</button>` : ""; })()}</div>` : ""}
     </div></div>
     <div class="q-dock"><div class="composer q-field">
       <div class="attach" id="qAttach"></div>

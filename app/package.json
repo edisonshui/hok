@@ -1,7 +1,7 @@
 {
   "name": "flash",
   "productName": "Hok",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "A desktop companion for the learning vault: your tutor's terminal, the live log, and your progress in one window.",
   "main": "main.js",
   "private": true,

@@ -344,6 +344,21 @@ def split_last_turn(items):
     return asked, items[last], reply
 
 
+def with_final(reply, final):
+    """The reply, with the Stop payload's `last_assistant_message` on the end when the transcript lacks it.
+
+    The transcript file can lag one reply behind when Stop fires (19 Nov 2026: the em-dash hook in Edison's own
+    settings judged the reply before the one it was blocking). Read off the file alone, the last turn's reply then
+    comes back empty, so no check ran, or as only the text before a tool call.
+    """
+    if not isinstance(final, str):
+        return reply
+    final = live.save_note.strip(final)
+    if not final.strip() or (reply and reply[-1].strip() == final.strip()):
+        return reply
+    return reply + [final]
+
+
 def learner_command(learner):
     """The /learn-* verb the learner's last message starts with, or ""."""
     if not learner or learner["kind"] != "text":
@@ -550,6 +565,7 @@ def process(vault, payload):
         return ""
     items = turns(payload.get("transcript_path"))
     asked, learner, reply = split_last_turn(items)
+    reply = with_final(reply, payload.get("last_assistant_message"))
     command = learner_command(learner)
     if command in SKIP_COMMANDS or not reply:
         return ""
@@ -571,7 +587,8 @@ def process(vault, payload):
     del memory["flagged"][:-FLAGGED_KEEP]
     live.atomic_write(path, json.dumps(memory))
     reason = ("Reply check (tutor.md): " + " ".join(problems)
-              + " Rewrite the reply with these fixed; the same reply is never held twice.")
+              + " Rewrite the reply with these fixed; the same reply is never held twice."
+              + " The learner sees only the rewrite, so it must not mention this check, a hook, or the rewrite.")
     return {"decision": "block", "reason": reason}
 
 
