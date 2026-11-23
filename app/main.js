@@ -23,6 +23,14 @@ catch (e) { console.error("[rename] could not take over the old settings:", e.me
 delete process.env.ELECTRON_RUN_AS_NODE;
 
 protocol.registerSchemesAsPrivileged([{ scheme: "vault-file", privileges: { standard: false, supportFetchAPI: true } }, { scheme: "q-file", privileges: { standard: false, supportFetchAPI: true } }, { scheme: "wall-file", privileges: { standard: false, supportFetchAPI: true, stream: true } }, { scheme: "dict-file", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
+// Windows (23 Nov, Edison: Alt-Tab showed the bare glass, not the moving wallpaper; a still showed fine): Chromium hands
+// the video to a DirectComposition overlay, a layer of its own that Alt-Tab's preview leaves out. These two GPU
+// workarounds (gpu/config/gpu_workaround_list.txt; a switch named like one turns it on, gpu_driver_bug_list.cc) keep
+// video inside the window's own picture, at some cost in power.
+if (process.platform === "win32") {
+  app.commandLine.appendSwitch("disable_direct_composition_video_overlays");
+  app.commandLine.appendSwitch("disable_direct_composition_sw_video_overlays");
+}
 
 // ---------- settings ----------
 const CONFIG = path.join(app.getPath("userData"), "config.json");
