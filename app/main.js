@@ -202,11 +202,11 @@ ipcMain.handle("wall:resolve", async (_e, night, force) => { if (!WALL) return {
 ipcMain.handle("wall:clear", async (_e, night) => (WALL ? WALL.clear(config.wallpaper, !!night) : { count: 0, bytes: 0 }));
 // Apple's Aerial server, for the wallpaper's copy-maker only: macOS decides (lib/wallpaper.js trustApple)
 app.on("certificate-error", (event, wc, url, _error, cert, callback) => {
-  if (!WALL || !WALL.isMaker(wc)) return;
+  if (!WALL || !WALL.isMaker(wc)) return;   // every other page keeps Chromium's answer
   event.preventDefault();
   WALL.trustApple(url, cert).then((ok) => callback(ok), () => callback(false));
 });
-ipcMain.handle("wall:catalog", async () => { if (!WALL) return { aerials: [], mac: [] }; const c = await WALL.catalog(config.wallpaper); return { desktopThumb: wallUrl(c.desktopThumb), photoThumb: wallUrl(c.photoThumb), aerials: c.aerials.map((a) => ({ ...a, thumb: wallUrl(a.thumb) })), mac: c.mac.map((m) => ({ ...m, thumb: wallUrl(m.thumb) })), copies: c.copies }; });
+ipcMain.handle("wall:catalog", async () => { if (!WALL) return { aerials: [], mac: [] }; const c = await WALL.catalog(config.wallpaper); return { system: (c.system || []).map((s) => ({ ...s, thumb: wallUrl(s.thumb) })), systemGroup: c.systemGroup, desktopThumb: wallUrl(c.desktopThumb), photoThumb: wallUrl(c.photoThumb), aerials: c.aerials.map((a) => ({ ...a, thumb: wallUrl(a.thumb) })), mac: c.mac.map((m) => ({ ...m, thumb: wallUrl(m.thumb) })), copies: c.copies }; });
 ipcMain.handle("wall:photo", async () => { const r = await dialog.showOpenDialog(win, { properties: ["openFile"], filters: [{ name: "Pictures", extensions: ["jpg", "jpeg", "png", "heic", "webp"] }] }); return r.canceled ? null : r.filePaths[0]; });
 ipcMain.handle("wall:battery", () => !!(powerMonitor && powerMonitor.isOnBatteryPower()));
 // The Dock icon wears your stone (10 Nov 2026). The window draws it and sends a PNG; only the running Dock icon
@@ -721,8 +721,10 @@ app.whenReady().then(async () => {
     return net.fetch(pathToFileURL(full).toString());
   });
   // The wallpaper's copies and thumbnails: wall-file:///<path>, only from the folders lib/wallpaper.js allows.
-  if (process.platform === "darwin") {
-    WALL = wallpaper.make({ BrowserWindow, userData: app.getPath("userData"), onStatus: (st) => { if (process.env.WALL_DEBUG) console.log("[wall]", JSON.stringify(st)); send("wall:status", st); } });
+  // Every system since 23 Nov (Edison: Windows had no wallpapers); lib/wallpaper.js says where each picture comes from.
+  // HOK_WALL_PLATFORM lets a Mac run the Windows and Linux path, for testing.
+  {
+    WALL = wallpaper.make({ BrowserWindow, nativeImage, platform: process.env.HOK_WALL_PLATFORM || process.platform, userData: app.getPath("userData"), onStatus: (st) => { if (process.env.WALL_DEBUG) console.log("[wall]", JSON.stringify(st)); send("wall:status", st); } });
     protocol.handle("wall-file", (request) => {
       const full = path.normalize(decodeURIComponent(new URL(request.url).pathname.replace(/^\/+/, "")));
       if (!WALL.allowed(full) || !fs.existsSync(full)) return new Response("not found", { status: 404 });

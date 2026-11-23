@@ -1248,6 +1248,7 @@ html.glass #session .question.answerable{box-shadow:inset 0 1px 0 var(--glass-ed
 .question.answerable .option.other{padding-left:14px}
 .question.answerable .option.other.sel{background:transparent;border-color:color-mix(in srgb,var(--color-ink) 30%,transparent)}
 .side-empty{padding:4px 15px;line-height:18px}   /* lines up with the list's heading (7 Nov alignment) */
+.window:is(.icons,.to-icons) .side-empty{display:none}   /* folded, the rail has no room for it (23 Nov, Windows: one word per line) */
 .start-card .qc-p{margin-top:6px}
 .start-card .start-in{width:100%;margin-top:14px;height:40px;padding:0 14px;border-radius:10px;font:400 14.5px/22px var(--font-sans)}
 .start-card .start-in:focus{border-color:color-mix(in srgb,var(--color-ink) 30%,transparent);box-shadow:none;outline:none}

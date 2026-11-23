@@ -6,7 +6,6 @@
 (function () {
   const F = window.flash;
   if (!F || !F.wall) { window.Wall = { route() {}, reload() {}, stone() {} }; return; }
-  const MAC = F.platform === "darwin";   // pictures and Aerials come from macOS; other systems always show the stone glass
   const root = document.documentElement;
   const wall = document.createElement("div"); wall.id = "wall"; wall.setAttribute("aria-hidden", "true");
   wall.innerHTML = `<div class="wall-media"></div><div class="wall-tint"></div><div class="wall-shade"></div>`;
@@ -178,7 +177,7 @@
     set(cv, "stone");
   }
   async function reload(force) {
-    const r = MAC ? await F.wall.resolve(root.dataset.theme === "night", force) : { type: "stone" };
+    const r = await F.wall.resolve(root.dataset.theme === "night", force);   // every system since 23 Nov (lib/wallpaper.js)
     waiting = r.preparing ? r.preparing.key : null;
     if (r.type === "video" && r.url) showVideo(r.url);
     else if (r.type === "image" && r.url) showImage(r.url);

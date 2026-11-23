@@ -3891,7 +3891,7 @@ async function openSettings() {
   // Each preview is a small window of the app in that theme: the stone's glass, a sidebar, a sheet with a headline and
   // the field (11 Nov, Edison: the flat white and black bars "don't match the vibe of the app").
   const pv = (t) => `<span class="pv-${t}" style="--pv-tone:${Stone.tone(stone, t === "night")}"><b class="pv-side"></b><b class="pv-sheet"><i></i><i></i><u></u></b></span>`;
-  const wallSection = F.wall && F.platform === "darwin" ? await wallSettings() : "";   // pictures come from macOS; elsewhere the wallpaper is the stone glass
+  const wallSection = F.wall ? await wallSettings() : "";   // every system since 23 Nov; Windows and Linux stream the Aerials from Apple
   const thumb = (value, label, preview) => `<button class="thumb ${theme === value ? "on" : ""}" data-act="set-theme" data-arg="${value}" aria-pressed="${theme === value}"><div class="pv">${preview}</div><div class="lab">${label}</div></button>`;
   scrim.innerHTML = `<div class="card float sheet" role="dialog" aria-label="Settings">
     <div style="display:flex;align-items:center"><h2 class="t-head">Settings</h2><button style="margin-left:auto" class="icon-btn" data-act="close" aria-label="Close" data-tip="Esc">${icon("x")}</button></div>
@@ -3922,7 +3922,8 @@ async function openSettings() {
 }
 ACTIONS.settings = () => openSettings();
 // Settings' Wallpaper choices: your desktop, stone glass, a photo, the moving Mac wallpapers, then the Aerials
-// Edison picked (lib/wallpaper-picks.json) by group. Thumbnails are files already on this Mac.
+// Edison picked (lib/wallpaper-picks.json) by group. On a Mac the thumbnails are files already there; elsewhere
+// they download once from Apple, and Windows adds its own stills.
 async function wallSettings() {
   const cat = await F.wall.catalog(), wk = wallKey(cfg.wallpaper);
   // A moving wallpaper plays from a small copy the app makes once (about a minute and a half). A tile says where its
@@ -3936,18 +3937,21 @@ async function wallSettings() {
     return `<div class="wall-group">${g}</div><div class="walls" role="radiogroup" aria-label="${g}">${xs.map(air).join("")}</div>`;
   }).join("");
   const macAerials = cat.aerials.filter((a) => a.group === "Mac");   // Apple files some Aerials under Mac (Mac Blue)
+  // Windows and Linux: the stills the system ships with, as their own group (23 Nov)
+  const sys = (cat.system || []).length ? `<div class="wall-group">${esc(cat.systemGroup || "Your system")}</div><div class="walls" role="radiogroup" aria-label="${esc(cat.systemGroup || "Your system")}">${cat.system.map((s) => opt(`system:${s.id}`, s.name, img(s.thumb))).join("")}</div>` : "";
   const mac = cat.mac.length || macAerials.length ? `<div class="wall-group">Mac</div><div class="walls" role="radiogroup" aria-label="Mac">${cat.mac.map((m) => opt(`mac:${m.id}`, m.name, img(m.thumb), "set-wall", m)).join("")}${macAerials.map(air).join("")}</div>` : "";
   return `<div class="sec"><div class="t-sec">Wallpaper</div>
       <div class="cap" style="margin-top:2px">Moves on Home. Wallpapers marked with an arrow download the first time you pick one.</div>
       <div class="set-row"><span>Keep moving on battery</span><button class="glass-switch${cfg.wallBattery ? " on" : ""}" role="switch" aria-checked="${!!cfg.wallBattery}" aria-label="Keep moving on battery" data-act="wall-battery"><i></i></button></div>
 
       <div class="walls" role="radiogroup" aria-label="Wallpaper">${opt("desktop", "Your desktop", img(cat.desktopThumb))}${opt("stone", "Stone glass", '<i class="wt-stone"></i>')}${opt("", "A photo…", cat.photoThumb ? img(cat.photoThumb) : `<i class="wt-add">${icon("plus")}</i>`, "wall-photo")}</div>
-      ${mac}${groups}
+      ${mac}${sys}${groups}
       <div id="wallStatus" class="cap wall-status" aria-live="polite"></div>
       <div class="wall-kept"><span class="cap" id="wallKept">${keptWords(cat.copies)}</span><button class="btn text" id="wallClear" data-act="wall-clear"${cat.copies && cat.copies.count > 1 ? "" : " hidden"}>Remove the others</button></div></div>`;
 }
 const WALL_GET = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 1.8v6.4"/><path d="M3.4 5.8 6 8.4l2.6-2.6"/><path d="M2.4 10.4h7.2"/></svg>`;
-const keptWords = (c) => (!c || !c.count ? "No moving wallpapers are kept on this Mac yet." : `${c.count} moving ${c.count === 1 ? "wallpaper is" : "wallpapers are"} kept on this Mac, ${Math.max(1, Math.round(c.bytes / 1e6))} MB.`);
+const thisComputer = () => (isMac() ? "this Mac" : "this computer");
+const keptWords = (c) => (!c || !c.count ? `No moving wallpapers are kept on ${thisComputer()} yet.` : `${c.count} moving ${c.count === 1 ? "wallpaper is" : "wallpapers are"} kept on ${thisComputer()}, ${Math.max(1, Math.round(c.bytes / 1e6))} MB.`);
 // Give the space back: every copy goes but the one in use. A removed wallpaper shows its arrow again.
 ACTIONS["wall-clear"] = async () => {
   const c = await F.wall.clear(document.documentElement.dataset.theme === "night"), cat = await F.wall.catalog();

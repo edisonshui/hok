@@ -9,12 +9,20 @@
 //   { kind: "aerial", id }            an Apple Aerial; one not on this Mac streams from Apple once, while the copy is made
 //   { kind: "mac", id }               one of the moving Mac wallpapers that ship with macOS (Sonoma, Tahoe Day)
 //   { kind: "photo", file }           a picture you chose
+//   { kind: "system", id }            one of the stills Windows (or Linux) ships with, by a short id from systemWallpapers
 //   { kind: "stone" }                 no picture: the page draws slow light in your stone
+//
+// Windows and Linux (23 Nov 2026, Edison: "the wallpapers are a big aspect"): there is no Aerial folder there, so the
+// Aerials Edison picked stream from Apple's server, as the Aerial screensavers for Windows do; their links are in
+// wallpaper-picks.json and apple-trust.js checks the server. No Apple video ships with the app. Thumbnails download
+// once into the cache. "Your desktop" reads the system's own picture, and stills are resized with Electron's
+// nativeImage in place of macOS's sips.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 const { execFile } = require("child_process");
+const trust = require("./apple-trust");
 
 const HOME = os.homedir();
 const AERIALS = path.join(HOME, "Library/Application Support/com.apple.wallpaper/aerials");
@@ -32,7 +40,8 @@ const COPY_BITS = 2400000, V = ".v3", COPY = /\.(webm|mp4)$/;
 const run = (cmd, args) => new Promise((resolve) => execFile(cmd, args, { maxBuffer: 1 << 24 }, (err, out) => resolve(err ? null : String(out))));
 const exists = (f) => { try { return fs.statSync(f).size > 0; } catch { return false; } };
 
-function make({ BrowserWindow, userData, onStatus }) {
+function make({ BrowserWindow, userData, onStatus, nativeImage, platform = process.platform, thumbWait = 6000 }) {
+  const IS_MAC = platform === "darwin";
   const CACHE = path.join(userData, "wallpapers");
   fs.mkdirSync(CACHE, { recursive: true });
   const copyFile = (key) => path.join(CACHE, `${key}${V}.mp4`);
@@ -48,7 +57,9 @@ function make({ BrowserWindow, userData, onStatus }) {
     try { manifest = JSON.parse(fs.readFileSync(path.join(AERIALS, "manifest/entries.json"), "utf8")).assets || []; } catch { manifest = []; }
     return manifest;
   }
-  const aerial = (id) => aerialEntries().find((a) => a.id === id) || null;
+  // On a Mac, macOS's own manifest; elsewhere (or for a pick macOS no longer lists) the link kept in the picks
+  const pickEntry = (id) => { const p = PICKS.find((x) => x.id === id); return p && p.url ? { id, accessibilityLabel: p.name, "url-4K-SDR-240FPS": p.url, previewImage: p.preview } : null; };
+  const aerial = (id) => (IS_MAC && aerialEntries().find((a) => a.id === id)) || pickEntry(id);
   const localAerial = (id) => { const f = path.join(AERIALS, "videos", `${id}.mov`); return exists(f) ? f : null; };
 
   // The moving Mac wallpapers macOS ships with: a folder per wallpaper holding one .mov, or a Light and a Dark one.
@@ -83,6 +94,7 @@ function make({ BrowserWindow, userData, onStatus }) {
   // Your desktop's picture: the Aerial it plays (System Settings keeps the asset id in its store), else the still
   // macOS reports for the main screen.
   async function desktopPicture() {
+    if (!IS_MAC) return otherDesktop();
     // plutil can't turn this store into JSON (it holds dates and data), so read the one field: the choice's
     // Configuration is itself a small plist holding the Aerial's assetID
     const b64 = await run("/usr/bin/plutil", ["-extract", "AllSpacesAndDisplays.Linked.Content.Choices.0.Configuration", "raw", "-o", "-", STORE]);
@@ -100,12 +112,62 @@ function make({ BrowserWindow, userData, onStatus }) {
     return still && still.trim() ? { kind: "photo", file: still.trim() } : { kind: "stone" };
   }
 
-  // A still becomes a 1280-wide JPEG in the cache (sips reads HEIC, which Chromium can't); the page blurs it once.
-  async function stillCopy(file) {
-    const key = "still-" + crypto.createHash("sha1").update(file + (fs.statSync(file).mtimeMs || 0)).digest("hex").slice(0, 12);
+  // Windows: the picture named in the registry, else the copy Windows keeps of it (TranscodedWallpaper, a JPEG with
+  // no extension, which is also what a slideshow or Spotlight shows). Linux: GNOME's picture-uri. Else the stone glass.
+  async function otherDesktop() {
+    const found = (f) => (f && exists(f) ? { kind: "photo", file: f } : null);
+    if (platform === "win32") {
+      const out = await run("reg", ["query", "HKCU\\Control Panel\\Desktop", "/v", "WallPaper"]);
+      const m = out && /WallPaper\s+REG_\w+\s+(.+)/i.exec(out);
+      const named = m && m[1].trim();
+      const transcoded = process.env.APPDATA && path.join(process.env.APPDATA, "Microsoft", "Windows", "Themes", "TranscodedWallpaper");
+      return found(named) || found(transcoded) || { kind: "stone" };
+    }
+    const uri = ((await run("gsettings", ["get", "org.gnome.desktop.background", "picture-uri"])) || "").trim().replace(/^'|'$/g, "");
+    if (uri.startsWith("file://")) { try { return found(require("url").fileURLToPath(uri)) || { kind: "stone" }; } catch { /* not a file */ } }
+    return { kind: "stone" };
+  }
+
+  // A still becomes a JPEG at most 1280 wide in the cache (sips reads HEIC, which Chromium can't); the page blurs it
+  // once. Off the Mac, nativeImage reads PNG and JPEG; anything it can't read (WebP) is kept as it is, for the page.
+  async function stillCopy(file, width = 1280) {
+    let key; try { key = `still-${width}-` + crypto.createHash("sha1").update(file + (fs.statSync(file).mtimeMs || 0)).digest("hex").slice(0, 12); } catch { return null; }
     const out = path.join(CACHE, `${key}.jpg`);
-    if (!exists(out)) await run("/usr/bin/sips", ["-s", "format", "jpeg", "-Z", "1280", file, "--out", out]);
+    if (exists(out)) return out;
+    if (IS_MAC) { await run("/usr/bin/sips", ["-s", "format", "jpeg", "-Z", String(width), file, "--out", out]); return exists(out) ? out : null; }
+    try {
+      let img = nativeImage.createFromBuffer(fs.readFileSync(file));
+      if (img.isEmpty()) {
+        const ext = path.extname(file).toLowerCase(); if (![".webp", ".png", ".jpg", ".jpeg"].includes(ext)) return null;
+        const raw = path.join(CACHE, key + ext); fs.copyFileSync(file, raw); return raw;
+      }
+      if (img.getSize().width > width) img = img.resize({ width, quality: "good" });
+      fs.writeFileSync(out, img.toJPEG(85));
+    } catch { return null; }
     return exists(out) ? out : null;
+  }
+
+  // The stills Windows ships with (C:\Windows\Web\Wallpaper\<theme>\*.jpg), or GNOME's on Linux, at most 16.
+  // Each gets a short id, so a pick names one of these and never an arbitrary path.
+  let systemList = null;
+  function systemWallpapers() {
+    if (IS_MAC) return [];
+    if (systemList) return systemList;
+    const roots = platform === "win32" ? [path.join(process.env.WINDIR || "C:\\Windows", "Web", "Wallpaper")] : ["/usr/share/backgrounds/gnome", "/usr/share/backgrounds"];
+    const files = [];
+    const walk = (dir, depth) => {
+      let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      ents.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      for (const e of ents) {
+        const f = path.join(dir, e.name);
+        if (e.isDirectory() && depth < 1) walk(f, depth + 1);
+        else if (e.isFile() && /\.(jpe?g|png)$/i.test(e.name) && !files.includes(f)) files.push(f);
+      }
+    };
+    roots.forEach((r) => walk(r, 0));
+    const name = platform === "win32" ? "Windows" : "Wallpaper";
+    systemList = files.slice(0, 16).map((file, i) => ({ id: crypto.createHash("sha1").update(file).digest("hex").slice(0, 10), name: i ? `${name} ${i + 1}` : name, file }));
+    return systemList;
   }
 
   // The small copy: a hidden page plays the source once at its own speed, draws each frame into a 640x360 canvas
@@ -143,6 +205,7 @@ function make({ BrowserWindow, userData, onStatus }) {
     if (c.kind === "desktop") return resolve(await desktopPicture(), night, force);
     if (c.kind === "stone") return { type: "stone" };
     if (c.kind === "photo") { const f = c.file && fs.existsSync(c.file) ? await stillCopy(c.file) : null; return f ? { type: "image", file: f } : { type: "stone" }; }
+    if (c.kind === "system") { const s = systemWallpapers().find((x) => x.id === c.id); const f = s ? await stillCopy(s.file) : null; return f ? { type: "image", file: f } : { type: "stone" }; }
     if (c.kind === "mac") {
       const m = macWallpapers().find((x) => x.id === c.id); if (!m) return { type: "stone" };
       const src = night ? m.night : m.day, key = "mac-" + c.id.replace(/\W+/g, "-") + (src === m.night && m.night !== m.day ? "-dark" : "");
@@ -179,18 +242,35 @@ function make({ BrowserWindow, userData, onStatus }) {
   }
 
   // The choices Settings offers. Thumbnails are files already on this Mac.
-  const aerialThumb = (id) => { const f = path.join(AERIALS, "thumbnails", `${id}.png`); return exists(f) ? f : null; };
+  // On a Mac, the thumbnails macOS keeps; elsewhere, Apple's preview image, downloaded once into the cache.
+  const fetchedThumb = (id) => path.join(CACHE, `thumb-aerial-${id.replace(/\W+/g, "")}.png`);
+  const aerialThumb = (id) => { const own = IS_MAC && path.join(AERIALS, "thumbnails", `${id}.png`); return own && exists(own) ? own : exists(fetchedThumb(id)) ? fetchedThumb(id) : null; };
+  let thumbJob = null;
+  function fetchThumbs() {
+    if (IS_MAC) return Promise.resolve();
+    if (thumbJob) return thumbJob;
+    const todo = PICKS.filter((p) => p.preview && !exists(fetchedThumb(p.id)));
+    thumbJob = (async () => { for (let i = 0; i < todo.length; i += 4) await Promise.all(todo.slice(i, i + 4).map((p) => trust.download(p.preview, fetchedThumb(p.id)))); })()
+      .finally(() => { thumbJob = null; });
+    return thumbJob;
+  }
   // what "Your desktop" and "A photo" look like right now, for their tiles
   async function thumbOf(choice) {
     if (!choice) return null;
     if (choice.kind === "aerial") return aerialThumb(choice.id);
     if (choice.kind === "mac") { const m = macWallpapers().find((x) => x.id === choice.id); return m && m.thumb; }
-    if (choice.kind === "photo" && choice.file && fs.existsSync(choice.file)) return stillCopy(choice.file);
+    if (choice.kind === "photo" && choice.file && fs.existsSync(choice.file)) return stillCopy(choice.file, 320);
+    if (choice.kind === "system") { const s = systemWallpapers().find((x) => x.id === choice.id); return s ? stillCopy(s.file, 320) : null; }
     return null;
   }
   async function catalog(current) {
     const thumb = aerialThumb;
+    // the first time Settings opens off a Mac, wait a moment for Apple's thumbnails; the rest arrive next time
+    if (!IS_MAC) await Promise.race([fetchThumbs(), new Promise((r) => setTimeout(r, thumbWait))]);
+    const system = [];
+    for (const s of systemWallpapers()) system.push({ id: s.id, name: s.name, thumb: await stillCopy(s.file, 320) });
     return {
+      system, systemGroup: platform === "win32" ? "Windows" : "Your system",
       desktopThumb: await desktopPicture().then(thumbOf).catch(() => null),
       photoThumb: current && current.kind === "photo" ? await thumbOf(current) : null,
       aerials: PICKS.map((p) => ({ ...p, thumb: thumb(p.id), local: !!localAerial(p.id), key: `aerial-${p.id}`, ready: exists(copyFile(`aerial-${p.id}`)), busy: jobs.has(`aerial-${p.id}`) })),
@@ -207,19 +287,21 @@ function make({ BrowserWindow, userData, onStatus }) {
   // only, ask macOS whether it trusts the chain; anything else keeps Chromium's answer.
   const isMaker = (wc) => !!wc && makers.has(wc.id);
   async function trustApple(url, cert) {
+    if (!IS_MAC) return trust.trustElectronCert(url, cert);
     let host = ""; try { host = new URL(url).hostname; } catch { return false; }
     if (host !== "sylvan.apple.com" || !cert) return false;
     const files = []; for (let c = cert, i = 0; c && c.data && i < 4; c = c.issuerCert, i++) { const f = path.join(CACHE, `chain-${i}.pem`); fs.writeFileSync(f, c.data); files.push("-c", f); }
     return (await run("/usr/bin/security", ["verify-cert", ...files, "-p", "ssl", "-s", host])) !== null;
   }
 
-  return { resolve, catalog, clear, allowed, isMaker, trustApple, CACHE };
+  if (!IS_MAC) setTimeout(() => fetchThumbs().catch(() => {}), 10000).unref?.();   // ready before Settings is opened, after startup
+  return { resolve, catalog, clear, allowed, isMaker, trustApple, CACHE, systemWallpapers, fetchThumbs };
 }
 
 // A file for the page, with the byte ranges a <video> asks for.
 function serve(file, request) {
   const size = fs.statSync(file).size;
-  const type = file.endsWith(".mp4") ? "video/mp4" : file.endsWith(".webm") ? "video/webm" : file.endsWith(".png") ? "image/png" : "image/jpeg";
+  const type = file.endsWith(".mp4") ? "video/mp4" : file.endsWith(".webm") ? "video/webm" : file.endsWith(".png") ? "image/png" : file.endsWith(".webp") ? "image/webp" : "image/jpeg";
   const m = /bytes=(\d*)-(\d*)/.exec(request.headers.get("range") || "");
   if (!m) return new Response(fs.readFileSync(file), { headers: { "Content-Type": type, "Content-Length": String(size), "Accept-Ranges": "bytes" } });
   const start = m[1] ? +m[1] : 0, end = m[2] ? Math.min(+m[2], size - 1) : size - 1;
